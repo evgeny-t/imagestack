@@ -1,0 +1,29 @@
+==multiply==
+--
+_This page was auto-generated from the ImageStack -help operator. Direct edits to it will be lost. Use the comments below to discuss this operation._
+--
+
+
+-multiply multiplies the top image in the stack by the second image in the stack.
+
+Usage: ImageStack -load a.tga -load b.tga -multiply -save out.tga.
+==multiply==
+--
+_This page was auto-generated from the ImageStack -help operator. Direct edits to it will be lost. Use the comments below to discuss this operation._
+--
+
+
+-multiply multiplies the top image in the stack by the second image in the stack.
+
+Usage: ImageStack -load a.tga -load b.tga -multiply -save out.tga.
+==multiply==
+--
+_This page was auto-generated from the ImageStack -help operator. Direct edits to it will be lost. Use the comments below to discuss this operation._
+--
+{{{
+
+
+-multiply multiplies the top image in the stack by the second image in the stack.
+
+Usage: ImageStack -load a.tga -load b.tga -multiply -save out.tga.
+}}}

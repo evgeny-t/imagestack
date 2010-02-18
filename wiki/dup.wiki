@@ -1,0 +1,35 @@
+==dup==
+--
+_This page was auto-generated from the ImageStack -help operator. Direct edits to it will be lost. Use the comments below to discuss this operation._
+--
+
+
+-dup duplicates the current image and pushes it on the stack.
+
+Usage: ImageStack -load a.tga -dup -scale 0.5 -save a_small.tga
+                  -pop -scale 2 -save a_big.tga
+
+==dup==
+--
+_This page was auto-generated from the ImageStack -help operator. Direct edits to it will be lost. Use the comments below to discuss this operation._
+--
+
+
+-dup duplicates the current image and pushes it on the stack.
+
+Usage: ImageStack -load a.tga -dup -scale 0.5 -save a_small.tga
+                  -pop -scale 2 -save a_big.tga
+
+==dup==
+--
+_This page was auto-generated from the ImageStack -help operator. Direct edits to it will be lost. Use the comments below to discuss this operation._
+--
+{{{
+
+
+-dup duplicates the current image and pushes it on the stack.
+
+Usage: ImageStack -load a.tga -dup -scale 0.5 -save a_small.tga
+                  -pop -scale 2 -save a_big.tga
+
+}}}
