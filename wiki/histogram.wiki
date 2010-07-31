@@ -4,10 +4,9 @@ _This page was auto-generated from the !ImageStack -help operator. Direct edits 
 {{{
 ImageStack -help histogram
 
--histogram displays a per-channel histogram of the current image. The first
+-histogram computes a per-channel histogram of the current image. The first
 optional argument specifies the number of buckets in the histogram. If this is
-not given it defaults to 60. The second optional argument specifies a file to
-save the histogram to.
-
-Usage: ImageStack -load a.tga -histogram
+not given it defaults to 256. The second and third arguments indicate the range
+of data to expect. These default to 0 and 1.Usage: ImageStack -load a.tga
+-histogram -normalize -plot 256 256 3 -display
 }}}

@@ -38,6 +38,11 @@ in a 4 bytes per pixel red green blue exponent (rgbe) format.
 the quality. This defaults to 90. A jpeg image always has a single frame,
 and may have either one or three channels.
 
+.exr files. These store high dynamic range data as 16 bit floats. They must
+have one frame, and one to four channels.  When saving, the optional second
+argument represents the compression type, and must be one of none, rle,
+zips, zip, piz, or pxr24. piz is the default, all but pxr24 are lossless.
+
 .png files. These have a bit depth of 8, and may have 1-4 channels. They may
 only have 1 frame.
 

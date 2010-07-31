@@ -11,9 +11,9 @@ image prior described in Levin et al. 2007. The convolution specified must be
 being minimized), then the filter width, filter height, and filter frames, then
 the filter to be deconvolved by in row major form. With only the first
 argument, fftdeconvolve will use the next image on the stack as the filter. It
-must be single channel. The output to deconvolve is constrained to be positive.
+must be single channel.
 
-Usage: ImageStack -load filter.png -load in.jpg -deconvolvefast 0.01 -save
+Usage: ImageStack -load filter.png -load in.jpg -fftdeconvolve 0.01 -save
 dcv.jpg
 
 }}}

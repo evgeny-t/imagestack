@@ -5,9 +5,9 @@ _This page was auto-generated from the !ImageStack -help operator. Direct edits 
 ImageStack -help printf
 
 -printf evaluates and prints its arguments, using the first argument as a
-format string. The remaining arguments are all evaluated as floats, so use %d,
-%i, and other non-float formats with caution.
+format string. The remaining arguments are all evaluated as floats, so use %%d,
+%%i, and other non-float formats with caution.
 
-Usage: ImageStack -load foo.jpg -printf "Mean  =  %f" "mean()"
+Usage: ImageStack -load foo.jpg -printf "Mean  =  %%f" "mean()"
 
 }}}

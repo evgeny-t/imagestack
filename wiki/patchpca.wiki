@@ -5,11 +5,10 @@ _This page was auto-generated from the !ImageStack -help operator. Direct edits 
 ImageStack -help patchpca
 
 -patchpca treats local Gaussian neighbourhoods of pixel values as vectors and
-performs pca on them to reduce dimensionality. The resulting vectors are stored
-at each pixel over the color channels. The two arguments are the standard
-deviation of the Gaussian, and the desired number of output dimensions. Patches
-near the edge of the image are not included in the covariance computation, but
-are transformed along with the rest of the pixels.
-
-Usage: ImageStack -load a.jpg -patchpca 2 8 -save pca.tmp
+computes a stack of filters that can be used to reduce dimensionality and
+decorrelate the color channels. The two arguments are the standard deviation of
+the Gaussian, and the desired number of output dimensions. Patches near the
+edge of the image are not included in the covariance computation.
+Usage: ImageStack -load a.jpg -patchpca 2 8 -save filters.tmp
+ -pull 1 -convolve zero inner -save reduced.tmp
 }}}
