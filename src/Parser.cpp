@@ -324,10 +324,6 @@ Expression::~Expression() {
     delete root;
 }
 
-float Expression::eval(State *state) {
-    return root->eval(state);
-}
-
 void Expression::help() {
     printf("Variables:\n"
            "  x   \t the x coordinate, measured from 0 to width - 1\n"

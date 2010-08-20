@@ -144,8 +144,8 @@ float readFloat(string arg) {
         push(Image(1, 1, 1, 1));
         needToPop = true;
     }
-    Expression::State s(stack(0));
-    float val = e.eval(&s);    
+    Interpreter interp(stack(0));
+    float val = interp.interpret(e);
     if (needToPop) pop();
     return val;
 }

@@ -17,18 +17,21 @@ void Eval::parse(vector<string> args) {
     push(im);
 }
 
-Image Eval::apply(Window im, string expression_) {
-    Expression expression(expression_);
-    Expression::State state(im);
+#include "Compiler.h"
+
+Image Eval::apply(Window im, string expression) {
+    Program prog(Expression(expression), im);
     
     Image out(im.width, im.height, im.frames, im.channels);
 
-    for (state.t = 0; state.t < im.frames; state.t++) {
-        for (state.y = 0; state.y < im.height; state.y++) {
-            for (state.x = 0; state.x < im.width; state.x++) {
-                state.val = im(state.x, state.y, state.t);
-                for (state.c = 0; state.c < im.channels; state.c++) {
-                    out(state.x, state.y, state.t)[state.c] = expression.eval(&state);
+    Program::State s;
+
+    for (s.t = 0; s.t < im.frames; s.t++) {
+        for (s.y = 0; s.y < im.height; s.y++) {
+            for (s.x = 0; s.x < im.width; s.x++) {
+                s.val = im(s.x, s.y, s.t);
+                for (s.c = 0; s.c < im.channels; s.c++) {
+                    out(s.x, s.y, s.t)[s.c] = prog.interpret(s);
                 }
             }
         }
@@ -57,29 +60,27 @@ void EvalChannels::parse(vector<string> args) {
 
 
 Image EvalChannels::apply(Window im, vector<string> expressions_) {
-    vector<Expression *> expressions(expressions_.size());
+    vector<Program> prog;
     for (size_t i = 0; i < expressions_.size(); i++) {        
-        expressions[i] = new Expression(expressions_[i]);
+        prog.push_back(Program(Expression(expressions_[i]), im));
     }        
 
     int channels = (int)expressions_.size();
 
-    Image out(im.width, im.height, im.frames, channels);
-    
-    Expression::State state(im);
+    Image out(im.width, im.height, im.frames, channels);    
 
-    for (state.t = 0; state.t < im.frames; state.t++) {
-        for (state.y = 0; state.y < im.height; state.y++) {
-            for (state.x = 0; state.x < im.width; state.x++) {
-                state.val = im(state.x, state.y, state.t);
-                for (state.c = 0; state.c < channels; state.c++) {
-                    out(state.x, state.y, state.t)[state.c] = expressions[state.c]->eval(&state);
+    Program::State s;
+
+    for (s.t = 0; s.t < im.frames; s.t++) {
+        for (s.y = 0; s.y < im.height; s.y++) {
+            for (s.x = 0; s.x < im.width; s.x++) {
+                s.val = im(s.x, s.y, s.t);
+                for (s.c = 0; s.c < channels; s.c++) {
+                    out(s.x, s.y, s.t)[s.c] = prog[s.c].interpret(s);
                 }
             }
         }
     }
-
-    for (size_t i = 0; i < expressions.size(); i++) delete expressions[i];    
 
     return out;
 }
