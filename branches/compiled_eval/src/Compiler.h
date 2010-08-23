@@ -98,8 +98,7 @@ public:
     }
 
     // optimizations
-    void typeInference() {
-        
+    void typeInference() {       
     }
     
     void strengthReduction() {
@@ -264,6 +263,62 @@ public:
         return stack[0];
     }
  
+    void compile(AsmX64 *a, AsmX64::Reg x, AsmX64::Reg y,
+                 AsmX64::Reg t, AsmX64::Reg c, AsmX64::Reg ptr) {
+
+        int r = 0;
+        for (size_t i = 0; i < instructions.size(); i++) {
+            switch(instructions[i].op) {
+            case ByteCode::Const: 
+                a->movss(AsmX64::SSEReg(r++), &(instructions[i].val));
+                break;
+            case ByteCode::VarX:
+            case ByteCode::VarY:
+            case ByteCode::VarT:
+            case ByteCode::VarC:
+                printf("Not implemented\n");                
+                break;
+            case ByteCode::VarVal:
+                a->movss(AsmX64::SSEReg(r++), AsmX64::Memory(ptr));
+                break;
+            case ByteCode::Plus:
+                a->addss(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-1));
+                r--;
+                break;
+            case ByteCode::Minus:
+            case ByteCode::Times: 
+            case ByteCode::Divide: 
+            case ByteCode::LT: 
+            case ByteCode::GT:
+            case ByteCode::LTE:
+            case ByteCode::GTE:
+            case ByteCode::EQ:
+            case ByteCode::NEQ:
+            case ByteCode::ATan2:
+            case ByteCode::Sample2D: 
+            case ByteCode::Sample3D:
+            case ByteCode::IfThenElse:
+            case ByteCode::SampleHere:
+            case ByteCode::Mod:
+            case ByteCode::Pow:
+            case ByteCode::Sin:
+            case ByteCode::Cos:
+            case ByteCode::Tan:
+            case ByteCode::ASin:
+            case ByteCode::ACos:
+            case ByteCode::ATan:
+            case ByteCode::Exp:
+            case ByteCode::Log:
+            case ByteCode::Negate:
+            case ByteCode::Floor:
+            case ByteCode::Ceil:
+            case ByteCode::Round:
+            case ByteCode::Abs:
+                printf("Not implemented\n");                
+                break;
+            }
+    }
+
     void visit(Expression::Var_x *node) {gen(ByteCode::VarX);}
     void visit(Expression::Var_y *node) {gen(ByteCode::VarY);}
     void visit(Expression::Var_t *node) {gen(ByteCode::VarT);}
