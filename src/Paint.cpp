@@ -24,8 +24,55 @@ Image Eval::apply(Window im, string expression) {
     
     Image out(im.width, im.height, im.frames, im.channels);
 
-    Program::State s;
+    AsmX64 a;
+    AsmX64::Register x = a.rax, y = a.rcx, 
+        t = a.r8, c = a.rsi, 
+        ptr = a.rdx, tmp = a.rdi;
 
+    a.mov(t, 0);
+    a.label("tloop"); {
+        a.mov(y, 0);
+        a.label("yloop"); {
+            a.mov(x, 0);
+
+            // compute the address of the start of this scanline
+            a.mov(ptr, (uint64_t)im(0, 0));
+            a.mov(tmp, im.tstride);
+            a.mul(tmp, t);
+            a.add(ptr, tmp);
+            a.mov(tmp, im.ystride);
+            a.mul(tmp, y);
+            a.add(ptr, tmp);
+
+            a.label("xloop"); {
+                a.mov(c, 0);
+                a.label("cloop"); {
+
+                    // insert code for the expression
+                    prog.compile(&a, x, y, t, c, ptr);
+
+                    a.add(c, 1);
+                    a.add(ptr, 4);
+                    a.cmp(c, im.channels);
+                    a.jge("cloop");
+                }
+                a.add(x, 1);
+                a.cmp(x, im.width);
+                a.jge("xloop");
+            }
+            a.add(y, 1);
+            a.cmp(y, im.height);
+            a.jge("yloop");            
+        }
+        a.add(t, 1);
+        a.cmp(t, im.frames);
+        a.jge("tloop");            
+    }
+
+    
+
+    /*
+    Program::State s;
     for (s.t = 0; s.t < im.frames; s.t++) {
         for (s.y = 0; s.y < im.height; s.y++) {
             for (s.x = 0; s.x < im.width; s.x++) {
@@ -36,6 +83,7 @@ Image Eval::apply(Window im, string expression) {
             }
         }
     }
+    */
 
     return out;
 }
