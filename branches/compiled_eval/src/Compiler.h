@@ -3,7 +3,7 @@
 
 #include <vector>
 #include "Parser.h"
-
+#include "X64.h"
 #include "header.h"
 
 const char *opname[] = {"Const", "VarX", "VarY", "VarT", "VarC", "VarVal", "Negate", "Plus", "Minus", 
@@ -270,7 +270,8 @@ public:
         for (size_t i = 0; i < instructions.size(); i++) {
             switch(instructions[i].op) {
             case ByteCode::Const: 
-                a->movss(AsmX64::SSEReg(r++), &(instructions[i].val));
+                a->mov(a->r15, &instructions[i].val);
+                a->movss(AsmX64::SSEReg(r++), AsmX64::Mem(a->r15));
                 break;
             case ByteCode::VarX:
             case ByteCode::VarY:
@@ -279,7 +280,7 @@ public:
                 printf("Not implemented\n");                
                 break;
             case ByteCode::VarVal:
-                a->movss(AsmX64::SSEReg(r++), AsmX64::Memory(ptr));
+                a->movss(AsmX64::SSEReg(r++), AsmX64::Mem(ptr));
                 break;
             case ByteCode::Plus:
                 a->addss(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-1));
@@ -317,6 +318,7 @@ public:
                 printf("Not implemented\n");                
                 break;
             }
+        }
     }
 
     void visit(Expression::Var_x *node) {gen(ByteCode::VarX);}

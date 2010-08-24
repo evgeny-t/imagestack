@@ -180,6 +180,7 @@
     <ClInclude Include="..\..\src\Arithmetic.h" />
     <ClInclude Include="..\..\src\Calculus.h" />
     <ClInclude Include="..\..\src\Color.h" />
+    <ClInclude Include="..\..\src\Compiler.h" />
     <ClInclude Include="..\..\src\Complex.h" />
     <ClInclude Include="..\..\src\Control.h" />
     <ClInclude Include="..\..\src\Convolve.h" />
@@ -206,6 +207,7 @@
     <ClInclude Include="..\..\src\Network.h" />
     <ClInclude Include="..\..\src\NetworkOps.h" />
     <ClInclude Include="..\..\src\Operation.h" />
+    <ClInclude Include="..\..\src\OpticalFlow.h" />
     <ClInclude Include="..\..\src\Paint.h" />
     <ClInclude Include="..\..\src\Panorama.h" />
     <ClInclude Include="..\..\src\Parser.h" />
@@ -218,6 +220,7 @@
     <ClInclude Include="..\..\src\tables.h" />
     <ClInclude Include="..\..\src\Wavelet.h" />
     <ClInclude Include="..\..\src\WLS.h" />
+    <ClInclude Include="..\..\src\X64.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\Alignment.cpp" />
@@ -254,6 +257,7 @@
     <ClCompile Include="..\..\src\Network.cpp" />
     <ClCompile Include="..\..\src\NetworkOps.cpp" />
     <ClCompile Include="..\..\src\Operation.cpp" />
+    <ClCompile Include="..\..\src\OpticalFlow.cpp" />
     <ClCompile Include="..\..\src\Paint.cpp" />
     <ClCompile Include="..\..\src\Panorama.cpp" />
     <ClCompile Include="..\..\src\Parser.cpp" />
