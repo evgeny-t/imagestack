@@ -25,10 +25,13 @@ Image Eval::apply(Window im, string expression) {
     Image out(im.width, im.height, im.frames, im.channels);
 
     AsmX64 a;
-    AsmX64::Register x = a.rax, y = a.rcx, 
+    AsmX64::Reg x = a.rax, y = a.rcx, 
         t = a.r8, c = a.rsi, 
-        ptr = a.rdx, tmp = a.rdi;
+        imPtr = a.rdx, tmp = a.r15,
+        outPtr = a.rdi;
 
+    printf("Generating machine code...\n");
+    a.pushNonVolatiles();
     a.mov(t, 0);
     a.label("tloop"); {
         a.mov(y, 0);
@@ -36,40 +39,51 @@ Image Eval::apply(Window im, string expression) {
             a.mov(x, 0);
 
             // compute the address of the start of this scanline
-            a.mov(ptr, (uint64_t)im(0, 0));
-            a.mov(tmp, im.tstride);
-            a.mul(tmp, t);
-            a.add(ptr, tmp);
-            a.mov(tmp, im.ystride);
-            a.mul(tmp, y);
-            a.add(ptr, tmp);
-
+            a.mov(imPtr, im(0, 0));           
+            a.mov(tmp, t); 
+            a.imul(tmp, im.tstride*sizeof(float));
+            a.add(imPtr, tmp);
+            a.mov(tmp, y);
+            a.imul(tmp, im.ystride*sizeof(float));
+            a.add(imPtr, tmp);
+            a.mov(outPtr, (int64_t)(sizeof(float)*(out(0, 0) - im(0, 0))));
+            a.add(outPtr, imPtr);
+            
             a.label("xloop"); {
                 a.mov(c, 0);
                 a.label("cloop"); {
 
                     // insert code for the expression
-                    prog.compile(&a, x, y, t, c, ptr);
+                    prog.compile(&a, x, y, t, c, imPtr);
+                    a.movss(outPtr, a.xmm0);
 
                     a.add(c, 1);
-                    a.add(ptr, 4);
+                    a.add(imPtr, 4);
+                    a.add(outPtr, 4);
                     a.cmp(c, im.channels);
-                    a.jge("cloop");
+                    a.jl("cloop");
                 }
                 a.add(x, 1);
                 a.cmp(x, im.width);
-                a.jge("xloop");
+                a.jl("xloop");
             }
             a.add(y, 1);
             a.cmp(y, im.height);
-            a.jge("yloop");            
+            a.jl("yloop");            
         }
         a.add(t, 1);
         a.cmp(t, im.frames);
-        a.jge("tloop");            
+        a.jl("tloop");            
     }
+    a.popNonVolatiles();
+    a.ret();
 
+    // save the obj for debugging
+    //a.saveCOFF("generated.obj");
     
+    a.run();
+
+    printf("%f, %f\n", im(10, 10)[0], out(10, 10)[0]);
 
     /*
     Program::State s;
