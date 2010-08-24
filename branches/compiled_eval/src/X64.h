@@ -539,6 +539,14 @@ public:
         }         
     }
 
+
+    void bop(SSEReg dst, Reg src, unsigned char op) {
+        emit(0x48 | ((dst.num & 8) >> 1) | (src.num >> 3));
+        emit(0x0F);
+        emit(op);
+        emit(0xC0 | ((dst.num & 7) << 3) | (src.num & 7));
+    }
+
     void bop(Mem dst, SSEReg src, unsigned char op) {
         if (dst.reg.num > 7 || src.num > 7) {
             emit(0x40 | ((src.num & 8) >> 1) | (dst.reg.num >> 3));
@@ -611,7 +619,72 @@ public:
         bop(dst, src, 0x5C);        
     }
 
+    void mulss(SSEReg dst, SSEReg src) {
+        emit(0xF3);
+        bop(dst, src, 0x59);
+    }
 
+    void divss(SSEReg dst, SSEReg src) {
+        emit(0xF3);
+        bop(dst, src, 0x5E);
+    }
+
+    void cmpeqss(SSEReg dst, SSEReg src) {
+        emit(0xF3);
+        bop(dst, src, 0xC2);
+        emit(0x00);
+    }
+
+    void cmpltss(SSEReg dst, SSEReg src) {
+        emit(0xF3);
+        bop(dst, src, 0xC2);
+        emit(0x01);
+    }
+    
+    void cmpless(SSEReg dst, SSEReg src) {
+        emit(0xF3);
+        bop(dst, src, 0xC2);
+        emit(0x02);
+    }
+
+    void cmpneqss(SSEReg dst, SSEReg src) {
+        emit(0xF3);
+        bop(dst, src, 0xC2);
+        emit(0x04);
+    }
+
+    void cmpnltss(SSEReg dst, SSEReg src) {
+        emit(0xF3);
+        bop(dst, src, 0xC2);
+        emit(0x05);
+    }
+
+    void cmpnless(SSEReg dst, SSEReg src) {
+        emit(0xF3);
+        bop(dst, src, 0xC2);
+        emit(0x06);
+    }
+
+    void bandps(SSEReg dst, SSEReg src) {
+        bop(dst, src, 0x54);
+    }
+
+    void bandnps(SSEReg dst, SSEReg src) {
+        bop(dst, src, 0x55);
+    }
+
+    void borps(SSEReg dst, SSEReg src) {
+        bop(dst, src, 0x56);
+    }
+
+    void bxorps(SSEReg dst, SSEReg src) {
+        bop(dst, src, 0x57);
+    }
+
+    void cvtsi2ss(SSEReg dst, Reg src) {
+        emit(0xF3);
+        bop(dst, src, 0x2A);
+    }
 
     void popNonVolatiles() {
         mov(rbx, Mem(rsp, 0xD8));

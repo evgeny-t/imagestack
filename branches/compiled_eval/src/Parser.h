@@ -160,6 +160,7 @@ public:
         Node() {};
         virtual ~Node() {};
         virtual void accept(Visitor *v) = 0;
+        void *data; // visitors can tag nodes with arbitrary data if they like
     };
 
 #define nullary(name)                               \
