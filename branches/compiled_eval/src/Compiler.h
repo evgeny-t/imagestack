@@ -6,37 +6,45 @@
 #include "X64.h"
 #include "header.h"
 
-const char *opname[] = {"Const", "NoOp", "VarX", "VarY", "VarT", "VarC", "VarVal", "Negate", "Plus", "Minus", 
+const char *opname[] = {"ConstFloat", "ConstBool", "NoOp",
+                        "VarX", "VarY", "VarT", "VarC", "VarVal", "Plus", "Minus", 
                         "Times", "Divide", "Sin", "Cos", "Tan", "Power",
                         "ASin", "ACos", "ATan", "ATan2", "Abs", "Floor", "Ceil", "Round",
                         "Exp", "Log", "Mod", "SampleHere", "Sample2D", "Sample3D",
-                        "IfLT", "IfGT", "IfLTE", "IfGTE", "IfEQ", "IfNEQ"};    
+                        "LT", "GT", "LTE", "GTE", "EQ", "NEQ",
+                        "And", "Or", "Nand"};    
 
 class Compiler : public Expression::Visitor {
 
-    enum {Const = 0, NoOp, VarX, VarY, VarT, VarC, VarVal, Negate, Plus, Minus, 
+    enum {ConstFloat = 0, ConstBool, NoOp, 
+          VarX, VarY, VarT, VarC, VarVal, Plus, Minus, 
           Times, Divide, Sin, Cos, Tan, Power,
           ASin, ACos, ATan, ATan2, Abs, Floor, Ceil, Round,
           Exp, Log, Mod, SampleHere, Sample2D, Sample3D,
-          IfLT, IfGT, IfLTE, IfGTE, IfEQ, IfNEQ};
+          LT, GT, LTE, GTE, EQ, NEQ,
+          And, Or, Nand};
     
     enum {DepT = 1, DepY = 2, DepX = 4, DepC = 8, DepVal = 16};
+
+    enum Type {Unknown = 0, Float, Bool};
     
     // One node in the intermediate representation
     struct IRNode {
         IRNode(float v) {
-            op = Const;
+            op = ConstFloat;
             val = v;
             deps = 0;
             reg = -1;
             level = 0;
+            type = Float;
         }
 
-        IRNode(uint32_t opcode, 
-               IRNode *child1 = NULL, 
-               IRNode *child2 = NULL, 
-               IRNode *child3 = NULL,
-               IRNode *child4 = NULL) {
+        IRNode(Type t, uint32_t opcode, 
+               Type t1 = Float, IRNode *child1 = NULL, 
+               Type t2 = Float, IRNode *child2 = NULL, 
+               Type t3 = Float, IRNode *child3 = NULL,
+               Type t4 = Float, IRNode *child4 = NULL) {
+            type = t;
             deps = 0;
             op = opcode;
             if (opcode == VarX) deps |= DepX;
@@ -45,28 +53,30 @@ class Compiler : public Expression::Visitor {
             else if (opcode == VarC) deps |= DepC;
             else if (opcode == VarVal) deps |= DepVal;
 
-            if (child1) {
-                children.push_back(child1);
-                child1->parents.push_back(this);
-                deps |= child1->deps;
-            }
+            printf("%d: %s", (int)t, opname[opcode]);
+            if (child1) printf(" %d (%d)", (int)t1, child1->type);
+            if (child2) printf(" %d (%d)", (int)t2, child2->type);
+            if (child3) printf(" %d (%d)", (int)t3, child3->type);
+            if (child4) printf(" %d (%d)", (int)t4, child4->type);
+            printf("\n");
 
-            if (child2) {
-                children.push_back(child2);
-                child2->parents.push_back(this);
-                deps |= child2->deps;
-            }
+            if (child1) children.push_back(child1);
+            if (child2) children.push_back(child2);
+            if (child3) children.push_back(child3);
+            if (child4) children.push_back(child4);
+            Type childTypes[] = {t1, t2, t3, t4};
 
-            if (child3) {
-                children.push_back(child3);
-                child3->parents.push_back(this);
-                deps |= child3->deps;
-            }
-
-            if (child4) {
-                children.push_back(child4);
-                child4->parents.push_back(this);
-                deps |= child4->deps;
+            for (size_t i = 0; i < children.size(); i++) {
+                IRNode *c = children[i];
+                Type ct = childTypes[i];
+                if (c->type == Float && ct == Bool) {
+                    c = new IRNode(Bool, NEQ, Float, c, Float, new IRNode(0.0f));
+                } else if (c->type == Bool && ct == Float) {
+                    c = new IRNode(Float, And, Bool, c, Float, new IRNode(1.0f));
+                } 
+                children[i] = c;
+                c->parents.push_back(this);
+                deps |= c->deps;
             }
 
             reg = -1;
@@ -76,6 +86,7 @@ class Compiler : public Expression::Visitor {
             else if (deps & DepY) level = 2;
             else if (deps & DepT) level = 1;
             else level = 0;
+
         }
 
         // Opcode
@@ -93,12 +104,32 @@ class Compiler : public Expression::Visitor {
         // Which loop variables does this node depend on?
         uint32_t deps;
 
+        // In what order is this instruction evaluated
+        int32_t order;
+
         // What register will this node be computed in?
         signed char reg;
                
         // What level of the for loop will this node be computed at?
         // 0 is outermost, 4 is deepest
         signed char level;
+
+        // What is the type of this expression?
+        Type type;
+
+        // Can one node nuke the register assigned to another
+        // node. Undefined if registers haven't been assigned yet.
+        bool canDestroy(const IRNode *other) {
+            if (other->level != level) return false;
+            if (other->order > order) return false;
+            // I have to be the last-evaluated parent of the node to
+            // be able to destroy it
+            for (size_t i = 0; i < other->parents.size(); i++) {
+                if (other->parents[i]->level != level) return false;
+                if (other->parents[i]->order > order) return false;
+            }
+            return true;
+        }
     };
 
     // State needed while visiting the AST
@@ -120,13 +151,12 @@ public:
         // Register assignment and evaluation ordering
         vector<vector<IRNode *> > ordering = doRegisterAssignment();
 
-
         for (size_t l = 0; l < ordering.size(); l++) {
             for (size_t i = 0; i < ordering[l].size(); i++) {
                 IRNode *next = ordering[l][i];
                 for (size_t k = 0; k < l; k++) putchar(' ');
                 printf("%s: xmm%d", opname[next->op], next->reg);
-                if (next->op == Const) {
+                if (next->op == ConstFloat) {
                     printf(" <- %f\n", next->val);
                 } else if (next->children.size() == 0) {
                     printf("\n");
@@ -222,10 +252,22 @@ public:
             AsmX64::SSEReg src2(c2 ? c2->reg : 0);
             AsmX64::SSEReg src3(c3 ? c3->reg : 0);
             AsmX64::SSEReg src4(c4 ? c4->reg : 0);
+
             switch(node->op) {
-            case Const: 
-                a->mov(a->r15, &code[i].val);
-                a->movss(dst, AsmX64::Mem(a->r15));
+            case ConstFloat: 
+                if (node->val == 0.0f) {
+                    a->bxorps(dst, dst);
+                } else {
+                    a->mov(a->r15, &(node->val));
+                    a->movss(dst, AsmX64::Mem(a->r15));
+                }
+                break;
+            case ConstBool:
+                if (node->val == 0.0f) {
+                    a->bxorps(dst, dst);                    
+                } else {
+                    a->cmpeqss(dst, dst);
+                }
                 break;
             case VarX:
                 a->cvtsi2ss(dst, x);
@@ -253,9 +295,13 @@ public:
                 }
                 break;
             case Minus:
-                if (dst == src1)
+                if (dst == src1) {
                     a->subss(dst, src2);
-                else {
+                } else if (dst == src2) {
+                    a->movss(tmp, src2);
+                    a->movss(src2, src1);
+                    a->subss(src2, tmp);
+                } else { 
                     a->movss(dst, src1);
                     a->subss(dst, src2);
                 }
@@ -271,82 +317,112 @@ public:
                 }
                 break;
             case Divide: 
-                if (dst == src1)
+                if (dst == src1) {
                     a->divss(dst, src2);
-                else {
+                } else if (dst == src2) {
+                    a->movss(tmp, src2);
+                    a->movss(src2, src1);
+                    a->divss(src2, tmp); 
+                } else {
                     a->movss(dst, src1);
                     a->divss(dst, src2);
                 }
                 break;
-            case IfNEQ:
-                // TODO: special case if either src3 or src4 is zero
-                if (dst == src1) {
-                    a->cmpneqss(src1, src2);
-                    a->movss(tmp, src3);
-                    a->bandps(tmp, src1);
-                    a->bandnps(src1, src4);
-                    a->borps(src1, tmp);
-                } else if (dst == src2) {
-                    a->cmpneqss(src2, src1);
-                    a->movss(tmp, src3);
-                    a->bandps(tmp, src2);
-                    a->bandnps(src2, src4);
-                    a->borps(src2, tmp);                    
-                } else if (dst == src3) {
-                    a->movss(tmp, src1);
-                    a->cmpneqss(tmp, src2);
-                    a->bandps(src3, tmp);
-                    a->bandnps(tmp, src4);
-                    a->borps(src3, tmp);                    
-                } else if (dst == src4) {
-                    
+            case And:
+                if (dst == src1) 
+                    a->bandps(dst, src2);
+                else if (dst == src2)
+                    a->bandps(dst, src1);
+                else {
+                    a->movss(dst, src1);
+                    a->bandps(dst, src2);
                 }
-                a->cmpneqss(src1, src2);
-                a->bandps(src3, src1);
-                a->bandnps(src1, src4);
-                a->borps(src1, src3);
                 break;
-            case IfEQ:
-                a->cmpeqss(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-3));
-                a->bandps(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-4));
-                a->bandnps(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-1));
-                a->borps(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-2));
-                r -= 3;
+            case Nand:
+                if (dst == src1) {
+                    a->bandnps(dst, src2);
+                } else if (dst == src2) {
+                    a->movss(tmp, src2);
+                    a->movss(src2, src1);
+                    a->bandnps(src2, tmp); 
+                } else {
+                    a->movss(dst, src1);
+                    a->bandnps(dst, src2);
+                }
                 break;
-            case IfLT:
-                a->cmpltss(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-3));
-                a->bandps(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-4));
-                a->bandnps(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-1));
-                a->borps(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-2));
-                r -= 3;
+            case Or:               
+                if (dst == src1) 
+                    a->borps(dst, src2);
+                else if (dst == src2)
+                    a->borps(dst, src1);
+                else {
+                    a->movss(dst, src1);
+                    a->borps(dst, src2);
+                }
                 break;
-            case IfGT:
-                a->cmpnless(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-3));
-                a->bandps(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-4));
-                a->bandnps(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-1));
-                a->borps(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-2));
-                r -= 3;
+            case NEQ:                               
+                if (dst == src1) 
+                    a->cmpneqss(dst, src2);
+                else if (dst == src2)
+                    a->cmpneqss(dst, src1);
+                else {
+                    a->movss(dst, src1);
+                    a->cmpneqss(dst, src2);
+                }
                 break;
-            case IfLTE:
-                a->cmpless(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-3));
-                a->bandps(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-4));
-                a->bandnps(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-1));
-                a->borps(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-2));
-                r -= 3;
+            case EQ:
+                if (dst == src1) 
+                    a->cmpeqss(dst, src2);
+                else if (dst == src2)
+                    a->cmpeqss(dst, src1);
+                else {
+                    a->movss(dst, src1);
+                    a->cmpeqss(dst, src2);
+                }
                 break;
-            case IfGTE:
-                a->cmpnltss(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-3));
-                a->bandps(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-4));
-                a->bandnps(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-1));
-                a->borps(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-2));
-                r -= 3;
+            case LT:
+                if (dst == src1) 
+                    a->cmpltss(dst, src2);
+                else if (dst == src2)
+                    a->cmpnless(dst, src1);
+                else {
+                    a->movss(dst, src1);
+                    a->cmpltss(dst, src2);
+                }
+                break;
+            case GT:
+                if (dst == src1) 
+                    a->cmpnless(dst, src2);
+                else if (dst == src2)
+                    a->cmpltss(dst, src1);
+                else {
+                    a->movss(dst, src1);
+                    a->cmpnless(dst, src2);
+                }
+                break;
+            case LTE:
+                if (dst == src1) 
+                    a->cmpless(dst, src2);
+                else if (dst == src2)
+                    a->cmpnltss(dst, src1);
+                else {
+                    a->movss(dst, src1);
+                    a->cmpless(dst, src2);
+                }
+                break;
+            case GTE:
+                if (dst == src1) 
+                    a->cmpnltss(dst, src2);
+                else if (dst == src2)
+                    a->cmpless(dst, src1);
+                else {
+                    a->movss(dst, src1);
+                    a->cmpnltss(dst, src2);
+                }
                 break;
             case ATan2:
-            case Sample2D: 
-            case Sample3D:
-            case SampleHere:
             case Mod:
-            case Pow:
+            case Power:
             case Sin:
             case Cos:
             case Tan:
@@ -355,12 +431,15 @@ public:
             case ATan:
             case Exp:
             case Log:
-            case Negate:
             case Floor:
             case Ceil:
             case Round:
             case Abs:
-                printf("Not implemented\n");                
+                
+            case Sample2D: 
+            case Sample3D:
+            case SampleHere:
+                printf("Not implemented: %s\n", opname[node->op]);                
                 break;
             case NoOp:
                 break;
@@ -400,18 +479,41 @@ protected:
         // to clobber. We currently don't handle this exception
         // (because we currently don't do CSE, so it never crops up).
 
-        for (size_t i = 0; i < node->children.size(); i++) {
-            IRNode *child = node->children[i];
-            if (node->level == child->level &&
-                child->parents.size() == 1) {
-                node->reg = child->reg;
-                regs[child->reg] = node;
+        if (node->children.size()) {
+            IRNode *child1 = node->children[0];
+            if (node->level == child1->level &&
+                child1->parents.size() == 1) {
+                node->reg = child1->reg;
+                regs[child1->reg] = node;
+                node->order = order[node->level].size();
+                order[node->level].push_back(node);
+                return;
+            }
+        }
+        
+        // Some binary ops are easy to flip, so we should try to clobber the second child
+        if (node->op == And ||
+            node->op == Or ||
+            node->op == Plus ||
+            node->op == Times ||
+            node->op == LT ||
+            node->op == GT ||
+            node->op == LTE ||
+            node->op == GTE ||
+            node->op == EQ ||
+            node->op == NEQ) {
+            IRNode *child2 = node->children[1];
+            if (node->level == child2->level &&
+                child2->parents.size() == 1) {
+                node->reg = child2->reg;
+                regs[child2->reg] = node;
+                node->order = order[node->level].size();
                 order[node->level].push_back(node);
                 return;
             }
         }
 
-        printf("Couldn't clobber a child, looking for a free register instead\n");
+        printf("Couldn't clobber first child, looking for a free register instead\n");
 
         // else find a completely unused register and use that. This
         // will certainly provoke codegen into inserting extra movs.
@@ -419,12 +521,27 @@ protected:
             if (regs[i] == NULL) {
                 node->reg = i;
                 regs[i] = node;
+                node->order = order[node->level].size();
                 order[node->level].push_back(node);
                 return;
             }
         }
 
-        printf("No free registers, searching for someone to evict\n");
+        printf("No free registers. Clobbering a different child\n");
+
+        for (size_t i = 1; i < node->children.size(); i++) {
+            IRNode *child = node->children[i];
+            if (node->level == child->level &&
+                child->parents.size() == 1) {
+                node->reg = child->reg;
+                regs[child->reg] = node;
+                node->order = order[node->level].size();
+                order[node->level].push_back(node);
+                return;
+            }
+        }
+
+        printf("No children can be clobbered, searching for someone to evict\n");
 
         // else find a previously used register that is safe to evict
         // - meaning it's at the same or higher level and all its
@@ -453,6 +570,7 @@ protected:
 
                 node->reg = i;
                 regs[i] = node;
+                node->order = order[node->level].size();
                 order[node->level].push_back(node);
                 return;
             } else {
@@ -467,43 +585,50 @@ protected:
 
 
 
-
 #define nullary(a, b)                           \
+    void visit(Expression::##a *node) {         \
+        root = new IRNode(Float, b);            \
+    }
+
+    nullary(Var_x, VarX);
+    nullary(Var_y, VarY);
+    nullary(Var_t, VarT);
+    nullary(Var_c, VarC);
+    nullary(Var_val, VarVal);
+
+#undef nullary
+
+#define constFloat(a, b)                        \
     void visit(Expression::##a *node) {         \
         root = new IRNode(b);                   \
     }
 
-    nullary(Var_x, (uint32_t)VarX);
-    nullary(Var_y, (uint32_t)VarY);
-    nullary(Var_t, (uint32_t)VarT);
-    nullary(Var_c, (uint32_t)VarC);
-    nullary(Var_val, (uint32_t)VarVal);
-    nullary(Float, node->value);
-    nullary(Uniform_width, (float)im.width);
-    nullary(Uniform_height, (float)im.height);
-    nullary(Uniform_frames, (float)im.frames);
-    nullary(Uniform_channels, (float)im.channels);
-    nullary(Funct_mean0, (float)stats->mean());
-    nullary(Funct_sum0, (float)stats->sum());
-    nullary(Funct_min0, (float)stats->minimum());
-    nullary(Funct_max0, (float)stats->maximum());
-    nullary(Funct_stddev0, sqrtf((float)stats->variance()));
-    nullary(Funct_variance0, (float)stats->variance());
-    nullary(Funct_skew0, (float)stats->skew());
-    nullary(Funct_kurtosis0, (float)stats->kurtosis());
+    constFloat(Float, node->value);
+    constFloat(Uniform_width, im.width);
+    constFloat(Uniform_height, im.height);
+    constFloat(Uniform_frames, im.frames);
+    constFloat(Uniform_channels, im.channels);
+    constFloat(Funct_mean0, stats->mean());
+    constFloat(Funct_sum0, stats->sum());
+    constFloat(Funct_min0, stats->minimum());
+    constFloat(Funct_max0, stats->maximum());
+    constFloat(Funct_stddev0, sqrtf(stats->variance()));
+    constFloat(Funct_variance0, stats->variance());
+    constFloat(Funct_skew0, stats->skew());
+    constFloat(Funct_kurtosis0, stats->kurtosis());
 
     // TODO
-    nullary(Funct_mean1, (float)stats->mean());
-    nullary(Funct_sum1, (float)stats->sum());
-    nullary(Funct_min1, (float)stats->minimum());
-    nullary(Funct_max1, (float)stats->maximum());
-    nullary(Funct_stddev1, sqrtf((float)stats->variance()));
-    nullary(Funct_variance1, (float)stats->variance());
-    nullary(Funct_skew1, (float)stats->skew());
-    nullary(Funct_kurtosis1, (float)stats->kurtosis());    
-    nullary(Funct_covariance, (float)stats->variance());    
+    constFloat(Funct_mean1, stats->mean());
+    constFloat(Funct_sum1, stats->sum());
+    constFloat(Funct_min1, stats->minimum());
+    constFloat(Funct_max1, stats->maximum());
+    constFloat(Funct_stddev1, sqrtf(stats->variance()));
+    constFloat(Funct_variance1, stats->variance());
+    constFloat(Funct_skew1, stats->skew());
+    constFloat(Funct_kurtosis1, stats->kurtosis());    
+    constFloat(Funct_covariance, stats->variance());    
 
-#undef nullary
+#undef constFloat
 
     // roundf is a macro, which gets confused inside another macro, so
     // we wrap it in a function
@@ -511,14 +636,20 @@ protected:
         return roundf(x);
     }
 
+    // -x gets compiled to (0-x)
+    void visit(Expression::Negation *node) {
+        node->arg1->accept(this);
+        if (root->op == ConstFloat) root->val = -root->val;
+        else root = new IRNode(Float, Minus, Float, new IRNode(0.0f), Float, root);
+    }
+
 #define unary(a, b, c)                                          \
     void visit(Expression::##a *node) {                         \
         node->arg1->accept(this);                               \
-        if (root->op == Const) root->val = b(root->val);        \
-        else root = new IRNode(c, root);                        \
+        if (root->op == ConstFloat) root->val = b(root->val);   \
+        else root = new IRNode(Float, c, Float, root);          \
     }
 
-    unary(Negation, -, Negate);
     unary(Funct_sin, sinf, Sin);
     unary(Funct_cos, cosf, Cos);
     unary(Funct_tan, tanf, Tan);
@@ -534,16 +665,16 @@ protected:
 
 #undef unary
 
+// TODO: boolean eq and neq
 #define bincmp(a, b)                                                    \
     void visit(Expression::##a *node) {                                 \
         node->arg1->accept(this); IRNode *child1 = root;                \
         node->arg2->accept(this); IRNode *child2 = root;                \
-        if (child1->op == Const && child2->op == Const) {               \
+        if (child1->op == ConstFloat && child2->op == ConstFloat) {     \
             root->val = (child1->val b child2->val) ? 1.0f : 0.0f;      \
             delete child1;                                              \
         } else {                                                        \
-            root = new IRNode(If##a, child1, child2,                    \
-                              new IRNode(1.0), new IRNode(0.0));        \
+            root = new IRNode(Bool, a, Float, child1, Float, child2);   \
         }                                                               \
     } 
 
@@ -553,21 +684,22 @@ protected:
     bincmp(GT, >);
     bincmp(GTE, >=);
     bincmp(EQ, ==);
-    bincmp(NEQ, ==);
+    bincmp(NEQ, !=);
 
 #undef bincmp
 
+// TODO: bool * bool = bool
 #define binop(a, b)                                             \
     void visit(Expression::##a *node) {                         \
         node->arg1->accept(this); IRNode *child1 = root;        \
         node->arg2->accept(this); IRNode *child2 = root;        \
-        if (child1->op == Const && child2->op == Const) {       \
-            root->val = child1->val b child2->val;               \
+        if (child1->op == ConstFloat && child2->op == ConstFloat) {     \
+            root->val = child1->val b child2->val;              \
             delete child1;                                      \
         } else {                                                \
-            root = new IRNode(a, child1, child2);               \
-        }                                                       \
-    }
+            root = new IRNode(Float, a, Float, child1, Float, child2);  \
+        }                                                               \
+    } 
 
     binop(Plus, +);
     binop(Minus, -);
@@ -580,11 +712,11 @@ protected:
     void visit(Expression::##a *node) {                         \
         node->arg1->accept(this); IRNode *child1 = root;        \
         node->arg2->accept(this); IRNode *child2 = root;        \
-        if (child1->op == Const && child2->op == Const) {       \
-            root->val = b(child1->val, child2->val);             \
+        if (child1->op == ConstFloat && child2->op == ConstFloat) {     \
+            root->val = b(child1->val, child2->val);            \
             delete child1;                                      \
         } else {                                                \
-            root = new IRNode(c, child1, child2);               \
+            root = new IRNode(Float, c, Float, child1, Float, child2);   \
         }                                                       \
     }
 
@@ -597,62 +729,36 @@ protected:
     
     void visit(Expression::IfThenElse *node) {
         node->arg1->accept(this);        
-        switch(root->op) {
-        case LT:
-            root->op = IfLT;
-            break;
-        case GT:
-            root->op = IfGT;
-            break;
-        case LTE:
-            root->op = IfLTE;
-            break;
-        case GTE:
-            root->op = IfGTE;
-            break;
-        case EQ:
-            root->op = IfEQ;
-            break;
-        case NEQ:
-            root->op = IfNEQ;
-            break;
-        default: {            
-            IRNode *child1 = root;            
-            node->arg2->accept(this);
-            IRNode *child2 = root;
-            node->arg3->accept(this);
-            IRNode *child3 = root;
-            root = new IRNode(IfNEQ, child1, new IRNode(0.0f), child2, child3);            
-            return;
-        }
-        }
-
-        // upgrade child1 with some extra children and a fancier
-        // opcode instead of adding a new node
-        IRNode *child1 = root;            
+        IRNode *cond = root;
         node->arg2->accept(this);
-        child1->children.push_back(root);
+        IRNode *thenCase = root;
         node->arg3->accept(this);
-        child1->children.push_back(root);
-        root = child1;
+        IRNode *elseCase = root;
+        IRNode *left = new IRNode(thenCase->type, And, Bool, cond, thenCase->type, thenCase);
+        IRNode *right = new IRNode(elseCase->type, Nand, Bool, cond, elseCase->type, elseCase);
+        Type t = Float;
+        if (thenCase->type == Bool && elseCase->type == Bool) 
+            t = Bool;
+        root = new IRNode(t, Or, left->type, left, right->type, right);
+
     }
     
     void visit(Expression::SampleHere *node) {        
         node->arg1->accept(this);
-        root = new IRNode(SampleHere, root);
+        root = new IRNode(Float, SampleHere, Float, root);
     }
     
     void visit(Expression::Sample2D *node) {
         node->arg1->accept(this); IRNode *child1 = root;
         node->arg2->accept(this); IRNode *child2 = root;
-        root = new IRNode(Sample2D, child1, child2);
+        root = new IRNode(Float, Sample2D, Float, child1, Float, child2);
     }
     
     void visit(Expression::Sample3D *node) {
         node->arg1->accept(this); IRNode *child1 = root;
         node->arg2->accept(this); IRNode *child2 = root;
         node->arg3->accept(this); IRNode *child3 = root;
-        root = new IRNode(Sample3D, child1, child2, child3);
+        root = new IRNode(Float, Sample3D, Float, child1, Float, child2, Float, child3);
     }
     
 };
