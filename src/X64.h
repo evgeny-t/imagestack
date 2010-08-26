@@ -27,7 +27,7 @@ public:
     public:
         SSEReg(int x) : num(x) {}
         int num;
-        bool operator==(const Reg &other) {
+        bool operator==(const SSEReg &other) {
             return num == other.num;
         }
     };
