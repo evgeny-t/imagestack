@@ -20,12 +20,12 @@ void Eval::parse(vector<string> args) {
 #include "Compiler.h"
 
 Image Eval::apply(Window im, string expression) {
-    Program prog(Expression(expression), im);
+    Compiler prog;
     
     Image out(im.width, im.height, im.frames, im.channels);
 
     AsmX64 a;
-    prog.compileEval(out, &a);
+    prog.compileEval(&a, im, out, Expression(expression));
     a.run();
 
     printf("%f, %f\n", im(10, 10)[0], out(10, 10)[0]);
@@ -67,14 +67,16 @@ void EvalChannels::parse(vector<string> args) {
 
 
 Image EvalChannels::apply(Window im, vector<string> expressions_) {
+    Image out(im.width, im.height, im.frames, expressions_.size());    
+    
+
+    /*
     vector<Program> prog;
     for (size_t i = 0; i < expressions_.size(); i++) {        
         prog.push_back(Program(Expression(expressions_[i]), im));
     }        
 
     int channels = (int)expressions_.size();
-
-    Image out(im.width, im.height, im.frames, channels);    
 
     Program::State s;
 
@@ -88,6 +90,7 @@ Image EvalChannels::apply(Window im, vector<string> expressions_) {
             }
         }
     }
+    */
 
     return out;
 }
@@ -220,6 +223,7 @@ void Composite::apply(Window dst, Window src) {
         }
     } else {
         for (int i = 0; i < dst.width*dst.height*dst.frames; i++) {
+            
             float alpha = srcPtr[dst.channels-1];
             for (int c = 0; c < dst.channels; c++) {
                 dstPtr[0] = alpha*(*srcPtr++) + (1-alpha)*dstPtr[0];
