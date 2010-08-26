@@ -7,1108 +7,654 @@
 #include "header.h"
 
 const char *opname[] = {"Const", "NoOp", "VarX", "VarY", "VarT", "VarC", "VarVal", "Negate", "Plus", "Minus", 
-                        "Times", "Divide", "LT", "GT", "LTE", "GTE", "EQ", "NEQ", "Sin", "Cos", "Tan", "Pow",
+                        "Times", "Divide", "Sin", "Cos", "Tan", "Power",
                         "ASin", "ACos", "ATan", "ATan2", "Abs", "Floor", "Ceil", "Round",
                         "Exp", "Log", "Mod", "SampleHere", "Sample2D", "Sample3D",
-                        "IfLT", "IfGT", "IfLTE", "IfGTE", "IfEQ", "IfNEQ", "IfNZ"};
+                        "IfLT", "IfGT", "IfLTE", "IfGTE", "IfEQ", "IfNEQ"};    
 
-// As part of compilation, we tag each AST node with some useful stuff:
-struct Tag {
-    uint32_t deps;
-    float value;
-};
+class Compiler : public Expression::Visitor {
 
-// Set a tag
-static void tag(Expression::Node *n, uint32_t deps, float value = 0) {
-    Tag *t = new Tag;
-    t->deps = deps;
-    t->value = value;
-    n->data = (void *)t;            
-}
+    enum {Const = 0, NoOp, VarX, VarY, VarT, VarC, VarVal, Negate, Plus, Minus, 
+          Times, Divide, Sin, Cos, Tan, Power,
+          ASin, ACos, ATan, ATan2, Abs, Floor, Ceil, Round,
+          Exp, Log, Mod, SampleHere, Sample2D, Sample3D,
+          IfLT, IfGT, IfLTE, IfGTE, IfEQ, IfNEQ};
+    
+    enum {DepT = 1, DepY = 2, DepX = 4, DepC = 8, DepVal = 16};
+    
+    // One node in the intermediate representation
+    struct IRNode {
+        IRNode(float v) {
+            op = Const;
+            val = v;
+            deps = 0;
+            reg = -1;
+            level = 0;
+        }
 
-// Retrieve a tag
-static const Tag &tag(Expression::Node *n) {
-    Tag *t = (Tag *)n->data;
-    return *t;
-}
+        IRNode(uint32_t opcode, 
+               IRNode *child1 = NULL, 
+               IRNode *child2 = NULL, 
+               IRNode *child3 = NULL,
+               IRNode *child4 = NULL) {
+            deps = 0;
+            op = opcode;
+            if (opcode == VarX) deps |= DepX;
+            else if (opcode == VarY) deps |= DepY;
+            else if (opcode == VarT) deps |= DepT;
+            else if (opcode == VarC) deps |= DepC;
+            else if (opcode == VarVal) deps |= DepVal;
 
-// A compiler for parsed expressions
-class Program : public Expression::Visitor {
-private:
-    // bytecode instructions
-    enum {DEP_T = 1, DEP_Y = 2, DEP_X = 4, DEP_C = 8, DEP_VAL = 16, DEP_SAMPLE = 32};
-    struct ByteCode {
-        enum Op {Const = 0, NoOp, VarX, VarY, VarT, VarC, VarVal, Negate, Plus, Minus, 
-                 Times, Divide, LT, GT, LTE, GTE, EQ, NEQ, Sin, Cos, Tan, Pow,
-                 ASin, ACos, ATan, ATan2, Abs, Floor, Ceil, Round,
-                 Exp, Log, Mod, SampleHere, Sample2D, Sample3D,
-                 IfLT, IfGT, IfLTE, IfGTE, IfEQ, IfNEQ, IfNZ};
-        Op op;
-        float val; // for const only        
-        uint32_t deps; // what variables does this depend on?
+            if (child1) {
+                children.push_back(child1);
+                child1->parents.push_back(this);
+                deps |= child1->deps;
+            }
+
+            if (child2) {
+                children.push_back(child2);
+                child2->parents.push_back(this);
+                deps |= child2->deps;
+            }
+
+            if (child3) {
+                children.push_back(child3);
+                child3->parents.push_back(this);
+                deps |= child3->deps;
+            }
+
+            if (child4) {
+                children.push_back(child4);
+                child4->parents.push_back(this);
+                deps |= child4->deps;
+            }
+
+            reg = -1;
+            if (deps & DepVal ||
+                deps & DepC) level = 4;
+            else if (deps & DepX) level = 3;
+            else if (deps & DepY) level = 2;
+            else if (deps & DepT) level = 1;
+            else level = 0;
+        }
+
+        // Opcode
+        uint32_t op;
+        
+        // This is for Const ops
+        float val;
+
+        // Inputs
+        vector<IRNode *> children;    
+        
+        // Who uses my value?
+        vector<IRNode *> parents;
+        
+        // Which loop variables does this node depend on?
+        uint32_t deps;
+
+        // What register will this node be computed in?
+        signed char reg;
+               
+        // What level of the for loop will this node be computed at?
+        // 0 is outermost, 4 is deepest
+        signed char level;
     };
 
-    std::vector<ByteCode> instructions;
+    // State needed while visiting the AST
+    IRNode *root;
+    Stats *stats;
     Window im;
-    Stats stats;
-
-    // some useful constants for runtime
-    float const_one, const_pi, const_e;
 
 public:
 
-    class Analyzer : public Expression::Visitor {
-    private:
-        Window im;
-        Stats stats;
-    public:
+    void compileEval(AsmX64 *a, Window w, Window out, const Expression &exp) {
 
-        Analyzer(Window w, Stats s) : im(w), stats(s) {}
+        im = w;
+        stats = new Stats(w);
 
-        void visit(Expression::Var_x *node) {tag(node, DEP_X);}
-        void visit(Expression::Var_y *node) {tag(node, DEP_Y);}
-        void visit(Expression::Var_t *node) {tag(node, DEP_T);}
-        void visit(Expression::Var_c *node) {tag(node, DEP_C);}
-        void visit(Expression::Var_val *node) {tag(node, DEP_VAL);}
-        void visit(Expression::Uniform_width *node) {tag(node, 0, im.width);}
-        void visit(Expression::Uniform_height *node) {tag(node, 0, im.height);}
-        void visit(Expression::Uniform_frames *node) {tag(node, 0, im.frames);}
-        void visit(Expression::Uniform_channels *node) {tag(node, 0, im.channels);}
-        void visit(Expression::Float *node) {tag(node, 0, node->value);}
-        void visit(Expression::Funct_mean0 *node) {tag(node, 0, stats.mean());}
-        void visit(Expression::Funct_sum0 *node) {tag(node, 0, stats.sum());}
-        void visit(Expression::Funct_max0 *node) {tag(node, 0, stats.maximum());}
-        void visit(Expression::Funct_min0 *node) {tag(node, 0, stats.minimum());}
-        void visit(Expression::Funct_variance0 *node) {tag(node, 0, stats.variance());}
-        void visit(Expression::Funct_stddev0 *node) {tag(node, 0, sqrtf(stats.variance()));}
-        void visit(Expression::Funct_skew0 *node) {tag(node, 0, stats.skew());}
-        void visit(Expression::Funct_kurtosis0 *node) {tag(node, 0, stats.kurtosis());}           
-        
-        void visit(Expression::Negation *node) {
-            node->arg1->accept(this); 
-            const Tag &t1 = tag(node->arg1);
-            tag(node, t1.deps, t1.deps ? 0 : -t1.value);
-        }
+        // Generate the intermediate representation from the AST. Also
+        // does constant folding and dependency analysis (assigns deps and levels).
+        exp.root->accept(this);
 
-        void visit(Expression::Funct_sin *node) {
-            node->arg1->accept(this); 
-            const Tag &t1 = tag(node->arg1);
-            tag(node, t1.deps, t1.deps ? 0 : sinf(t1.value));
-        }        
+        // Register assignment and evaluation ordering
+        vector<vector<IRNode *> > ordering = doRegisterAssignment();
 
-        void visit(Expression::Funct_cos *node) {
-            node->arg1->accept(this); 
-            const Tag &t1 = tag(node->arg1);
-            tag(node, t1.deps, t1.deps ? 0 : cosf(t1.value));            
-        }
 
-        void visit(Expression::Funct_tan *node) {
-            node->arg1->accept(this); 
-            const Tag &t1 = tag(node->arg1);
-            tag(node, t1.deps, t1.deps ? 0 : tanf(t1.value));            
-        }
-
-        void visit(Expression::Funct_atan *node) {
-            node->arg1->accept(this); 
-            const Tag &t1 = tag(node->arg1);
-            tag(node, t1.deps, t1.deps ? 0 : atanf(t1.value));            
-        }
-
-        void visit(Expression::Funct_asin *node) {
-            node->arg1->accept(this); 
-            const Tag &t1 = tag(node->arg1);
-            tag(node, t1.deps, t1.deps ? 0 : asinf(t1.value));            
-        }
-
-        void visit(Expression::Funct_acos *node) {
-            node->arg1->accept(this); 
-            const Tag &t1 = tag(node->arg1);
-            tag(node, t1.deps, t1.deps ? 0 : acosf(t1.value));            
-        }
-
-        void visit(Expression::Funct_abs *node) {
-            node->arg1->accept(this); 
-            const Tag &t1 = tag(node->arg1);
-            tag(node, t1.deps, t1.deps ? 0 : fabs(t1.value));            
-        }
-
-        void visit(Expression::Funct_floor *node) {
-            node->arg1->accept(this); 
-            const Tag &t1 = tag(node->arg1);
-            tag(node, t1.deps, t1.deps ? 0 : floorf(t1.value));            
-        }
-
-        void visit(Expression::Funct_ceil *node) {
-            node->arg1->accept(this); 
-            const Tag &t1 = tag(node->arg1);
-            tag(node, t1.deps, t1.deps ? 0 : ceilf(t1.value));            
-        }
-
-        void visit(Expression::Funct_round *node) {
-            node->arg1->accept(this); 
-            const Tag &t1 = tag(node->arg1);
-            if (t1.deps) {
-                tag(node, t1.deps, 0);
-            } else {
-                float x = roundf(t1.value);
-                tag(node, 0, x);
-            }
-        }
-
-        void visit(Expression::Funct_log *node) {
-            node->arg1->accept(this); 
-            const Tag &t1 = tag(node->arg1);
-            tag(node, t1.deps, t1.deps ? 0 : logf(t1.value));            
-        }
-
-        void visit(Expression::Funct_exp *node) {
-            node->arg1->accept(this); 
-            const Tag &t1 = tag(node->arg1);
-            tag(node, t1.deps, t1.deps ? 0 : expf(t1.value));            
-        }
-
-        // TODO
-        void visit(Expression::Funct_mean1 *node) {tag(node, 0, 0);}
-        void visit(Expression::Funct_sum1 *node) {tag(node, 0, 0);}
-        void visit(Expression::Funct_max1 *node) {tag(node, 0, 0);}
-        void visit(Expression::Funct_min1 *node) {tag(node, 0, 0);}
-        void visit(Expression::Funct_variance1 *node) {tag(node, 0, 0);}
-        void visit(Expression::Funct_stddev1 *node) {tag(node, 0, 0);}
-        void visit(Expression::Funct_skew1 *node) {tag(node, 0, 0);}
-        void visit(Expression::Funct_kurtosis1 *node) {tag(node, 0, 0);}
-        void visit(Expression::Funct_covariance *node) {tag(node, 0, 0);}
-        
-        void visit(Expression::LTE *node) {            
-            node->arg1->accept(this); 
-            node->arg2->accept(this);
-            const Tag &t1 = tag(node->arg1);
-            const Tag &t2 = tag(node->arg2);
-            uint32_t deps = t1.deps | t2.deps;
-            tag(node, deps, deps ? 0 : (t1.value <= t2.value ? 1.0f : 0.0f));
-        }
-        
-        void visit(Expression::GTE *node) {
-            node->arg1->accept(this); 
-            node->arg2->accept(this);
-            const Tag &t1 = tag(node->arg1);
-            const Tag &t2 = tag(node->arg2);
-            uint32_t deps = t1.deps | t2.deps;
-            tag(node, deps, deps ? 0 : (t1.value >= t2.value ? 1.0f : 0.0f));
-        }
-        
-        void visit(Expression::LT *node) {
-            node->arg1->accept(this); 
-            node->arg2->accept(this);
-            const Tag &t1 = tag(node->arg1);
-            const Tag &t2 = tag(node->arg2);
-            uint32_t deps = t1.deps | t2.deps;
-            tag(node, deps, deps ? 0 : (t1.value < t2.value ? 1.0f : 0.0f));
-        }
-        
-        void visit(Expression::GT *node) {
-            node->arg1->accept(this); 
-            node->arg2->accept(this);
-            const Tag &t1 = tag(node->arg1);
-            const Tag &t2 = tag(node->arg2);
-            uint32_t deps = t1.deps | t2.deps;
-            tag(node, deps, deps ? 0 : (t1.value > t2.value ? 1.0f : 0.0f));
-        }
-        
-        void visit(Expression::EQ *node) {
-            node->arg1->accept(this); 
-            node->arg2->accept(this);
-            const Tag &t1 = tag(node->arg1);
-            const Tag &t2 = tag(node->arg2);
-            uint32_t deps = t1.deps | t2.deps;
-            tag(node, deps, deps ? 0 : (t1.value == t2.value ? 1.0f : 0.0f));
-        }
-        
-        void visit(Expression::NEQ *node) {
-            node->arg1->accept(this); 
-            node->arg2->accept(this);
-            const Tag &t1 = tag(node->arg1);
-            const Tag &t2 = tag(node->arg2);
-            uint32_t deps = t1.deps | t2.deps;
-            tag(node, deps, deps ? 0 : (t1.value != t2.value ? 1.0f : 0.0f));
-        }
-        
-        void visit(Expression::Plus *node) {
-            node->arg1->accept(this); 
-            node->arg2->accept(this);
-            const Tag &t1 = tag(node->arg1);
-            const Tag &t2 = tag(node->arg2);
-            uint32_t deps = t1.deps | t2.deps;
-            tag(node, deps, deps ? 0 : t1.value + t2.value);
-        }
-        
-        void visit(Expression::Minus *node) {
-            node->arg1->accept(this); 
-            node->arg2->accept(this);
-            const Tag &t1 = tag(node->arg1);
-            const Tag &t2 = tag(node->arg2);
-            uint32_t deps = t1.deps | t2.deps;
-            tag(node, deps, deps ? 0 : t1.value - t2.value);
-        }
-        
-        void visit(Expression::Times *node) {
-            node->arg1->accept(this); 
-            node->arg2->accept(this);
-            const Tag &t1 = tag(node->arg1);
-            const Tag &t2 = tag(node->arg2);
-            uint32_t deps = t1.deps | t2.deps;
-            tag(node, deps, deps ? 0 : t1.value * t2.value);
-        }
-        
-        void visit(Expression::Mod *node) {
-            node->arg1->accept(this); 
-            node->arg2->accept(this);
-            const Tag &t1 = tag(node->arg1);
-            const Tag &t2 = tag(node->arg2);
-            uint32_t deps = t1.deps | t2.deps;
-            tag(node, deps, deps ? 0 : fmod(t1.value, t2.value));
-        }
-        
-        void visit(Expression::Divide *node) {
-            node->arg1->accept(this); 
-            node->arg2->accept(this);
-            const Tag &t1 = tag(node->arg1);
-            const Tag &t2 = tag(node->arg2);
-            uint32_t deps = t1.deps | t2.deps;
-            tag(node, deps, deps ? 0 : t1.value / t2.value);
-        }
-        
-        void visit(Expression::Power *node) {
-            node->arg1->accept(this); 
-            node->arg2->accept(this);
-            const Tag &t1 = tag(node->arg1);
-            const Tag &t2 = tag(node->arg2);
-            uint32_t deps = t1.deps | t2.deps;
-            tag(node, deps, deps ? 0 : powf(t1.value, t2.value));
-        }
-        
-        void visit(Expression::Funct_atan2 *node) {
-            node->arg1->accept(this); 
-            node->arg2->accept(this);
-            const Tag &t1 = tag(node->arg1);
-            const Tag &t2 = tag(node->arg2);
-            uint32_t deps = t1.deps | t2.deps;
-            tag(node, deps, deps ? 0 : atan2(t1.value, t2.value));
-        }
-    
-        void visit(Expression::IfThenElse *node) {
-            node->arg1->accept(this);        
-            node->arg2->accept(this);
-            node->arg3->accept(this);
-            const Tag &t1 = tag(node->arg1);
-            const Tag &t2 = tag(node->arg2);
-            const Tag &t3 = tag(node->arg3);
-            if (!t1.deps) {
-                if (t1.value) {
-                    tag(node, t2.deps, t2.deps ? 0 : t2.value);
+        for (size_t l = 0; l < ordering.size(); l++) {
+            for (size_t i = 0; i < ordering[l].size(); i++) {
+                IRNode *next = ordering[l][i];
+                for (size_t k = 0; k < l; k++) putchar(' ');
+                printf("%s: xmm%d", opname[next->op], next->reg);
+                if (next->op == Const) {
+                    printf(" <- %f\n", next->val);
+                } else if (next->children.size() == 0) {
+                    printf("\n");
                 } else {
-                    tag(node, t3.deps, t3.deps ? 0 : t3.value);                    
-                }
-            } else {
-                uint32_t deps = t1.deps | t2.deps | t3.deps;
-                tag(node, deps, 0);
+                    printf(" <-");
+                    for (size_t j = 0; j < next->children.size(); j++) {
+                        printf(" xmm%d", next->children[j]->reg);
+                    }
+                    printf("\n");
+                }            
             }
         }
-    
-        void visit(Expression::SampleHere *node) {
-            node->arg1->accept(this);
-            const Tag &t1 = tag(node->arg1);
-            tag(node, t1.deps | DEP_SAMPLE, 0);
-        }
-    
-        void visit(Expression::Sample2D *node) {
-            node->arg1->accept(this);
-            node->arg2->accept(this);
-            const Tag &t1 = tag(node->arg1);
-            const Tag &t2 = tag(node->arg2);
-            tag(node, t1.deps | t2.deps | DEP_SAMPLE, 0);
-        }
-    
-        void visit(Expression::Sample3D *node) {
-            node->arg1->accept(this);
-            node->arg2->accept(this);
-            node->arg3->accept(this);
-            const Tag &t1 = tag(node->arg1);
-            const Tag &t2 = tag(node->arg2);
-            const Tag &t3 = tag(node->arg3);
-            tag(node, t1.deps | t2.deps | t3.deps | DEP_SAMPLE, 0);
-        }        
-    };
-
-    Program(const Expression &e, Window w) : im(w), stats(w) {
-        // traverse the tree and tag each node
-        Analyzer analyzer(im, stats);
-        e.root->accept(&analyzer);
-        
-        // traverse the tree and generate bytecode        
-        e.root->accept(this);
-
-        // list the byte code
-        for (size_t i = 0; i < instructions.size(); i++) {
-            for (int j = 1; j < DEP_SAMPLE*2; j*=2) {
-                printf((instructions[i].deps & j) ? "#" : "-");
-            }
-            printf(" ");
-            if (instructions[i].op) {
-                printf("%s\n", opname[instructions[i].op]);
-            } else {
-                printf("%f\n", instructions[i].val);
-            }
-        }
-
-        // prepare some fixed constants
-        const_one = 1.0f;
-        const_pi = M_PI;
-        const_e = expf(1);
-        
-    } 
-
-    void gen(ByteCode::Op op, uint32_t deps) {
-        ByteCode inst;
-        inst.op = op;
-        inst.deps = deps;
-        instructions.push_back(inst);
-    }
-
-    ByteCode &last(int n=1) {
-        return instructions[instructions.size()-n];
-    }
-
-    void pop() {
-        instructions.pop_back();
-    }
-
-    void gen(float f) {
-        ByteCode inst;
-        inst.op = ByteCode::Const;
-        inst.val = f;
-        inst.deps = 0;
-        instructions.push_back(inst);
-    }
-
-    struct State {
-        int x, y, t, c;
-        float *val;
-    };
-
-    // interpret the generated bytecode
-    float interpret(const State &s) {
-        // these are used at runtime
-        vector<float> stack;
-        float *ptr;
-        vector<float> sample;
-
-        // compute the max stack depth needed
-        int stackSize = 0;
-        int maxStackSize = 0;
-        for (size_t i = 0; i < instructions.size(); i++) {
-            switch(instructions[i].op) {
-            case ByteCode::Const: case ByteCode::VarX: case ByteCode::VarVal:
-            case ByteCode::VarY: case ByteCode::VarT: case ByteCode::VarC:
-                stackSize++;
-                break;
-            case ByteCode::Plus: case ByteCode::Minus: case ByteCode::Times: 
-            case ByteCode::Divide: case ByteCode::LT: case ByteCode::GT:
-            case ByteCode::LTE: case ByteCode::GTE: case ByteCode::ATan2:
-            case ByteCode::Sample2D: case ByteCode::Mod: case ByteCode::Pow:
-            case ByteCode::EQ: case ByteCode::NEQ:
-                stackSize--;
-                break;
-            case ByteCode::IfNZ: case ByteCode::Sample3D:
-                stackSize-=2;
-                break;
-            case ByteCode::IfNEQ: case ByteCode::IfEQ:
-            case ByteCode::IfLT: case ByteCode::IfGT:
-            case ByteCode::IfLTE: case ByteCode::IfGTE:
-                stackSize-=3;
-                break;
-            default:                
-                break;
-            }
-            if (stackSize > maxStackSize) maxStackSize = stackSize;
-        }
-
-        stack.resize(maxStackSize);
-        sample.resize(im.channels);
-
-        ptr = &(stack[0]);
-        float tmp;
-        for (size_t i = 0; i < instructions.size(); i++) {
-            switch(instructions[i].op) {
-            case ByteCode::Const: 
-                *ptr++ = instructions[i].val;
-                break;
-            case ByteCode::VarX:
-                *ptr++ = s.x;
-                break;
-            case ByteCode::VarY:
-                *ptr++ = s.y;
-                break;
-            case ByteCode::VarT:
-                *ptr++ = s.t;
-                break;
-            case ByteCode::VarC:
-                *ptr++ = s.c;
-                break;
-            case ByteCode::VarVal:
-                *ptr++ = s.val[s.c];
-                break;
-            case ByteCode::Plus:
-                ptr[-2] += ptr[-1];
-                ptr--;
-                break;
-            case ByteCode::Minus:
-                ptr[-2] -= ptr[-1];
-                ptr--;
-                break;
-            case ByteCode::Times: 
-                ptr[-2] *= ptr[-1];
-                ptr--;
-                break;
-            case ByteCode::Divide: 
-                ptr[-2] /= ptr[-1];
-                ptr--;
-                break;
-            case ByteCode::LT: 
-                tmp = (ptr[-2] < ptr[-1]) ? 1 : 0;
-                ptr[-2] = tmp;
-                ptr--;
-                break;
-            case ByteCode::GT:
-                tmp = (ptr[-2] > ptr[-1]) ? 1 : 0;
-                ptr[-2] = tmp;
-                ptr--;
-                break;
-            case ByteCode::LTE:
-                tmp = (ptr[-2] <= ptr[-1]) ? 1 : 0;
-                ptr[-2] = tmp;
-                ptr--;
-                break;
-            case ByteCode::GTE:
-                tmp = (ptr[-2] >= ptr[-1]) ? 1 : 0;
-                ptr[-2] = tmp;
-                ptr--;
-                break;
-            case ByteCode::EQ:
-                tmp = (ptr[-2] == ptr[-1]) ? 1 : 0;
-                ptr[-2] = tmp;
-                ptr--;
-                break;
-            case ByteCode::NEQ:
-                tmp = (ptr[-2] != ptr[-1]) ? 1 : 0;
-                ptr[-2] = tmp;
-                ptr--;
-                break;
-            case ByteCode::ATan2:
-                ptr[-2] = atan2(ptr[-2], ptr[-1]);
-                ptr--;
-                break;
-            case ByteCode::Sample2D: 
-                im.sample2D(ptr[-2], ptr[-1], &(sample[0]));
-                ptr[-2] = sample[s.c];
-                ptr--;
-                break;
-            case ByteCode::Sample3D:
-                im.sample2D(ptr[-3], ptr[-2], ptr[-1], &(sample[0]));
-                ptr[-3] = sample[s.c];
-                ptr -= 2;
-                break;
-            case ByteCode::IfNZ:
-                if (ptr[-3] != 0) ptr[-3] = ptr[-2];
-                else ptr[-3] = ptr[-1];
-                ptr -= 2;
-                break;
-            case ByteCode::IfNEQ:
-                if (ptr[-4] != ptr[-3]) ptr[-4] = ptr[-2];
-                else ptr[-4] = ptr[-1];
-                ptr -= 3;
-                break;
-            case ByteCode::IfEQ:
-                if (ptr[-4] == ptr[-3]) ptr[-4] = ptr[-2];
-                else ptr[-4] = ptr[-1];
-                ptr -= 3;
-                break;
-            case ByteCode::IfLT:
-                if (ptr[-4] < ptr[-3]) ptr[-4] = ptr[-2];
-                else ptr[-4] = ptr[-1];
-                ptr -= 3;
-                break;
-            case ByteCode::IfGT:
-                if (ptr[-4] > ptr[-3]) ptr[-4] = ptr[-2];
-                else ptr[-4] = ptr[-1];
-                ptr -= 3;
-                break;
-            case ByteCode::IfLTE:
-                if (ptr[-4] <= ptr[-3]) ptr[-4] = ptr[-2];
-                else ptr[-4] = ptr[-1];
-                ptr -= 3;
-                break;
-            case ByteCode::IfGTE:
-                if (ptr[-4] >= ptr[-3]) ptr[-4] = ptr[-2];
-                else ptr[-4] = ptr[-1];
-                ptr -= 3;
-                break;
-            case ByteCode::SampleHere:
-                tmp = roundf(ptr[-1]);
-                ptr[-1] = s.val[(int)tmp];
-                break;
-            case ByteCode::Mod:
-                ptr[-2] = fmod(ptr[-2], ptr[-1]);
-                ptr--;
-                break;
-            case ByteCode::Pow:
-                ptr[-2] = powf(ptr[-2], ptr[-1]);
-                ptr--;
-                break;
-            case ByteCode::Sin:
-                ptr[-1] = sinf(ptr[-1]);
-                break;
-            case ByteCode::Cos:
-                ptr[-1] = cosf(ptr[-1]);
-                break;
-            case ByteCode::Tan:
-                ptr[-1] = tanf(ptr[-1]);
-                break;   
-            case ByteCode::ASin:
-                ptr[-1] = asinf(ptr[-1]);
-                break;
-            case ByteCode::ACos:
-                ptr[-1] = acosf(ptr[-1]);
-                break;
-            case ByteCode::ATan:
-                ptr[-1] = atanf(ptr[-1]);
-                break;   
-            case ByteCode::Exp:
-                ptr[-1] = expf(ptr[-1]);
-                break;
-            case ByteCode::Log:
-                ptr[-1] = logf(ptr[-1]);
-                break;
-            case ByteCode::Negate:
-                ptr[-1] = -ptr[-1];
-                break;
-            case ByteCode::Floor:
-                ptr[-1] = floorf(ptr[-1]);
-                break;
-            case ByteCode::Ceil:
-                ptr[-1] = ceilf(ptr[-1]);
-                break;
-            case ByteCode::Round:
-                ptr[-1] = roundf(ptr[-1]);
-                break;
-            case ByteCode::Abs:
-                ptr[-1] = fabs(ptr[-1]);
-                break;
-            }
-            /*
-            printf("Stack %d: ", ptr-&(stack[0]));
-            for (size_t j = 0; j < stack.size(); j++) {
-                if (&(stack[j]) == ptr) break;
-                printf("%f ", stack[j]);
-            }
-            printf("\n");
-            */
-        }        
-        return stack[0];
-    }
- 
-    void compileEval(Window out, AsmX64 *a) {
 
         AsmX64::Reg x = a->rax, y = a->rcx, 
             t = a->r8, c = a->rsi, 
             imPtr = a->rdx, tmp = a->r15,
             outPtr = a->rdi;
 
-        // the index of the first free sse register
-        int r = 0;
-        
-        printf("Generating machine code...\n");
+
+        // save registers
         a->pushNonVolatiles();
 
-        // generate the constants
-
+        // generate constants
+        compileBody(a, x, y, t, c, imPtr, ordering[0]);
         a->mov(t, 0);
-        a->label("tloop"); {
-            // generate the values that don't depend on Y, X, C, or val
+        a->label("tloop"); 
 
-            a->mov(y, 0);
-            a->label("yloop"); {
-                // compute the address of the start of this scanline
-                a->mov(imPtr, im(0, 0));           
-                a->mov(tmp, t); 
-                a->imul(tmp, im.tstride*sizeof(float));
-                a->add(imPtr, tmp);
-                a->mov(tmp, y);
-                a->imul(tmp, im.ystride*sizeof(float));
-                a->add(imPtr, tmp);
-                a->mov(outPtr, (int64_t)(sizeof(float)*(out(0, 0) - im(0, 0))));
-                a->add(outPtr, imPtr);
-                
-                // generate the values that don't depend on X, C, or val
+        // generate the values that don't depend on Y, X, C, or val
+        compileBody(a, x, y, t, c, imPtr, ordering[1]);        
+        a->mov(y, 0);
+        a->label("yloop"); 
 
-                a->mov(x, 0);               
-                a->label("xloop"); {
-                    
-                    // generate the values that don't depend on C or val
-
-                    a->mov(c, 0);
-                    a->label("cloop"); {
-                        
-                        // insert code for the expression body
-                        compileBody(a, x, y, t, c, imPtr, r);
-                        a->movss(outPtr, a->xmm0);
-                        
-                        a->add(c, 1);
-                        a->add(imPtr, 4);
-                        a->add(outPtr, 4);
-                        a->cmp(c, im.channels);
-                        a->jl("cloop");
-                    }
-                    a->add(x, 1);
-                    a->cmp(x, im.width);
-                    a->jl("xloop");
-                }
-                a->add(y, 1);
-                a->cmp(y, im.height);
-                a->jl("yloop");            
-            }
-            a->add(t, 1);
-            a->cmp(t, im.frames);
-            a->jl("tloop");            
-        }
-        a->popNonVolatiles();
-        a->ret();
+        // compute the address of the start of this scanline
+        a->mov(imPtr, im(0, 0));           
+        a->mov(tmp, t); 
+        a->imul(tmp, im.tstride*sizeof(float));
+        a->add(imPtr, tmp);
+        a->mov(tmp, y);
+        a->imul(tmp, im.ystride*sizeof(float));
+        a->add(imPtr, tmp);
+        a->mov(outPtr, (int64_t)(sizeof(float)*(out(0, 0) - im(0, 0))));
+        a->add(outPtr, imPtr);
         
-        // save the obj for debugging
-        a->saveCOFF("generated.obj");
+        // generate the values that don't depend on X, C, or val
+        compileBody(a, x, y, t, c, imPtr, ordering[2]);        
+        a->mov(x, 0);               
+        a->label("xloop"); 
+        
+        // generate the values that don't depend on C or val
+        compileBody(a, x, y, t, c, imPtr, ordering[3]);        
+        a->mov(c, 0);
+        a->label("cloop"); 
+                        
+        // insert code for the expression body
+        compileBody(a, x, y, t, c, imPtr, ordering[4]);
+        a->movss(outPtr, AsmX64::SSEReg(root->reg));
+                        
+        a->add(c, 1);
+        a->add(imPtr, 4);
+        a->add(outPtr, 4);
+        a->cmp(c, im.channels);
+        a->jl("cloop");
+        a->add(x, 1);
+        a->cmp(x, im.width);
+        a->jl("xloop");
+        a->add(y, 1);
+        a->cmp(y, im.height);
+        a->jl("yloop");            
+        a->add(t, 1);
+        a->cmp(t, im.frames);
+        a->jl("tloop");            
+        a->popNonVolatiles();
+        a->ret();        
+        a->saveCOFF("generated.obj");        
     }
 
     void compileBody(AsmX64 *a, 
                      AsmX64::Reg x, AsmX64::Reg y,
                      AsmX64::Reg t, AsmX64::Reg c, 
-                     AsmX64::Reg ptr, int r) {
+                     AsmX64::Reg ptr, vector<IRNode *> code) {
+        
+        AsmX64::SSEReg tmp = a->xmm15;
 
-        for (size_t i = 0; i < instructions.size(); i++) {
-            switch(instructions[i].op) {
-            case ByteCode::Const: 
-                a->mov(a->r15, &instructions[i].val);
-                a->movss(AsmX64::SSEReg(r++), AsmX64::Mem(a->r15));
+        for (size_t i = 0; i < code.size(); i++) {
+            // extract the node, its register, and any children and their registers
+            IRNode *node = code[i];
+            IRNode *c1 = (node->children.size() >= 1) ? node->children[0] : NULL;
+            IRNode *c2 = (node->children.size() >= 2) ? node->children[1] : NULL;
+            IRNode *c3 = (node->children.size() >= 3) ? node->children[2] : NULL;
+            IRNode *c4 = (node->children.size() >= 4) ? node->children[3] : NULL;
+            AsmX64::SSEReg dst(node->reg);
+            AsmX64::SSEReg src1(c1 ? c1->reg : 0);
+            AsmX64::SSEReg src2(c2 ? c2->reg : 0);
+            AsmX64::SSEReg src3(c3 ? c3->reg : 0);
+            AsmX64::SSEReg src4(c4 ? c4->reg : 0);
+            switch(node->op) {
+            case Const: 
+                a->mov(a->r15, &code[i].val);
+                a->movss(dst, AsmX64::Mem(a->r15));
                 break;
-            case ByteCode::VarX:
-                a->cvtsi2ss(AsmX64::SSEReg(r++), x);
+            case VarX:
+                a->cvtsi2ss(dst, x);
                 break;
-            case ByteCode::VarY:
-                a->cvtsi2ss(AsmX64::SSEReg(r++), y);
+            case VarY:
+                a->cvtsi2ss(dst, y);
                 break;
-            case ByteCode::VarT:
-                a->cvtsi2ss(AsmX64::SSEReg(r++), t);
+            case VarT:
+                a->cvtsi2ss(dst, t);
                 break;
-            case ByteCode::VarC:
-                a->cvtsi2ss(AsmX64::SSEReg(r++), c);
+            case VarC:
+                a->cvtsi2ss(dst, c);
                 break;
-            case ByteCode::VarVal:
-                a->movss(AsmX64::SSEReg(r++), AsmX64::Mem(ptr));
+            case VarVal:
+                a->movss(dst, AsmX64::Mem(ptr));
                 break;
-            case ByteCode::Plus:
-                a->addss(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-1));
-                r--;
+            case Plus:
+                if (dst == src1)
+                    a->addss(dst, src2);
+                else if (dst == src2) 
+                    a->addss(dst, src1);
+                else {
+                    a->movss(dst, src1);
+                    a->addss(dst, src2);
+                }
                 break;
-            case ByteCode::Minus:
-                a->subss(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-1));
-                r--;
+            case Minus:
+                if (dst == src1)
+                    a->subss(dst, src2);
+                else {
+                    a->movss(dst, src1);
+                    a->subss(dst, src2);
+                }
                 break;
-            case ByteCode::Times: 
-                a->mulss(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-1));
-                r--;
+            case Times: 
+                if (dst == src1)
+                    a->mulss(dst, src2);
+                else if (dst == src2) 
+                    a->mulss(dst, src1);
+                else {
+                    a->movss(dst, src1);
+                    a->mulss(dst, src2);
+                }
                 break;
-            case ByteCode::Divide: 
-                a->divss(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-1));
-                r--;
+            case Divide: 
+                if (dst == src1)
+                    a->divss(dst, src2);
+                else {
+                    a->movss(dst, src1);
+                    a->divss(dst, src2);
+                }
                 break;
-            case ByteCode::LT:
-                a->cmpltss(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-1));
-                a->mov(a->r15, &const_one);
-                a->movss(AsmX64::SSEReg(r-1), AsmX64::Mem(a->r15));
-                a->bandps(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-1));
-                r--;
+            case IfNEQ:
+                // TODO: special case if either src3 or src4 is zero
+                if (dst == src1) {
+                    a->cmpneqss(src1, src2);
+                    a->movss(tmp, src3);
+                    a->bandps(tmp, src1);
+                    a->bandnps(src1, src4);
+                    a->borps(src1, tmp);
+                } else if (dst == src2) {
+                    a->cmpneqss(src2, src1);
+                    a->movss(tmp, src3);
+                    a->bandps(tmp, src2);
+                    a->bandnps(src2, src4);
+                    a->borps(src2, tmp);                    
+                } else if (dst == src3) {
+                    a->movss(tmp, src1);
+                    a->cmpneqss(tmp, src2);
+                    a->bandps(src3, tmp);
+                    a->bandnps(tmp, src4);
+                    a->borps(src3, tmp);                    
+                } else if (dst == src4) {
+                    
+                }
+                a->cmpneqss(src1, src2);
+                a->bandps(src3, src1);
+                a->bandnps(src1, src4);
+                a->borps(src1, src3);
                 break;
-            case ByteCode::GT:
-                a->cmpnless(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-1));
-                a->mov(a->r15, &const_one);
-                a->movss(AsmX64::SSEReg(r-1), AsmX64::Mem(a->r15));
-                a->bandps(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-1));
-                r--;
-                break;
-            case ByteCode::LTE:
-                a->cmpless(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-1));
-                a->mov(a->r15, &const_one);
-                a->movss(AsmX64::SSEReg(r-1), AsmX64::Mem(a->r15));
-                a->bandps(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-1));
-                r--;
-                break;
-            case ByteCode::GTE:
-                a->cmpnltss(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-1));
-                a->mov(a->r15, &const_one);
-                a->movss(AsmX64::SSEReg(r-1), AsmX64::Mem(a->r15));
-                a->bandps(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-1));
-                r--;
-                break;
-            case ByteCode::EQ:
-                a->cmpeqss(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-1));
-                a->mov(a->r15, &const_one);
-                a->movss(AsmX64::SSEReg(r-1), AsmX64::Mem(a->r15));
-                a->bandps(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-1));
-                r--;
-                break;
-            case ByteCode::NEQ:
-                a->cmpneqss(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-1));
-                a->mov(a->r15, &const_one);
-                a->movss(AsmX64::SSEReg(r-1), AsmX64::Mem(a->r15));
-                a->bandps(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-1));
-                r--;
-                break;
-            case ByteCode::IfNZ:                
-                a->bxorps(AsmX64::SSEReg(r), AsmX64::SSEReg(r));
-                a->cmpneqss(AsmX64::SSEReg(r-3), AsmX64::SSEReg(r));
-                a->bandps(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-3));
-                a->bandnps(AsmX64::SSEReg(r-3), AsmX64::SSEReg(r-1));
-                a->borps(AsmX64::SSEReg(r-3), AsmX64::SSEReg(r-2));
-                r -= 2;
-                break;
-            case ByteCode::IfNEQ:
-                a->cmpneqss(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-3));
-                a->bandps(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-4));
-                a->bandnps(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-1));
-                a->borps(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-2));
-                r -= 3;
-                break;
-            case ByteCode::IfEQ:
+            case IfEQ:
                 a->cmpeqss(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-3));
                 a->bandps(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-4));
                 a->bandnps(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-1));
                 a->borps(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-2));
                 r -= 3;
                 break;
-            case ByteCode::IfLT:
+            case IfLT:
                 a->cmpltss(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-3));
                 a->bandps(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-4));
                 a->bandnps(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-1));
                 a->borps(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-2));
                 r -= 3;
                 break;
-            case ByteCode::IfGT:
+            case IfGT:
                 a->cmpnless(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-3));
                 a->bandps(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-4));
                 a->bandnps(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-1));
                 a->borps(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-2));
                 r -= 3;
                 break;
-            case ByteCode::IfLTE:
+            case IfLTE:
                 a->cmpless(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-3));
                 a->bandps(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-4));
                 a->bandnps(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-1));
                 a->borps(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-2));
                 r -= 3;
                 break;
-            case ByteCode::IfGTE:
+            case IfGTE:
                 a->cmpnltss(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-3));
                 a->bandps(AsmX64::SSEReg(r-2), AsmX64::SSEReg(r-4));
                 a->bandnps(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-1));
                 a->borps(AsmX64::SSEReg(r-4), AsmX64::SSEReg(r-2));
                 r -= 3;
                 break;
-            case ByteCode::ATan2:
-            case ByteCode::Sample2D: 
-            case ByteCode::Sample3D:
-            case ByteCode::SampleHere:
-            case ByteCode::Mod:
-            case ByteCode::Pow:
-            case ByteCode::Sin:
-            case ByteCode::Cos:
-            case ByteCode::Tan:
-            case ByteCode::ASin:
-            case ByteCode::ACos:
-            case ByteCode::ATan:
-            case ByteCode::Exp:
-            case ByteCode::Log:
-            case ByteCode::Negate:
-            case ByteCode::Floor:
-            case ByteCode::Ceil:
-            case ByteCode::Round:
-            case ByteCode::Abs:
+            case ATan2:
+            case Sample2D: 
+            case Sample3D:
+            case SampleHere:
+            case Mod:
+            case Pow:
+            case Sin:
+            case Cos:
+            case Tan:
+            case ASin:
+            case ACos:
+            case ATan:
+            case Exp:
+            case Log:
+            case Negate:
+            case Floor:
+            case Ceil:
+            case Round:
+            case Abs:
                 printf("Not implemented\n");                
+                break;
+            case NoOp:
                 break;
             }
         }
     }
 
-    void visit(Expression::Var_x *node) {gen(ByteCode::VarX, DEP_X);}
-    void visit(Expression::Var_y *node) {gen(ByteCode::VarY, DEP_Y);}
-    void visit(Expression::Var_t *node) {gen(ByteCode::VarT, DEP_T);}
-    void visit(Expression::Var_c *node) {gen(ByteCode::VarC, DEP_C);}
-    void visit(Expression::Var_val *node) {gen(ByteCode::VarVal, DEP_VAL);}
-    void visit(Expression::Uniform_width *node) {gen(im.width);}
-    void visit(Expression::Uniform_height *node) {gen(im.height);}
-    void visit(Expression::Uniform_frames *node) {gen(im.frames);}
-    void visit(Expression::Uniform_channels *node) {gen(im.channels);}
-    void visit(Expression::Float *node) {gen(node->value);}
-    void visit(Expression::Funct_mean0 *node) {gen(stats.mean());}
-    void visit(Expression::Funct_sum0 *node) {gen(stats.sum());}
-    void visit(Expression::Funct_max0 *node) {gen(stats.maximum());}
-    void visit(Expression::Funct_min0 *node) {gen(stats.minimum());}
-    void visit(Expression::Funct_variance0 *node) {gen(stats.variance());}
-    void visit(Expression::Funct_stddev0 *node) {gen(sqrtf(stats.variance()));}
-    void visit(Expression::Funct_skew0 *node) {gen(stats.skew());}
-    void visit(Expression::Funct_kurtosis0 *node) {gen(stats.kurtosis());}    
-    
-#define checkConst            \
-    if (!tag(node).deps) {    \
-        gen(tag(node).value); \
-        return;               \
+protected:
+
+    vector<vector<IRNode *> > doRegisterAssignment() {
+        // reserve xmm15 for the code generator
+        vector<IRNode *> regs(15);
+        
+        // the resulting evaluation order
+        vector<vector<IRNode *> > order(5);
+        regAssign(root, regs, order);
+        return order;
+    }
+       
+    void regAssign(IRNode *node, vector<IRNode *> &regs, vector<vector<IRNode *> > &order) {
+        // if I already have a register bail out
+        if (node->reg >= 0) return;
+
+        // assign registers to the children
+        for (size_t i = 0; i < node->children.size(); i++) {
+            regAssign(node->children[i], regs, order);
+        }
+
+        // if there are children, see if we can use the register of
+        // the one of the children - the first is optimal, as this
+        // makes x64 codegen easier. To reuse the register of the
+        // child it has to be at the same level as us (otherwise it
+        // will have been computed once and stored outside the for
+        // loop this node lives in), and have no other
+        // parents. There's an exception to this: if you're the last
+        // parent of a set of parents to use a child's value, it's OK
+        // to clobber. We currently don't handle this exception
+        // (because we currently don't do CSE, so it never crops up).
+
+        for (size_t i = 0; i < node->children.size(); i++) {
+            IRNode *child = node->children[i];
+            if (node->level == child->level &&
+                child->parents.size() == 1) {
+                node->reg = child->reg;
+                regs[child->reg] = node;
+                order[node->level].push_back(node);
+                return;
+            }
+        }
+
+        printf("Couldn't clobber a child, looking for a free register instead\n");
+
+        // else find a completely unused register and use that. This
+        // will certainly provoke codegen into inserting extra movs.
+        for (size_t i = 0; i < regs.size(); i++) {
+            if (regs[i] == NULL) {
+                node->reg = i;
+                regs[i] = node;
+                order[node->level].push_back(node);
+                return;
+            }
+        }
+
+        printf("No free registers, searching for someone to evict\n");
+
+        // else find a previously used register that is safe to evict
+        // - meaning it's at the same or higher level and all its
+        // parents will have already been evaluated and are at the same or higher level
+        for (size_t i = 0; i < regs.size(); i++) {            
+            if (regs[i]->level < node->level) {
+                printf("Register %d is holding a value from a higher level (%d vs %d)\n",
+                       i, node->level, regs[i]->level);
+                continue;
+            }
+            bool safeToEvict = true;            
+            for (size_t j = 0; j < regs[i]->parents.size(); j++) {
+                if (regs[i]->parents[j]->reg < 0 ||
+                    regs[i]->parents[j]->level > node->level) {
+                    safeToEvict = false;
+                    break;
+                }
+            }
+
+            if (safeToEvict) {
+                printf("Good to evict the node in register %d, because its parents have registers: ", i);
+                for (size_t j = 0; j < regs[i]->parents.size(); j++) {
+                    printf("%d ", regs[i]->parents[j]->reg);
+                }
+                printf("\n");
+
+                node->reg = i;
+                regs[i] = node;
+                order[node->level].push_back(node);
+                return;
+            } else {
+                printf("Register %d was still in use :(\n", i);
+            }
+        }
+
+        // else freak out - we're out of registers and we don't know
+        // how to spill to the stack yet.
+        panic("Out of registers!\n");
     }
 
-    void visit(Expression::Negation *node) {
-        checkConst;
-        node->arg1->accept(this); 
-        gen(ByteCode::Negate, tag(node).deps);
+
+
+
+#define nullary(a, b)                           \
+    void visit(Expression::##a *node) {         \
+        root = new IRNode(b);                   \
     }
 
-    void visit(Expression::Funct_sin *node) {
-        checkConst;
-        node->arg1->accept(this); 
-        gen(ByteCode::Sin, tag(node).deps);
-    }
-
-    void visit(Expression::Funct_cos *node) {
-        checkConst;
-        node->arg1->accept(this); 
-        gen(ByteCode::Cos, tag(node).deps);
-    }
-
-    void visit(Expression::Funct_tan *node) {
-        checkConst;
-        node->arg1->accept(this); 
-        gen(ByteCode::Tan, tag(node).deps);
-    }
-
-    void visit(Expression::Funct_atan *node) {
-        checkConst;
-        node->arg1->accept(this); 
-        gen(ByteCode::ATan, tag(node).deps);
-    }
-
-    void visit(Expression::Funct_asin *node) {
-        checkConst;
-        node->arg1->accept(this); 
-        gen(ByteCode::ASin, tag(node).deps);
-    }
-
-    void visit(Expression::Funct_acos *node) {
-        checkConst;
-        node->arg1->accept(this); 
-        gen(ByteCode::ACos, tag(node).deps);
-    }
-
-    void visit(Expression::Funct_abs *node) {
-        checkConst;
-        node->arg1->accept(this); 
-        gen(ByteCode::Abs, tag(node).deps);
-    }
-
-    void visit(Expression::Funct_floor *node) {
-        checkConst;
-        node->arg1->accept(this);
-        gen(ByteCode::Floor, tag(node).deps);
-    }
-
-    void visit(Expression::Funct_ceil *node) {
-        checkConst;
-        node->arg1->accept(this); 
-        gen(ByteCode::Ceil, tag(node).deps);
-    }
-
-    void visit(Expression::Funct_round *node) {
-        checkConst;
-        node->arg1->accept(this);
-        gen(ByteCode::Round, tag(node).deps);
-    }
-
-    void visit(Expression::Funct_log *node) {
-        checkConst;
-        node->arg1->accept(this);
-        gen(ByteCode::Log, tag(node).deps);
-    }
-
-    void visit(Expression::Funct_exp *node) {
-        checkConst;
-        node->arg1->accept(this); 
-        gen(ByteCode::Exp, tag(node).deps);
-    }
+    nullary(Var_x, (uint32_t)VarX);
+    nullary(Var_y, (uint32_t)VarY);
+    nullary(Var_t, (uint32_t)VarT);
+    nullary(Var_c, (uint32_t)VarC);
+    nullary(Var_val, (uint32_t)VarVal);
+    nullary(Float, node->value);
+    nullary(Uniform_width, (float)im.width);
+    nullary(Uniform_height, (float)im.height);
+    nullary(Uniform_frames, (float)im.frames);
+    nullary(Uniform_channels, (float)im.channels);
+    nullary(Funct_mean0, (float)stats->mean());
+    nullary(Funct_sum0, (float)stats->sum());
+    nullary(Funct_min0, (float)stats->minimum());
+    nullary(Funct_max0, (float)stats->maximum());
+    nullary(Funct_stddev0, sqrtf((float)stats->variance()));
+    nullary(Funct_variance0, (float)stats->variance());
+    nullary(Funct_skew0, (float)stats->skew());
+    nullary(Funct_kurtosis0, (float)stats->kurtosis());
 
     // TODO
-    void visit(Expression::Funct_mean1 *node) {gen(0);}
-    void visit(Expression::Funct_sum1 *node) {gen(0);}
-    void visit(Expression::Funct_max1 *node) {gen(0);}
-    void visit(Expression::Funct_min1 *node) {gen(0);}
-    void visit(Expression::Funct_variance1 *node) {gen(0);}
-    void visit(Expression::Funct_stddev1 *node) {gen(0);}
-    void visit(Expression::Funct_skew1 *node) {gen(0);}
-    void visit(Expression::Funct_kurtosis1 *node) {gen(0);}
-    void visit(Expression::Funct_covariance *node) {gen(0);}
-    
-    void visit(Expression::LTE *node) {
-        checkConst;
-        node->arg1->accept(this); 
-        node->arg2->accept(this);
-        gen(ByteCode::LTE, tag(node).deps);
+    nullary(Funct_mean1, (float)stats->mean());
+    nullary(Funct_sum1, (float)stats->sum());
+    nullary(Funct_min1, (float)stats->minimum());
+    nullary(Funct_max1, (float)stats->maximum());
+    nullary(Funct_stddev1, sqrtf((float)stats->variance()));
+    nullary(Funct_variance1, (float)stats->variance());
+    nullary(Funct_skew1, (float)stats->skew());
+    nullary(Funct_kurtosis1, (float)stats->kurtosis());    
+    nullary(Funct_covariance, (float)stats->variance());    
+
+#undef nullary
+
+    // roundf is a macro, which gets confused inside another macro, so
+    // we wrap it in a function
+    float myRound(float x) {
+        return roundf(x);
     }
-    
-    void visit(Expression::GTE *node) {
-        checkConst;
-        node->arg1->accept(this); 
-        node->arg2->accept(this);
-        gen(ByteCode::GTE, tag(node).deps);
+
+#define unary(a, b, c)                                          \
+    void visit(Expression::##a *node) {                         \
+        node->arg1->accept(this);                               \
+        if (root->op == Const) root->val = b(root->val);        \
+        else root = new IRNode(c, root);                        \
     }
-    
-    void visit(Expression::LT *node) {
-        checkConst;
-        node->arg1->accept(this); 
-        node->arg2->accept(this);
-        gen(ByteCode::LT, tag(node).deps);
+
+    unary(Negation, -, Negate);
+    unary(Funct_sin, sinf, Sin);
+    unary(Funct_cos, cosf, Cos);
+    unary(Funct_tan, tanf, Tan);
+    unary(Funct_asin, asinf, ASin);
+    unary(Funct_acos, acosf, ACos);
+    unary(Funct_atan, atanf, ATan);
+    unary(Funct_abs, fabs, Abs);
+    unary(Funct_floor, floorf, Floor);
+    unary(Funct_ceil, ceilf, Ceil);
+    unary(Funct_round, myRound, Round);
+    unary(Funct_log, logf, Log);
+    unary(Funct_exp, expf, Exp);
+
+#undef unary
+
+#define bincmp(a, b)                                                    \
+    void visit(Expression::##a *node) {                                 \
+        node->arg1->accept(this); IRNode *child1 = root;                \
+        node->arg2->accept(this); IRNode *child2 = root;                \
+        if (child1->op == Const && child2->op == Const) {               \
+            root->val = (child1->val b child2->val) ? 1.0f : 0.0f;      \
+            delete child1;                                              \
+        } else {                                                        \
+            root = new IRNode(If##a, child1, child2,                    \
+                              new IRNode(1.0), new IRNode(0.0));        \
+        }                                                               \
+    } 
+
+
+    bincmp(LTE, <=);
+    bincmp(LT, <);
+    bincmp(GT, >);
+    bincmp(GTE, >=);
+    bincmp(EQ, ==);
+    bincmp(NEQ, ==);
+
+#undef bincmp
+
+#define binop(a, b)                                             \
+    void visit(Expression::##a *node) {                         \
+        node->arg1->accept(this); IRNode *child1 = root;        \
+        node->arg2->accept(this); IRNode *child2 = root;        \
+        if (child1->op == Const && child2->op == Const) {       \
+            root->val = child1->val b child2->val;               \
+            delete child1;                                      \
+        } else {                                                \
+            root = new IRNode(a, child1, child2);               \
+        }                                                       \
     }
-    
-    void visit(Expression::GT *node) {
-        checkConst;
-        node->arg1->accept(this); 
-        node->arg2->accept(this);
-        gen(ByteCode::GT, tag(node).deps);
+
+    binop(Plus, +);
+    binop(Minus, -);
+    binop(Times, *);
+    binop(Divide, /);
+
+#undef binop
+
+#define binfunc(a, b, c)                                        \
+    void visit(Expression::##a *node) {                         \
+        node->arg1->accept(this); IRNode *child1 = root;        \
+        node->arg2->accept(this); IRNode *child2 = root;        \
+        if (child1->op == Const && child2->op == Const) {       \
+            root->val = b(child1->val, child2->val);             \
+            delete child1;                                      \
+        } else {                                                \
+            root = new IRNode(c, child1, child2);               \
+        }                                                       \
     }
-    
-    void visit(Expression::EQ *node) {
-        checkConst;
-        node->arg1->accept(this); 
-        node->arg2->accept(this);
-        gen(ByteCode::EQ, tag(node).deps);
-    }
-    
-    void visit(Expression::NEQ *node) {
-        checkConst;
-        node->arg1->accept(this); 
-        node->arg2->accept(this);
-        gen(ByteCode::EQ, tag(node).deps);
-    }
-    
-    void visit(Expression::Plus *node) {
-        checkConst;
-        node->arg1->accept(this); 
-        node->arg2->accept(this);
-        gen(ByteCode::Plus, tag(node).deps);
-    }
-    
-    void visit(Expression::Minus *node) {
-        checkConst;
-        node->arg1->accept(this); 
-        node->arg2->accept(this);
-        gen(ByteCode::Minus, tag(node).deps);
-    }
-    
-    void visit(Expression::Times *node) {
-        checkConst;
-        node->arg1->accept(this); 
-        node->arg2->accept(this);
-        gen(ByteCode::Times, tag(node).deps);
-    }
-    
-    void visit(Expression::Mod *node) {
-        checkConst;
-        node->arg1->accept(this); 
-        node->arg2->accept(this);
-        gen(ByteCode::Mod, tag(node).deps);
-    }
-    
-    void visit(Expression::Divide *node) {
-        checkConst;
-        node->arg1->accept(this); 
-        node->arg2->accept(this);
-        gen(ByteCode::Divide, tag(node).deps);
-    }
-    
-    void visit(Expression::Power *node) {
-        checkConst;
-        node->arg1->accept(this); 
-        node->arg2->accept(this);
-        gen(ByteCode::Pow, tag(node).deps);
-    }
-    
-    void visit(Expression::Funct_atan2 *node) {
-        checkConst;
-        node->arg1->accept(this); 
-        node->arg2->accept(this);
-        gen(ByteCode::ATan2, tag(node).deps);
-    }
+
+
+    binfunc(Mod, fmod, Mod);
+    binfunc(Funct_atan2, atan2f, ATan2);
+    binfunc(Power, powf, Power);
+
+#undef binfunc
     
     void visit(Expression::IfThenElse *node) {
-        checkConst;
         node->arg1->accept(this);        
-        ByteCode::Op op;
-        switch(last().op) {
-        case ByteCode::LT:
-            op = ByteCode::IfLT;
-            pop();
+        switch(root->op) {
+        case LT:
+            root->op = IfLT;
             break;
-        case ByteCode::GT:
-            op = ByteCode::IfGT;
-            pop();
+        case GT:
+            root->op = IfGT;
             break;
-        case ByteCode::LTE:
-            op = ByteCode::IfLTE;
-            pop();
+        case LTE:
+            root->op = IfLTE;
             break;
-        case ByteCode::GTE:
-            op = ByteCode::IfGTE;
-            pop();
+        case GTE:
+            root->op = IfGTE;
             break;
-        case ByteCode::EQ:
-            op = ByteCode::IfEQ;
-            pop();
+        case EQ:
+            root->op = IfEQ;
             break;
-        case ByteCode::NEQ:
-            op = ByteCode::IfNEQ;
-            pop();
+        case NEQ:
+            root->op = IfNEQ;
             break;
-        default:
-            op = ByteCode::IfNZ;
-            break;
+        default: {            
+            IRNode *child1 = root;            
+            node->arg2->accept(this);
+            IRNode *child2 = root;
+            node->arg3->accept(this);
+            IRNode *child3 = root;
+            root = new IRNode(IfNEQ, child1, new IRNode(0.0f), child2, child3);            
+            return;
         }
+        }
+
+        // upgrade child1 with some extra children and a fancier
+        // opcode instead of adding a new node
+        IRNode *child1 = root;            
         node->arg2->accept(this);
+        child1->children.push_back(root);
         node->arg3->accept(this);
-        gen(op, tag(node).deps);
+        child1->children.push_back(root);
+        root = child1;
     }
     
-    void visit(Expression::SampleHere *node) {
+    void visit(Expression::SampleHere *node) {        
         node->arg1->accept(this);
-        gen(ByteCode::SampleHere, tag(node).deps);
+        root = new IRNode(SampleHere, root);
     }
     
     void visit(Expression::Sample2D *node) {
-        node->arg1->accept(this);
-        node->arg2->accept(this);
-        gen(ByteCode::Sample2D, tag(node).deps);
+        node->arg1->accept(this); IRNode *child1 = root;
+        node->arg2->accept(this); IRNode *child2 = root;
+        root = new IRNode(Sample2D, child1, child2);
     }
     
     void visit(Expression::Sample3D *node) {
-        node->arg1->accept(this);
-        node->arg2->accept(this);
-        node->arg3->accept(this);
-        gen(ByteCode::Sample3D, tag(node).deps);
+        node->arg1->accept(this); IRNode *child1 = root;
+        node->arg2->accept(this); IRNode *child2 = root;
+        node->arg3->accept(this); IRNode *child3 = root;
+        root = new IRNode(Sample3D, child1, child2, child3);
     }
-
-    #undef checkConst
-
+    
 };
 
 #include "footer.h"
