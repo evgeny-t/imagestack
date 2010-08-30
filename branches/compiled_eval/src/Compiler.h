@@ -26,7 +26,7 @@ class Compiler : public Expression::Visitor {
     
     enum {DepT = 1, DepY = 2, DepX = 4, DepC = 8, DepVal = 16};
 
-    enum Type {Unknown = 0, Float, Bool};
+    enum Type {Unknown = 0, Float, Bool, Int, Bool4, Float4, IntRange4};
     
     // One node in the intermediate representation
     struct IRNode {
@@ -180,12 +180,12 @@ public:
         a->pushNonVolatiles();
 
         // generate constants
-        compileBody(a, x, y, t, c, imPtr, ordering[0]);
+        compileBody(a, x, y, t, c, AsmX64::Mem(imPtr), im.channels*4, ordering[0]);
         a->mov(t, 0);
         a->label("tloop"); 
 
         // generate the values that don't depend on Y, X, C, or val
-        compileBody(a, x, y, t, c, imPtr, ordering[1]);        
+        compileBody(a, x, y, t, c, AsmX64::Mem(imPtr), im.channels*4, ordering[1]);        
         a->mov(y, 0);
         a->label("yloop"); 
 
@@ -201,25 +201,35 @@ public:
         a->add(outPtr, imPtr);
         
         // generate the values that don't depend on X, C, or val
-        compileBody(a, x, y, t, c, imPtr, ordering[2]);        
+        compileBody(a, x, y, t, c, AsmX64::Mem(imPtr), im.channels*4, ordering[2]);        
         a->mov(x, 0);               
         a->label("xloop"); 
         
         // generate the values that don't depend on C or val
-        compileBody(a, x, y, t, c, imPtr, ordering[3]);        
+        compileBody(a, x, y, t, c, AsmX64::Mem(imPtr), im.channels*4, ordering[3]);        
+
         a->mov(c, 0);
-        a->label("cloop"); 
-                        
-        // insert code for the expression body
-        compileBody(a, x, y, t, c, imPtr, ordering[4]);
-        a->movss(outPtr, AsmX64::SSEReg(root->reg));
-                        
-        a->add(c, 1);
-        a->add(imPtr, 4);
-        a->add(outPtr, 4);
-        a->cmp(c, im.channels);
-        a->jl("cloop");
-        a->add(x, 1);
+        //a->label("cloop");                         
+
+        // load a im.channels*4-sized block of data
+        
+
+        for (int i = 0; i < im.channels; i++) {
+            // insert code for the expression body
+            compileBody(a, x, y, t, c, AsmX64::Mem(imPtr, i*4), im.channels*4, ordering[4]);
+            a->movntss(AsmX64::Mem(outPtr, i*4), AsmX64::SSEReg(root->reg));
+            
+            a->add(c, 1);
+        }
+
+        // store a block of data
+
+        //a->cmp(c, im.channels);
+        //a->jl("cloop");
+
+        a->add(imPtr, im.channels*4*4);
+        a->add(outPtr, im.channels*4*4);
+        a->add(x, 4);
         a->cmp(x, im.width);
         a->jl("xloop");
         a->add(y, 1);
@@ -236,8 +246,10 @@ public:
     void compileBody(AsmX64 *a, 
                      AsmX64::Reg x, AsmX64::Reg y,
                      AsmX64::Reg t, AsmX64::Reg c, 
-                     AsmX64::Reg ptr, vector<IRNode *> code) {
+                     AsmX64::Mem ptr, int stride, 
+                     vector<IRNode *> code) {
         
+        AsmX64::SSEReg tmp2 = a->xmm14;
         AsmX64::SSEReg tmp = a->xmm15;
 
         for (size_t i = 0; i < code.size(); i++) {
@@ -247,6 +259,7 @@ public:
             IRNode *c2 = (node->children.size() >= 2) ? node->children[1] : NULL;
             IRNode *c3 = (node->children.size() >= 3) ? node->children[2] : NULL;
             IRNode *c4 = (node->children.size() >= 4) ? node->children[3] : NULL;
+            AsmX64::Mem memRef(ptr);
             AsmX64::SSEReg dst(node->reg);
             AsmX64::SSEReg src1(c1 ? c1->reg : 0);
             AsmX64::SSEReg src2(c2 ? c2->reg : 0);
@@ -282,7 +295,17 @@ public:
                 a->cvtsi2ss(dst, c);
                 break;
             case VarVal:
-                a->movss(dst, AsmX64::Mem(ptr));
+                memRef = ptr;                
+                a->movss(dst, memRef);
+                memRef.offset += stride;
+                a->movss(tmp, memRef);
+                a->punpckldq(dst, tmp);
+                memRef.offset += stride;
+                a->movss(tmp, memRef);
+                memRef.offset += stride;
+                a->movss(tmp2, memRef);
+                a->punpckldq(tmp, tmp2);
+                a->punpcklqdq(dst, tmp);
                 break;
             case Plus:
                 if (dst == src1)
@@ -434,8 +457,7 @@ public:
             case Floor:
             case Ceil:
             case Round:
-            case Abs:
-                
+            case Abs:               
             case Sample2D: 
             case Sample3D:
             case SampleHere:
@@ -450,8 +472,8 @@ public:
 protected:
 
     vector<vector<IRNode *> > doRegisterAssignment() {
-        // reserve xmm15 for the code generator
-        vector<IRNode *> regs(15);
+        // reserve xmm14-15 for the code generator
+        vector<IRNode *> regs(14);
         
         // the resulting evaluation order
         vector<vector<IRNode *> > order(5);
@@ -672,6 +694,7 @@ protected:
         node->arg2->accept(this); IRNode *child2 = root;                \
         if (child1->op == ConstFloat && child2->op == ConstFloat) {     \
             root->val = (child1->val b child2->val) ? 1.0f : 0.0f;      \
+            root->type = Bool;                                          \
             delete child1;                                              \
         } else {                                                        \
             root = new IRNode(Bool, a, Float, child1, Float, child2);   \
@@ -730,6 +753,17 @@ protected:
     void visit(Expression::IfThenElse *node) {
         node->arg1->accept(this);        
         IRNode *cond = root;
+
+        if (cond->op == ConstBool || cond->op == ConstFloat) {
+            if (cond->val) {
+                node->arg2->accept(this);
+                return;
+            } else { 
+                node->arg3->accept(this);
+                return;
+            }            
+        }
+
         node->arg2->accept(this);
         IRNode *thenCase = root;
         node->arg3->accept(this);
