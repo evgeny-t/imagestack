@@ -585,6 +585,11 @@ public:
         bop(dst, src, 0x10);
     }
 
+    void movntss(Mem dst, SSEReg src) {
+        emit(0xF3);
+        bop(dst, src, 0x2B);
+    }
+
     void movaps(Mem dst, SSEReg src) {
         bop(dst, src, 0x29);
     }
@@ -685,6 +690,27 @@ public:
         emit(0xF3);
         bop(dst, src, 0x2A);
     }
+
+    void punpckldq(SSEReg dst, SSEReg src) {
+        emit(0x66);
+        bop(dst, src, 0x62);
+    }
+
+    void punpcklqdq(SSEReg dst, SSEReg src) {
+        emit(0x66);
+        bop(dst, src, 0x6C);        
+    }
+
+    void punpckldq(SSEReg dst, Mem src) {
+        emit(0x66);
+        bop(dst, src, 0x62);
+    }
+
+    void punpcklqdq(SSEReg dst, Mem src) {
+        emit(0x66);
+        bop(dst, src, 0x6C);        
+    }
+
 
     void popNonVolatiles() {
         mov(rbx, Mem(rsp, 0xD8));
