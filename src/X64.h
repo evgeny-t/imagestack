@@ -125,6 +125,14 @@ protected:
     }
 
 public:
+    ~AsmX64() {
+        // Clean up the binary blobs
+        map<std::string, void *>::iterator iter;
+        for (iter = blobs.begin(); iter != blobs.end(); iter++) {
+            free(iter->second);
+        }
+    }
+
     // dst += src
     void add(Reg dst, Reg src) { 
         bop(dst, src, 0x03);
@@ -590,6 +598,10 @@ public:
         bop(dst, src, 0x2B);
     }
 
+    void movntps(Mem dst, SSEReg src) {
+        bop(dst, src, 0x2B);
+    }
+
     void movaps(Mem dst, SSEReg src) {
         bop(dst, src, 0x29);
     }
@@ -670,6 +682,52 @@ public:
         emit(0x06);
     }
 
+    void addps(SSEReg dst, SSEReg src) {
+        bop(dst, src, 0x58);
+    }
+
+    void subps(SSEReg dst, SSEReg src) {
+        bop(dst, src, 0x5C);        
+    }
+
+    void mulps(SSEReg dst, SSEReg src) {
+        bop(dst, src, 0x59);
+    }
+
+    void divps(SSEReg dst, SSEReg src) {
+        bop(dst, src, 0x5E);
+    }
+
+    void cmpeqps(SSEReg dst, SSEReg src) {
+        bop(dst, src, 0xC2);
+        emit(0x00);
+    }
+
+    void cmpltps(SSEReg dst, SSEReg src) {
+        bop(dst, src, 0xC2);
+        emit(0x01);
+    }
+    
+    void cmpleps(SSEReg dst, SSEReg src) {
+        bop(dst, src, 0xC2);
+        emit(0x02);
+    }
+
+    void cmpneqps(SSEReg dst, SSEReg src) {
+        bop(dst, src, 0xC2);
+        emit(0x04);
+    }
+
+    void cmpnltps(SSEReg dst, SSEReg src) {
+        bop(dst, src, 0xC2);
+        emit(0x05);
+    }
+
+    void cmpnleps(SSEReg dst, SSEReg src) {
+        bop(dst, src, 0xC2);
+        emit(0x06);
+    }
+
     void bandps(SSEReg dst, SSEReg src) {
         bop(dst, src, 0x54);
     }
@@ -711,6 +769,11 @@ public:
         bop(dst, src, 0x6C);        
     }
 
+    void shufps(SSEReg dst, SSEReg src, 
+                uint8_t a, uint8_t b, uint8_t c, uint8_t d) {
+        bop(dst, src, 0xC6);
+        emit((a&3) | ((b&3)<<2) | ((c&3)<<4) | ((d&3)<<6));
+    }
 
     void popNonVolatiles() {
         mov(rbx, Mem(rsp, 0xD8));
@@ -828,6 +891,14 @@ public:
         fclose(f);
     }
 
+    void *data(std::string name) {
+        if (blobs.find(name) != blobs.end()) return blobs[name];
+        return NULL;
+    }
+
+    void *makeData(std::string name, size_t size) {
+        return blobs[name] = malloc(size);
+    }
 
 protected:
 
@@ -871,6 +942,8 @@ protected:
     // constant minus the location immediately following the
     // site. This is useful for jmp instructions.
     std::map<std::string, std::vector<uint32_t> > relBindingSites;
-
     std::map<std::string, int32_t> bindings;
+
+    // 16-byte aligned data blobs
+    std::map<std::string, void *> blobs;
 };

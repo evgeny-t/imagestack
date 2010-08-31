@@ -331,7 +331,7 @@ class Image : public Window {
     
         
     void debug() {
-        printf("%llx(%d@%llx): %d %d %d %d\n", (unsigned long long)data, refCount[0], (unsigned long long)refCount, width, height, frames, channels);
+        //printf("%llx(%d@%llx): %d %d %d %d\n", (unsigned long long)data, refCount[0], (unsigned long long)refCount, width, height, frames, channels);
     }
             
 

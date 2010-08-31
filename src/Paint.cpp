@@ -28,8 +28,6 @@ Image Eval::apply(Window im, string expression) {
     prog.compileEval(&a, im, out, Expression(expression));
     a.run();
 
-    printf("%f, %f\n", im(10, 10)[0], out(10, 10)[0]);
-
     /*
     Program::State s;
     for (s.t = 0; s.t < im.frames; s.t++) {

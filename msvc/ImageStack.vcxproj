@@ -257,6 +257,7 @@
     <ClCompile Include="..\src\Arithmetic.cpp" />
     <ClCompile Include="..\src\Calculus.cpp" />
     <ClCompile Include="..\src\Color.cpp" />
+    <ClCompile Include="..\src\Compiler.cpp" />
     <ClCompile Include="..\src\Complex.cpp" />
     <ClCompile Include="..\src\Control.cpp" />
     <ClCompile Include="..\src\Convolve.cpp" />
