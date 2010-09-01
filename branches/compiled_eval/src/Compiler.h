@@ -15,6 +15,8 @@ static const char *opname[] = {"ConstFloat", "ConstBool", "NoOp",
                         "And", "Or", "Nand"};    
 
 
+static const float const0123[] = {0, 1, 2, 3};
+
 class Compiler {
 
     enum {ConstFloat = 0, ConstBool, NoOp, 
@@ -30,10 +32,35 @@ class Compiler {
     enum Type {Unknown = 0, Float, Bool, Int, Bool4, Float4, IntRange4};
     
     // One node in the intermediate representation
-    struct IRNode {
-        static map<float, IRNode *> floatInstances;
-        static map<uint32_t, IRNode *> varInstances;
-        static vector<IRNode *> allNodes;
+    class IRNode {
+    public:
+        // Opcode
+        uint32_t op;
+        
+        // Data for Const ops
+        float val;
+
+        // Inputs
+        vector<IRNode *> children;    
+        
+        // Who uses my value?
+        vector<IRNode *> parents;
+        
+        // Which loop variables does this node depend on?
+        uint32_t deps;
+
+        // In what order is this instruction evaluated
+        int32_t order;
+
+        // What register will this node be computed in?
+        signed char reg;
+               
+        // What level of the for loop will this node be computed at?
+        // 0 is outermost, 4 is deepest
+        signed char level;
+
+        // What is the type of this expression?
+        Type type;
 
         static IRNode *make(float v) {
             if (floatInstances[v] == NULL) 
@@ -47,33 +74,158 @@ class Compiler {
                Type t3 = Float, IRNode *child3 = NULL,
                Type t4 = Float, IRNode *child4 = NULL) {
 
-            // rebalance summations
-            if (opcode != Plus && opcode != Minus) {
-                if (child1) child1 = rebalanceSum(child1);
-                if (child2) child2 = rebalanceSum(child2);
-                if (child3) child3 = rebalanceSum(child3);
-                if (child4) child4 = rebalanceSum(child4);
-            }              
-
             // collect the children into a vector
             vector<IRNode *> children;
-            if (child1) children.push_back(child1);
-            if (child2) children.push_back(child2);
-            if (child3) children.push_back(child3);
-            if (child4) children.push_back(child4);
+            vector<Type> childTypes;
+            if (child1) {
+                children.push_back(child1);
+                childTypes.push_back(t1);
+            }
+            if (child2) {
+                children.push_back(child2);
+                childTypes.push_back(t2);
+            }
+            if (child3) {
+                children.push_back(child3);
+                childTypes.push_back(t3);
+            }
+            if (child4) {
+                children.push_back(child4);
+                childTypes.push_back(t4);
+            }
+            return make(t, opcode, childTypes, children);
+        }
+
+        static IRNode *make(Type t, uint32_t opcode,
+                            vector<Type> childTypes,
+                            vector<IRNode *> children) {
+
+            // type coercion
+            for (size_t i = 0; i < children.size(); i++) {
+                if (children[i]->type != childTypes[i]) {
+                    if (childTypes[i] == Bool && children[i]->type == Float) {
+                        children[i] = IRNode::make(Bool, NEQ, Float, children[i], Float, IRNode::make(0.0f));
+                    } else if (childTypes[i] == Float && children[i]->type == Bool) {
+                        children[i] = IRNode::make(Float, And, Bool, children[i], Float, IRNode::make(1.0f));
+                    } else {
+                        panic("I don't know how to do a type coercion!\n");
+                    }
+                } 
+            }
+
+           
+            // strength reduction
+            if (opcode == NoOp) {
+                return children[0];
+            }
+
+            if (opcode == Times) {
+                // 0*x = 0
+                if (children[0]->op == ConstFloat && children[0]->val == 0.0f) {
+                    return make(0);
+                } 
+                // x*0 = 0
+                if (children[1]->op == ConstFloat && children[1]->val == 0.0f) {
+                    return make(0);
+                }
+
+                // 1*x = x
+                if (children[0]->op == ConstFloat && children[0]->val == 1.0f) {
+                    return children[1];
+                } 
+                // x*1 = x
+                if (children[1]->op == ConstFloat && children[1]->val == 1.0f) {
+                    return children[0];
+                }
+
+                // 2*x = x+x
+                if (children[0]->op == ConstFloat && children[0]->val == 2.0f) {
+                    return make(t, Plus, childTypes[1], children[1], childTypes[1], children[1]);
+                } 
+                // x*2 = x+x
+                if (children[1]->op == ConstFloat && children[1]->val == 2.0f) {
+                    return make(t, Plus, childTypes[0], children[0], childTypes[0], children[0]);
+                }
+            }
+
+            if (opcode == Divide && children[1]->op == ConstFloat) {
+                // x/alpha = x*(1/alpha)
+                return make(t, Times, childTypes[0], children[0], Float, make(1.0f/children[1]->val));
+            }
+
+            if (opcode == Power && children[1]->op == ConstFloat) {
+                if (children[1]->val == 0.0f) {        // x^0 = 1
+                    return make(1.0f);
+                } else if (children[1]->val == 1.0f) { // x^1 = x
+                    return children[0];
+                } else if (children[1]->val == 2.0f) { // x^2 = x*x
+                    return make(t, Times, childTypes[0], children[0], childTypes[0], children[0]);
+                } else if (children[1]->val == 3.0f) { // x^3 = x*x*x
+                    IRNode *squared = make(t, Times, childTypes[0], children[0], childTypes[0], children[0]);
+                    return make(t, Times, t, squared, childTypes[0], children[0]);
+                } else if (children[1]->val == 4.0f) { // x^4 = x*x*x*x
+                    IRNode *squared = make(t, Times, childTypes[0], children[0], childTypes[0], children[0]);
+                    return make(t, Times, t, squared, t, squared);                    
+                } else if (children[1]->val == floorf(children[1]->val) &&
+                           children[1]->val > 0) {
+                    // iterated multiplication
+                    int power = (int)floorf(children[1]->val);
+
+                    // find the largest power of two less than power
+                    int pow2 = 1;
+                    while (pow2 < power) pow2 = pow2 << 1;
+                    pow2 = pow2 >> 1;                                       
+                    int remainder = power - pow2;
+                    
+                    printf("%d = %d + %d\n", power, pow2, remainder);
+
+                    // make a stack x, x^2, x^4, x^8 ...
+                    // and multiply the appropriate terms from it
+                    vector<IRNode *> powStack;
+                    powStack.push_back(children[0]);
+                    IRNode *result = (power & 1) ? children[0] : NULL;
+                    IRNode *last = children[0];
+                    for (int i = 2; i < power; i *= 2) {
+                        printf("Making %dth power\n", i);
+                        last = make(t, Times, last->type, last, last->type, last);
+                        powStack.push_back(last);
+                        if (power & i) {
+                            if (!result) result = last;
+                            else {
+                                result = make(t, Times,
+                                              result->type, result,
+                                              last->type, last);
+                            }
+                        }
+                    }
+                    return result;
+                 }
+
+                // todo: negative powers (integer)
+                
+            }            
+
+            // rebalance summations
+            if (opcode != Plus && opcode != Minus) {
+                for (size_t i = 0; i < children.size(); i++) {
+                    children[i]->rebalanceSum();
+                }
+            }              
 
             // deal with variables and loads
             if (opcode == VarX || opcode == VarY || opcode == VarT || opcode == VarVal || opcode == VarC) {
+                vector<Type> a;
+                vector<IRNode *> b;
                 if (varInstances[opcode] == NULL)
-                    return (varInstances[opcode] = new IRNode(t, opcode));
+                    return (varInstances[opcode] = new IRNode(t, opcode, a, b));
                 return varInstances[opcode];
             }
 
             // common subexpression elimination - check if one of the
             // children already has a parent that does this op
-            if (child1 && child1->parents.size()) {
-                for (size_t i = 0; i < child1->parents.size(); i++) {
-                    IRNode *candidate = child1->parents[i];
+            if (children.size() && children[0]->parents.size() ) {
+                for (size_t i = 0; i < children[0]->parents.size(); i++) {
+                    IRNode *candidate = children[0]->parents[i];
                     if (candidate->op != opcode) continue;
                     if (candidate->type != t) continue;
                     if (candidate->children.size() != children.size()) continue;
@@ -87,21 +239,100 @@ class Compiler {
             }
 
             // make a new node
-            IRNode *node = new IRNode(t, opcode, 
-                                      t1, child1,
-                                      t2, child2,
-                                      t3, child3,
-                                      t4, child4);
-            return node;
+            return new IRNode(t, opcode, childTypes, children);
         }
 
-        static IRNode *rebalanceSum(IRNode *n) {
-            if (n->op != Plus && n->op != Minus) return n;
+        // An optimization pass done after generation
+        IRNode *optimize() {
+            IRNode * newNode = rebalanceSum();
+            newNode->killOrphans();
+            return newNode;
+        }
+
+        // kill everything
+        static void clearAll() {
+            IRNode::floatInstances.clear();
+            IRNode::varInstances.clear();
+            for (size_t i = 0; i < IRNode::allNodes.size(); i++) {
+                delete IRNode::allNodes[i];
+            }
+            IRNode::allNodes.clear();            
+        }
+
+    protected:
+        static map<float, IRNode *> floatInstances;
+        static map<uint32_t, IRNode *> varInstances;
+        static vector<IRNode *> allNodes;
+
+        // Is this node marked for death
+        bool marked;
+
+        // remove nodes that do not assist in the computation of this node
+        void killOrphans() {
+            // mark all nodes for death
+            for (size_t i = 0; i < allNodes.size(); i++) {
+                allNodes[i]->marked = true;
+            }
+
+            // unmark those that are necessary for the computation of this
+            markDescendents(false);
+
+            vector<IRNode *> newAllNodes;
+            map<float, IRNode *> newFloatInstances;
+            map<uint32_t, IRNode *> newVarInstances;
+
+            // save the unmarked nodes by migrating them to new data structures
+            for (size_t i = 0; i < allNodes.size(); i++) {
+                IRNode *n = allNodes[i];
+                if (!n->marked) {
+                    newAllNodes.push_back(n);
+                    if (n->op == ConstFloat) {
+                        newFloatInstances[n->val] = n;
+                    } else if (n->op == VarX ||
+                               n->op == VarY ||
+                               n->op == VarT ||
+                               n->op == VarC ||
+                               n->op == VarVal) {
+                        newVarInstances[n->op] = n;
+                    }
+
+                    // remove any marked parents
+                    vector<IRNode *> newParents;
+                    for (size_t j = 0; j < n->parents.size(); j++) {
+                        if (!n->parents[j]->marked)
+                            newParents.push_back(n->parents[j]);
+                    }
+                    n->parents.swap(newParents);
+                }
+            }
+
+            // delete the marked nodes
+            for (size_t i = 0; i < allNodes.size(); i++) {
+                IRNode *n = allNodes[i];
+                if (n->marked) delete n;
+            }
+
+            allNodes.swap(newAllNodes);
+            floatInstances.swap(newFloatInstances);
+            varInstances.swap(newVarInstances);
+        }
+
+
+        void markDescendents(bool newMark) {
+            if (marked == newMark) return;
+            for (size_t i = 0; i < children.size(); i++) {
+                children[i]->markDescendents(newMark);
+            }
+            marked = newMark;
+        }
+
+        IRNode *rebalanceSum() {
+            if (op != Plus && op != Minus) return this;
 
             // collect all the children
             vector<pair<IRNode *, bool> > terms;
 
-            collectSum(n, terms);
+            collectSum(terms);
             
             // sort them by level
             printf("Sorting %d terms...\n", terms.size());
@@ -163,22 +394,20 @@ class Compiler {
             return t;
         }
 
-        // An optimization pass done after generation
-        static IRNode *optimize(IRNode *n) {
-            return rebalanceSum(n);
-        }
 
-        static void collectSum(IRNode *n, vector<pair<IRNode *, bool> > &terms, bool positive = true) {
-            if (n->op == Plus) {
-                collectSum(n->children[0], terms, positive);
-                collectSum(n->children[1], terms, positive);
-            } else if (n->op == Minus) {
-                collectSum(n->children[0], terms, positive);
-                collectSum(n->children[1], terms, !positive);                
+        void collectSum(vector<pair<IRNode *, bool> > &terms, bool positive = true) {
+            if (op == Plus) {
+                children[0]->collectSum(terms, positive);
+                children[1]->collectSum(terms, positive);
+            } else if (op == Minus) {
+                children[0]->collectSum(terms, positive);
+                children[1]->collectSum(terms, !positive);                
             } else {
-                terms.push_back(make_pair(n, positive));
+                terms.push_back(make_pair(this, positive));
             }
         }
+
+        // TODO: rebalance product
 
         IRNode(float v) {
             allNodes.push_back(this);
@@ -191,11 +420,13 @@ class Compiler {
         }
 
         IRNode(Type t, uint32_t opcode, 
-               Type t1 = Float, IRNode *child1 = NULL, 
-               Type t2 = Float, IRNode *child2 = NULL, 
-               Type t3 = Float, IRNode *child3 = NULL,
-               Type t4 = Float, IRNode *child4 = NULL) {
+               vector<Type> childTypes,
+               vector<IRNode *> child) {
             allNodes.push_back(this);
+
+            for (size_t i = 0; i < child.size(); i++) 
+                children.push_back(child[i]);
+
             type = t;
             deps = 0;
             op = opcode;
@@ -205,26 +436,16 @@ class Compiler {
             else if (opcode == VarC) deps |= DepC;
             else if (opcode == VarVal) deps |= DepVal;
 
-            if (child1) children.push_back(child1);
-            if (child2) children.push_back(child2);
-            if (child3) children.push_back(child3);
-            if (child4) children.push_back(child4);
-            Type childTypes[] = {t1, t2, t3, t4};
-
+            // attach myself to these children and compute deps
             for (size_t i = 0; i < children.size(); i++) {
                 IRNode *c = children[i];
-                Type ct = childTypes[i];
-                if (c->type == Float && ct == Bool) {
-                    c = IRNode::make(Bool, NEQ, Float, c, Float, IRNode::make(0.0f));
-                } else if (c->type == Bool && ct == Float) {
-                    c = IRNode::make(Float, And, Bool, c, Float, IRNode::make(1.0f));
-                } 
-                children[i] = c;
                 c->parents.push_back(this);
                 deps |= c->deps;
             }
 
             reg = -1;
+
+            // compute the level based on deps
             if (deps & DepVal ||
                 deps & DepC) level = 4;
             else if (deps & DepX) level = 3;
@@ -233,46 +454,13 @@ class Compiler {
             else level = 0;
 
         }
-
-        // Opcode
-        uint32_t op;
-        
-        // This is for Const ops
-        float val;
-
-        // Inputs
-        vector<IRNode *> children;    
-        
-        // Who uses my value?
-        vector<IRNode *> parents;
-        
-        // Which loop variables does this node depend on?
-        uint32_t deps;
-
-        // In what order is this instruction evaluated
-        int32_t order;
-
-        // What register will this node be computed in?
-        signed char reg;
-               
-        // What level of the for loop will this node be computed at?
-        // 0 is outermost, 4 is deepest
-        signed char level;
-
-        // What is the type of this expression?
-        Type type;
     };
 
 public:
 
     void compileEval(AsmX64 *a, Window im, Window out, const Expression &exp) {
         // Remove the results from any previous compilation
-        IRNode::floatInstances.clear();
-        IRNode::varInstances.clear();
-        for (size_t i = 0; i < IRNode::allNodes.size(); i++) {
-            delete IRNode::allNodes[i];
-        }
-        IRNode::allNodes.clear();
+        IRNode::clearAll();
 
         // Generate the intermediate representation from the AST. Also
         // does constant folding, common subexpression elimination,
@@ -280,8 +468,12 @@ public:
         // rebalancing of summations and products.
         IRNode * root = irGenerator.generate(im, exp);
 
+        // force it to be a float
+        root = IRNode::make(Float, NoOp, Float, root);
+
         // Register assignment and evaluation ordering
-        vector<vector<IRNode *> > ordering = doRegisterAssignment(root);
+        uint16_t clobbered[5], outputs[5];
+        vector<vector<IRNode *> > ordering = doRegisterAssignment(root, clobbered, outputs);        
 
         // print out the assembly for inspection
         const char *dims = "tyxc";
@@ -305,6 +497,22 @@ public:
                     printf("\n");
                 }            
             }
+            if (clobbered[l] & 0x3fff) {
+                for (size_t k = 0; k < l; k++) putchar(' ');
+                printf("clobbered: ");
+                for (int i = 0; i < 14; i++) {
+                    if (clobbered[l] & (1 << i)) printf("%d ", i);
+                }
+                printf("\n");
+            }
+            if (outputs[l]) {
+                for (size_t k = 0; k < l; k++) putchar(' ');
+                printf("output: ");
+                for (int i = 0; i < 16; i++) {
+                    if (outputs[l] & (1 << i)) printf("%d ", i);
+                }
+                printf("\n");
+            }
         }
 
         AsmX64::Reg x = a->rax, y = a->rcx, 
@@ -320,6 +528,8 @@ public:
 
         // reserve enough space for the output on the stack
         a->sub(a->rsp, im.channels*4*4);
+
+        uint16_t inuse = 0;
 
         // generate constants
         compileBody(a, x, y, t, c, AsmX64::Mem(imPtr), im.channels*4, ordering[0]);
@@ -349,7 +559,7 @@ public:
         
         // generate the values that don't depend on C or val
         compileBody(a, x, y, t, c, AsmX64::Mem(imPtr), im.channels*4, ordering[3]);        
-
+        
         a->mov(c, 0);
         //a->label("cloop");                         
 
@@ -361,12 +571,19 @@ public:
             a->add(c, 1);
         }
 
-        // dangerously assume these registers are free for output assembly
-        AsmX64::SSEReg tmps[5] = {a->xmm15, 
-                                  a->xmm14,
-                                  a->xmm13,
-                                  a->xmm12,
-                                  a->xmm11};
+        // find five free registers
+        vector<AsmX64::SSEReg> tmps;
+        for (int i = 0; i < 16; i++) {
+            if (outputs[0] & (1<<i)) continue;
+            if (outputs[1] & (1<<i)) continue;
+            if (outputs[2] & (1<<i)) continue;
+            if (outputs[3] & (1<<i)) continue;            
+            tmps.push_back(AsmX64::SSEReg(i));
+            if (tmps.size() == 5) break;            
+        }
+        assert(tmps.size() == 5, 
+               "Couldn't find five free registers to transpose and write the output,"
+               " and I don't know how to spill to stack.\n");
 
         // Transpose and store a block of data. Only works for 3-channels right now.
         if (im.channels == 3) {
@@ -664,14 +881,40 @@ public:
 
 protected:
 
-    vector<vector<IRNode *> > doRegisterAssignment(IRNode *root) {
+    vector<vector<IRNode *> > doRegisterAssignment(IRNode *root, uint16_t clobbered[5], uint16_t output[5]) {
         // reserve xmm14-15 for the code generator
         vector<IRNode *> regs(14);
         
         // the resulting evaluation order
         vector<vector<IRNode *> > order(5);
         regAssign(root, regs, order);
-        return order;
+
+        // detect what registers get clobbered
+        for (int i = 0; i < 5; i++) {
+            clobbered[i] = (1<<15) | (1<<14);
+            for (size_t j = 0; j < order[i].size(); j++) {
+                IRNode *node = order[i][j];
+                clobbered[i] |= (1 << node->reg);
+            }
+        }
+
+        // detect what registers are used for inter-level communication
+        output[0] = 0;
+        for (int i = 1; i < 5; i++) {
+            output[i] = 0;
+            for (size_t j = 0; j < order[i].size(); j++) {
+                IRNode *node = order[i][j];
+                for (size_t k = 0; k < node->children.size(); k++) {
+                    IRNode *child = node->children[k];
+                    if (child->level != node->level) {
+                        output[child->level] |= (1 << child->reg);
+                    }
+                }
+            }
+        }
+        output[4] = (1 << root->reg);
+
+        return order;        
     }
        
     void regAssign(IRNode *node, vector<IRNode *> &regs, vector<vector<IRNode *> > &order) {
@@ -699,9 +942,13 @@ protected:
             bool okToClobber = true;
             // must be the same level
             if (node->level != child1->level) okToClobber = false;
-            // every parent must be this
+            // every parent must be this, or at the same level and already evaluated
             for (size_t i = 0; i < child1->parents.size() && okToClobber; i++) {
-                if (child1->parents[i] != node) okToClobber = false;
+                if (child1->parents[i] != node && 
+                    (child1->parents[i]->level != node->level ||
+                     child1->parents[i]->reg < 0)) {
+                    okToClobber = false;
+                }
             }
             if (okToClobber) {
                 node->reg = child1->reg;
@@ -723,9 +970,20 @@ protected:
             node->op == GTE ||
             node->op == EQ ||
             node->op == NEQ) {
+
             IRNode *child2 = node->children[1];
-            if (node->level == child2->level &&
-                child2->parents.size() == 1) {
+            bool okToClobber = true;
+            // must be the same level
+            if (node->level != child2->level) okToClobber = false;
+            // every parent must be this, or at the same level and already evaluated
+            for (size_t i = 0; i < child2->parents.size() && okToClobber; i++) {
+                if (child2->parents[i] != node && 
+                    (child2->parents[i]->level != node->level ||
+                     child2->parents[i]->reg < 0)) {
+                    okToClobber = false;
+                }
+            }
+            if (okToClobber) {
                 node->reg = child2->reg;
                 regs[child2->reg] = node;
                 node->order = order[node->level].size();
@@ -814,7 +1072,7 @@ protected:
             stats = new Stats(w);
             root = descend(exp.root);
             delete stats;
-            root = IRNode::optimize(root);
+            root = root->optimize();
             return root;
         }
 
