@@ -106,6 +106,7 @@
       <TargetMachine>MachineX86</TargetMachine>
       <AdditionalDependencies>libfftw-x86-static-mt.lib;libjpeg-x86-static-mt.lib;libpng-x86-static-mt.lib;libtiff-x86-static-mt.lib;SDL-x86-static-mt.lib;zlib-x86-static-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>../lib</AdditionalLibraryDirectories>
+      <LinkTimeCodeGeneration>false</LinkTimeCodeGeneration>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -128,6 +129,7 @@
     <Lib>
       <AdditionalDependencies>libfftw-x64-static-mt.lib;libjpeg-x64-static-mt.lib;libpng-x64-static-mt.lib;libtiff-x64-static-mt.lib;SDL-x64-static-mt.lib;zlib-x64-static-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>../lib</AdditionalLibraryDirectories>
+      <LinkTimeCodeGeneration>false</LinkTimeCodeGeneration>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -155,6 +157,7 @@
       <TargetMachine>MachineX86</TargetMachine>
       <AdditionalDependencies>libfftw-x86-static-mt.lib;libjpeg-x86-static-mt.lib;libpng-x86-static-mt.lib;libtiff-x86-static-mt.lib;SDL-x86-static-mt.lib;zlib-x86-static-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>../lib</AdditionalLibraryDirectories>
+      <LinkTimeCodeGeneration>false</LinkTimeCodeGeneration>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -181,6 +184,7 @@
     <Lib>
       <AdditionalDependencies>libfftw-x64-static-mt.lib;libjpeg-x64-static-mt.lib;libpng-x64-static-mt.lib;libtiff-x64-static-mt.lib;SDL-x64-static-mt.lib;zlib-x64-static-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>../lib</AdditionalLibraryDirectories>
+      <LinkTimeCodeGeneration>false</LinkTimeCodeGeneration>
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
