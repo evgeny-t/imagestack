@@ -13,9 +13,9 @@ static const char *opname[] = {"Const", "NoOp",
                                "Abs", "Floor", "Ceil", "Round",
                                "Exp", "Log", "Mod", 
                                "LT", "GT", "LTE", "GTE", "EQ", "NEQ",
-                               "And", "Or", "Nand",
+                               "And", "Or", "Nand", "Load",
                                "IntToFloat", "FloatToInt", 
-                               "Load", "PlusImm", "TimesImm", "LoadImm"};    
+                               "LoadImm", "PlusImm", "TimesImm"};
 
 
 enum OpCode {Const = 0, NoOp, 
@@ -26,8 +26,9 @@ enum OpCode {Const = 0, NoOp,
              Exp, Log, Mod, 
              LT, GT, LTE, GTE, EQ, NEQ,
              And, Or, Nand,
+             Load,
              IntToFloat, FloatToInt, 
-             Load, PlusImm, TimesImm, LoadImm};
+             LoadImm, PlusImm, TimesImm};
 
 enum {DepT = 1, DepY = 2, DepX = 4, DepC = 8, DepMem = 16};
 
@@ -98,7 +99,9 @@ class Compiler {
                             IRNode *input1 = NULL, 
                             IRNode *input2 = NULL, 
                             IRNode *input3 = NULL,
-                            IRNode *input4 = NULL) {
+                            IRNode *input4 = NULL,
+                            int ival = 0,
+                            float fval = 0.0f) {
 
             // collect the inputs into a vector
             vector<IRNode *> inputs;
@@ -114,11 +117,12 @@ class Compiler {
             if (input4) {
                 inputs.push_back(input4);
             }
-            return make(opcode, inputs);
+            return make(opcode, inputs, ival, fval);
         }
 
         static IRNode *make(OpCode opcode,
-                            vector<IRNode *> inputs) {
+                            vector<IRNode *> inputs,
+                            int ival = 0, float fval = 0.0f) {
 
 
             // type inference and coercion
@@ -137,14 +141,6 @@ class Compiler {
             case VarC:
                 assert(inputs.size() == 0, "Wrong number of inputs for opcode: %s %d\n",
                        opname[opcode], inputs.size());
-                t = Int;
-                break;
-            case PlusImm:
-            case TimesImm:
-                assert(inputs.size() == 1, "Wrong number of inputs for opcode: %s %d\n",
-                       opname[opcode], inputs.size());
-                assert(inputs[0]->type == Int,
-                       "PlusImm and TimesImm can only be applied to Ints\n");
                 t = Int;
                 break;
             case Plus:
@@ -246,12 +242,22 @@ class Compiler {
                 assert(inputs[0]->type == Float, "FloatToInt can only take floats\n");
                 t = Int;
                 break;
+            case PlusImm:
+            case TimesImm:
+                assert(inputs.size() == 1,
+                       "Wrong number of inputs for opcode: %s %d\n",
+                       opname[opcode], inputs.size());
+                t = Int;
+                break;
+            case LoadImm:
             case Load:
-                assert(inputs.size() == 1, "Wrong number of inputs for opcode: %s %d\n",
+                assert(inputs.size() == 1,
+                       "Wrong number of inputs for opcode: %s %d\n",
                        opname[opcode], inputs.size());
                 inputs[0] = inputs[0]->as(Int);
                 t = Float;
                 break;
+
             }
 
             // constant folding
@@ -262,18 +268,6 @@ class Compiler {
             if (allConst && inputs.size()) {
                 switch(opcode) {
 
-                    /*
-enum OpCode {Const = 0, NoOp, 
-             VarX, VarY, VarT, VarC, 
-             Plus, Minus, Times, Divide, Power,
-             Sin, Cos, Tan, ASin, ACos, ATan, ATan2, 
-             Abs, Floor, Ceil, Round,
-             Exp, Log, Mod, 
-             LT, GT, LTE, GTE, EQ, NEQ,
-             And, Or, Nand,
-             IntToFloat, FloatToInt, 
-             Load, PlusImm, TimesImm, LoadImm};                    
-                    */
                 case Plus:
                     if (t == Float) {
                         return make(inputs[0]->fval + inputs[1]->fval);
@@ -292,6 +286,10 @@ enum OpCode {Const = 0, NoOp,
                     } else {
                         return make(inputs[0]->ival * inputs[1]->ival);
                     }
+                case PlusImm:
+                    return make(inputs[0]->ival + ival);
+                case TimesImm:
+                    return make(inputs[0]->ival * ival);
                 case Divide:
                     return make(inputs[0]->fval / inputs[1]->fval);
                 case And:
@@ -317,7 +315,7 @@ enum OpCode {Const = 0, NoOp,
                 case FloatToInt:
                     return make((int)inputs[0]->fval);
                 default:
-                    // TODO: transcendentals, pow, floor, etc
+                    // TODO: transcendentals, pow, floor, comparisons, etc
                     break;
                 } 
             }
@@ -327,9 +325,10 @@ enum OpCode {Const = 0, NoOp,
                 return inputs[0];
             }
 
-            if (opcode == Divide && inputs[1]->op == Const) {
+            if (opcode == Divide && inputs[1]->level < inputs[0]->level) {
                 // x/alpha = x*(1/alpha)
-                return make(Times, inputs[0], make(1.0f/inputs[1]->fval));
+                return make(Times, inputs[0], 
+                            make(Divide, make(1.0f), inputs[1]));
             }
 
             // (x+a)*b = x*b + a*b (where a and b are both lower level than x)
@@ -346,7 +345,6 @@ enum OpCode {Const = 0, NoOp,
                 }
 
                 if (x) {
-
                     // x is the higher level of x and a
                     if (x->level < a->level) {
                         IRNode *tmp = x;
@@ -361,6 +359,13 @@ enum OpCode {Const = 0, NoOp,
                                     make(Times, x, b),
                                     make(Times, a, b));
                     }
+                }
+
+                // deal with const integer a
+                if (inputs[0]->op == PlusImm) {
+                    return make(Plus, 
+                                make(Times, inputs[0]->inputs[0], inputs[1]),
+                                make(Times, inputs[1], make(inputs[0]->ival)));
                 }
             }
 
@@ -452,8 +457,6 @@ enum OpCode {Const = 0, NoOp,
                     pow2 = pow2 >> 1;                                       
                     int remainder = power - pow2;
                     
-                    printf("%d = %d + %d\n", power, pow2, remainder);
-
                     // make a stack x, x^2, x^4, x^8 ...
                     // and multiply the appropriate terms from it
                     vector<IRNode *> powStack;
@@ -480,7 +483,7 @@ enum OpCode {Const = 0, NoOp,
             */
 
             // rebalance summations
-            if (opcode != Plus && opcode != Minus) {
+            if (opcode != Plus && opcode != Minus && opcode != PlusImm) {
                 for (size_t i = 0; i < inputs.size(); i++) {
                     inputs[i] = inputs[i]->rebalanceSum();
                 }
@@ -490,8 +493,54 @@ enum OpCode {Const = 0, NoOp,
             if (opcode == VarX || opcode == VarY || opcode == VarT || opcode == VarC) {
                 vector<IRNode *> b;
                 if (varInstances[opcode] == NULL)
-                    return (varInstances[opcode] = new IRNode(t, opcode, b));
+                    return (varInstances[opcode] = new IRNode(t, opcode, b, 0, 0.0f));
                 return varInstances[opcode];
+            }
+
+            // fuse instructions
+            if (opcode == Load || opcode == LoadImm) {
+                if (inputs[0]->op == Plus) {
+                    IRNode *left = inputs[0]->inputs[0];
+                    IRNode *right = inputs[0]->inputs[1];
+                    if (left->op == Const) {
+                        IRNode *n = make(LoadImm, right, 
+                                         NULL, NULL, NULL,
+                                         left->ival + ival);
+                        return n;
+                    } else if (right->op == Const) {
+                        IRNode *n = make(LoadImm, left,
+                                         NULL, NULL, NULL,
+                                         right->ival + ival);
+                        return n;
+                    }
+                } else if (inputs[0]->op == Minus &&
+                           inputs[0]->inputs[1]->op == Const) {
+                    IRNode *n = make(LoadImm, inputs[0]->inputs[0], 
+                                     NULL, NULL, NULL, 
+                                     -inputs[0]->inputs[1]->ival + ival);
+                    return n;
+                } else if (inputs[0]->op == PlusImm) {
+                    IRNode *n = make(LoadImm, inputs[0]->inputs[0],
+                                     NULL, NULL, NULL,
+                                     inputs[0]->ival + ival);
+                    return n;
+                }
+            }
+
+            if (opcode == Times && t == Int) {
+                IRNode *left = inputs[0];
+                IRNode *right = inputs[1];
+                if (left->op == Const) {
+                    IRNode *n = make(TimesImm, right, 
+                                     NULL, NULL, NULL,
+                                     left->ival);
+                    return n;
+                } else if (right->op == Const) {
+                    IRNode *n = make(TimesImm, left, 
+                                     NULL, NULL, NULL,
+                                     right->ival);
+                    return n;
+                }
             }
 
             // common subexpression elimination - check if one of the
@@ -499,6 +548,8 @@ enum OpCode {Const = 0, NoOp,
             if (inputs.size() && inputs[0]->outputs.size() ) {
                 for (size_t i = 0; i < inputs[0]->outputs.size(); i++) {
                     IRNode *candidate = inputs[0]->outputs[i];
+                    if (candidate->ival != ival) continue;
+                    if (candidate->fval != fval) continue;
                     if (candidate->op != opcode) continue;
                     if (candidate->type != t) continue;
                     if (candidate->inputs.size() != inputs.size()) continue;
@@ -511,14 +562,14 @@ enum OpCode {Const = 0, NoOp,
                 }
             }
 
+
             // make a new node
-            return new IRNode(t, opcode, inputs);
+            return new IRNode(t, opcode, inputs, ival, fval);
         }
 
         // An optimization pass done after generation
         IRNode *optimize() {
             IRNode * newNode = rebalanceSum();
-            newNode = newNode->fuseInstructions();
             newNode->killOrphans();
             return newNode;
         }
@@ -592,6 +643,16 @@ enum OpCode {Const = 0, NoOp,
                 inputs[1]->printExp();
                 printf(")");
                 break;
+            case PlusImm:
+                printf("(");
+                inputs[0]->printExp();
+                printf("+%d)", ival);
+                break;
+            case TimesImm:
+                printf("(");
+                inputs[0]->printExp();
+                printf("*%d)", ival);
+                break;
             case Minus:
                 printf("(");
                 inputs[0]->printExp();
@@ -612,6 +673,16 @@ enum OpCode {Const = 0, NoOp,
                 printf("/");
                 inputs[1]->printExp();
                 printf(")");
+                break;
+            case LoadImm:
+                printf("[");
+                inputs[0]->printExp();
+                printf("+%d]", ival);
+                break;
+            case Load:
+                printf("[");
+                inputs[0]->printExp();
+                printf("]");
                 break;
             default:
                 if (inputs.size() == 0) {
@@ -639,7 +710,9 @@ enum OpCode {Const = 0, NoOp,
             vector<string> args(inputs.size());
             char buf[32];
             for (size_t i = 0; i < inputs.size(); i++) {
-                if (inputs[i]->reg < 16)
+                if (inputs[i]->reg < 0) 
+                    sprintf(buf, "%d", inputs[i]->ival);
+                else if (inputs[i]->reg < 16)
                     sprintf(buf, "r%d", inputs[i]->reg);
                 else
                     sprintf(buf, "xmm%d", inputs[i]->reg-16);
@@ -670,7 +743,7 @@ enum OpCode {Const = 0, NoOp,
                 printf("%s * %d\n", args[0].c_str(), ival);
                 break;
             case LoadImm:
-                printf("%s + %d\n", args[0].c_str(), ival);
+                printf("Load %s + %d\n", args[0].c_str(), ival);
                 break;
             default:
                 printf(opname[op]);
@@ -678,6 +751,40 @@ enum OpCode {Const = 0, NoOp,
                     printf(" %s", args[i].c_str());
                 printf("\n");
                 break;
+            }
+        }
+
+        // make a new version of this IRNode with one of the variables replaced with a constant
+        IRNode *substitute(OpCode var, int val) {
+            if (op == var) return make(val);
+            int dep = 0;
+            switch (var) {
+            case VarC:
+                dep = DepC;
+                break;
+            case VarX:
+                dep = DepX;
+                break;
+            case VarY:
+                dep = DepY;
+                break;
+            case VarT:
+                dep = DepT;
+                break;
+            default:
+                panic("%s is not a variable!\n", opname[var]);
+            }
+
+            if (deps & dep) {
+                // rebuild all the inputs
+                vector<IRNode *> newInputs(inputs.size());
+                for (size_t i = 0; i < newInputs.size(); i++) {
+                    newInputs[i] = inputs[i]->substitute(var, val);
+                }
+                return make(op, newInputs, ival, fval);
+            } else {
+                // no need to rebuild a subtree that doesn't depend on this variable
+                return this;
             }
         }
 
@@ -689,7 +796,7 @@ enum OpCode {Const = 0, NoOp,
 
         // Is this node marked for death
         bool marked;
-
+        
         // remove nodes that do not assist in the computation of this node
         void killOrphans() {
             // mark all nodes for death
@@ -721,14 +828,6 @@ enum OpCode {Const = 0, NoOp,
                                n->op == VarC) {
                         newVarInstances[n->op] = n;
                     }
-
-                    // remove any marked outputs
-                    vector<IRNode *> newOutputs;
-                    for (size_t j = 0; j < n->outputs.size(); j++) {
-                        if (!n->outputs[j]->marked)
-                            newOutputs.push_back(n->outputs[j]);
-                    }
-                    n->outputs.swap(newOutputs);
                 }
             }
 
@@ -745,60 +844,6 @@ enum OpCode {Const = 0, NoOp,
         }
 
 
-        IRNode *fuseInstructions() {
-            // some instructions can be fused, depending on architecture
-            for (size_t i = 0; i < inputs.size(); i++) {
-                IRNode *newInput = inputs[i]->fuseInstructions();
-                if (newInput != inputs[i]) {
-                    newInput->outputs.push_back(this);
-                    inputs[i] = newInput;
-                }
-            }
-
-            // We can pack int + constant or int * constant into a smaller opcode on x64
-            if (op == Plus && type == Int) {
-                if (inputs[0]->op == Const) {
-                    IRNode *n = make(PlusImm, inputs[1]);
-                    n->ival = inputs[0]->ival;
-                    return n;
-                } else if (inputs[1]->op == Const) {
-                    IRNode *n = make(PlusImm, inputs[0]);
-                    n->ival = inputs[1]->ival;
-                    return n;
-                }
-            }
-
-            if (op == Minus && type == Int) {
-                if (inputs[1]->op == Const) {
-                    IRNode *n = make(PlusImm, inputs[0]);
-                    n->ival = -inputs[1]->ival;
-                    return n;
-                }
-            }
-
-            if (op == Times && type == Int) {
-                if (inputs[0]->op == Const) {
-                    IRNode *n = make(TimesImm, inputs[1]);
-                    n->ival = inputs[0]->ival;
-                    return n;
-                } else if (inputs[1]->op == Const) {
-                    IRNode *n = make(TimesImm, inputs[0]);
-                    n->ival = inputs[1]->ival;
-                    return n;
-                }
-            }                       
-
-            // A load of a PlusImm can become a LoadImm
-            if (op == Load && inputs[0]->op == PlusImm) {
-                IRNode *n = make(LoadImm, inputs[0]->inputs[0]);
-                n->ival = inputs[0]->ival;
-                return n;
-            }
-
-            // no fusion took place
-            return this;
-        }
-
         void markDescendents(bool newMark) {
             if (marked == newMark) return;
             for (size_t i = 0; i < inputs.size(); i++) {
@@ -809,55 +854,91 @@ enum OpCode {Const = 0, NoOp,
 
         IRNode *rebalanceSum() {
 
-            if (op != Plus && op != Minus) return this;
+            if (op != Plus && op != Minus && op != PlusImm) return this;
             
             // collect all the inputs
             vector<pair<IRNode *, bool> > terms;
 
             collectSum(terms);
-            
-            // sort them by level
-            printf("Sorting %d terms...\n", terms.size());
+
+            // extract out the const terms
+            vector<pair<IRNode *, bool> > constTerms;
+            vector<pair<IRNode *, bool> > nonConstTerms;
             for (size_t i = 0; i < terms.size(); i++) {
-                for (size_t j = i+1; j < terms.size(); j++) {
-                    if (terms[i].first->level > terms[j].first->level) {
-                        pair<IRNode *, bool> tmp = terms[i];
-                        terms[i] = terms[j];
-                        terms[j] = tmp;
-                    }
+                if (terms[i].first->op == Const) {
+                    constTerms.push_back(terms[i]);
+                } else {
+                    nonConstTerms.push_back(terms[i]);
                 }
             }
-
-            for (size_t i = 0; i < terms.size(); i++) {
-                printf("%d)", i);
-                if (!terms[i].second) printf("-(");
-                terms[i].first->printExp();
-                if (!terms[i].second) printf(")");
-                printf("\n");
+            
+            // sort the non-const terms by level
+            for (size_t i = 0; i < nonConstTerms.size(); i++) {
+                for (size_t j = i+1; j < nonConstTerms.size(); j++) {
+                    int li = nonConstTerms[i].first->level;
+                    int lj = nonConstTerms[j].first->level;
+                    if (li > lj) {
+                        pair<IRNode *, bool> tmp = nonConstTerms[i];
+                        nonConstTerms[i] = nonConstTerms[j];
+                        nonConstTerms[j] = tmp;
+                    }
+                }
             }
 
             // remake the summation
             IRNode *t;
             bool tPos;
-            t = terms[0].first;
-            tPos = terms[0].second;
+            t = nonConstTerms[0].first;
+            tPos = nonConstTerms[0].second;
 
-            for (size_t i = 1; i < terms.size(); i++) {
-                bool nextPos = terms[i].second;
-                if (tPos == nextPos)
-                    t = make(Plus, t, terms[i].first);
-                else if (tPos) // and not nextPos
-                    t = make(Minus, t, terms[i].first);
-                else { // nextPos and not tPos
-                    tPos = true;
-                    t = make(Minus, terms[i].first, t);
+            // If we're building a float sum, the const term is innermost
+            if (type == Float) {
+                float c = 0.0f;
+                for (size_t i = 0; i < constTerms.size(); i++) {
+                    if (constTerms[i].second) {
+                        c += constTerms[i].first->fval;
+                    } else {
+                        c -= constTerms[i].first->fval;
+                    }
                 }
-                    
+                if (c != 0.0f) {
+                    if (tPos) 
+                        t = make(Plus, make(c), t);
+                    else
+                        t = make(Minus, make(c), t);
+                }
             }
 
-            printf("Result: ");
-            t->printExp();
-            printf("\n");
+            for (size_t i = 1; i < nonConstTerms.size(); i++) {
+                bool nextPos = nonConstTerms[i].second;
+                if (tPos == nextPos)
+                    t = make(Plus, t, nonConstTerms[i].first);
+                else if (tPos) // and not nextPos
+                    t = make(Minus, t, nonConstTerms[i].first);
+                else { // nextPos and not tPos
+                    tPos = true;
+                    t = make(Minus, nonConstTerms[i].first, t);
+                }                    
+            }
+
+            // if we're building an int sum, the const term is
+            // outermost so that loadimms can pick it up
+            if (type == Int) {
+                int c = 0;
+                for (size_t i = 0; i < constTerms.size(); i++) {
+                    if (constTerms[i].second) {
+                        c += constTerms[i].first->ival;
+                    } else {
+                        c -= constTerms[i].first->ival;
+                    }
+                }
+                if (c != 0) {
+                    if (tPos) 
+                        t = make(PlusImm, t, NULL, NULL, NULL, c);
+                    else
+                        t = make(Minus, make(c), t);
+                }
+            }
 
             return t;
         }
@@ -870,6 +951,9 @@ enum OpCode {Const = 0, NoOp,
             } else if (op == Minus) {
                 inputs[0]->collectSum(terms, positive);
                 inputs[1]->collectSum(terms, !positive);                
+            } else if (op == PlusImm) {
+                inputs[0]->collectSum(terms, positive);
+                terms.push_back(make_pair(make(ival), true));
             } else {
                 terms.push_back(make_pair(this, positive));
             }
@@ -906,8 +990,12 @@ enum OpCode {Const = 0, NoOp,
         }
 
         IRNode(Type t, OpCode opcode, 
-               vector<IRNode *> input) {
+               vector<IRNode *> input,
+               int iv, float fv) {
             allNodes.push_back(this);
+
+            ival = iv;
+            fval = fv;
 
             for (size_t i = 0; i < input.size(); i++) 
                 inputs.push_back(input[i]);
@@ -926,9 +1014,8 @@ enum OpCode {Const = 0, NoOp,
             else if (opcode == Load) deps |= DepMem;
 
             for (size_t i = 0; i < inputs.size(); i++) {
-                IRNode *c = inputs[i];
-                c->outputs.push_back(this);
-                deps |= c->deps;
+                deps |= inputs[i]->deps;
+                inputs[i]->outputs.push_back(this);
             }
 
             reg = -1;
@@ -978,9 +1065,15 @@ public:
         IRNode::make(VarT)->reg = t.num;
         IRNode::make(VarC)->reg = c.num;
 
+        // make a specialized version of the expression for each color channel
+        vector<IRNode *> roots(im.channels);
+        for (int i = 0; i < im.channels; i++) {
+            roots[i] = root->substitute(VarC, i);
+        }
+
         // Register assignment and evaluation ordering
         uint32_t clobbered[5], outputs[5];
-        vector<vector<IRNode *> > ordering = doRegisterAssignment(root, clobbered, outputs, reserved);        
+        vector<vector<IRNode *> > ordering = doRegisterAssignment(roots, clobbered, outputs, reserved);        
 
         // print out the assembly for inspection
         const char *dims = "tyxc";
@@ -1053,33 +1146,13 @@ public:
         a->mov(c, 0);
         //a->label("cloop");                         
 
-        for (int i = 0; i < im.channels; i++) {
-            // insert code for the expression body
-            compileBody(a, x, y, t, c, ordering[4]);
-            // push the result onto the stack
-            a->movaps(AsmX64::Mem(a->rsp, i*4*4), AsmX64::SSEReg(root->reg));
-            a->add(c, 1);
-        }
-
-        // find five free registers
-        vector<AsmX64::SSEReg> tmps;
-        for (int i = 16; i < 32; i++) {
-            if (outputs[0] & (1<<i)) continue;
-            if (outputs[1] & (1<<i)) continue;
-            if (outputs[2] & (1<<i)) continue;
-            if (outputs[3] & (1<<i)) continue;            
-            tmps.push_back(AsmX64::SSEReg(i-16));
-            if (tmps.size() == 5) break;            
-        }
-        assert(tmps.size() == 5, 
-               "Couldn't find five free registers to transpose and write the output,"
-               " and I don't know how to spill to stack.\n");
+        // insert code for the expression body
+        compileBody(a, x, y, t, c, ordering[4]);
 
         // Transpose and store a block of data. Only works for 3-channels right now.
         if (im.channels == 3) {
-            a->movaps(tmps[0], AsmX64::Mem(a->rsp, 0));
-            a->movaps(tmps[1], AsmX64::Mem(a->rsp, 16));
-            a->movaps(tmps[2], AsmX64::Mem(a->rsp, 32));
+            AsmX64::SSEReg tmps[] = {roots[0]->reg, roots[1]->reg, roots[2]->reg,
+                                     a->xmm14, a->xmm15};
             // tmp0 = r0, r1, r2, r3
             // tmp1 = g0, g1, g2, g3
             // tmp2 = b0, b1, b2, b3
@@ -1143,7 +1216,6 @@ public:
 
         for (size_t i = 0; i < code.size(); i++) {
             // extract the node, its register, and any inputs and their registers
-            int offset = 0;
             IRNode *node = code[i];
             IRNode *c1 = (node->inputs.size() >= 1) ? node->inputs[0] : NULL;
             IRNode *c2 = (node->inputs.size() >= 2) ? node->inputs[1] : NULL;
@@ -1240,7 +1312,7 @@ public:
                         a->mov(gtmp, gsrc2);
                         a->mov(gsrc2, gsrc1);
                         a->sub(gsrc2, gtmp);
-                    } else { 
+                    } else {                         
                         a->mov(gdst, gsrc1);
                         a->sub(gdst, gsrc2);
                     }
@@ -1282,23 +1354,20 @@ public:
                     panic("Can't sub between gpr/sse\n");
                 }
                 break;
-            case PlusImm:
-                assert(gpr, "Can only add immediates into a gpr\n");
+            case TimesImm:
                 if (gdst == gsrc1) {
-                    a->add(gdst, node->ival);
+                    a->imul(gdst, node->ival);
                 } else {
-                    // TODO: use lea instead
-                    a->mov(gdst, gsrc1);
-                    a->add(gdst, node->ival);
+                    a->mov(gdst, node->ival);
+                    a->imul(gdst, gsrc1);
                 }
                 break;
-            case TimesImm:
-                assert(gpr, "Can only multiply immediates into a gpr\n");
+            case PlusImm:
                 if (gdst == gsrc1) {
-                    a->imul(gdst, node->ival);
+                    a->add(gdst, node->ival);
                 } else {
-                    a->mov(gdst, gsrc1);
-                    a->imul(gdst, node->ival);
+                    a->mov(gdst, node->ival);
+                    a->add(gdst, gsrc1);
                 }
                 break;
             case Divide: 
@@ -1441,16 +1510,16 @@ public:
                     panic("IntToFloat can only go from gpr to sse\n");
                 }
                 break;
-            case LoadImm:
-                offset = node->ival;
             case Load:
+                node->ival = 0;
+            case LoadImm:
                 assert(gpr1, "Can only load using addresses in gprs\n");
                 assert(!gpr, "Can only load into sse regs\n");
-                a->movss(dst, AsmX64::Mem(gsrc1, offset));
-                a->movss(tmp, AsmX64::Mem(gsrc1, offset + 3*4));
+                a->movss(dst, AsmX64::Mem(gsrc1, node->ival));
+                a->movss(tmp, AsmX64::Mem(gsrc1, node->ival + 3*4));
                 a->punpckldq(dst, tmp);
-                a->movss(tmp, AsmX64::Mem(gsrc1, offset + 3*8));
-                a->movss(tmp2, AsmX64::Mem(gsrc1, offset + 3*12));
+                a->movss(tmp, AsmX64::Mem(gsrc1, node->ival + 3*8));
+                a->movss(tmp2, AsmX64::Mem(gsrc1, node->ival + 3*12));
                 a->punpckldq(tmp, tmp2);
                 a->punpcklqdq(dst, tmp);
 
@@ -1462,7 +1531,7 @@ public:
 
 protected:
 
-    vector<vector<IRNode *> > doRegisterAssignment(IRNode *root, uint32_t clobberedRegs[5], uint32_t outputRegs[5], uint32_t reserved) {
+    vector<vector<IRNode *> > doRegisterAssignment(vector<IRNode *> roots, uint32_t clobberedRegs[5], uint32_t outputRegs[5], uint32_t reserved) {
         // first the 16 gprs, then the 16 sse registers
         vector<IRNode *> regs(32);
 
@@ -1473,8 +1542,13 @@ protected:
         
         // the resulting evaluation order
         vector<vector<IRNode *> > order(5);
-        regAssign(root, regs, order, reserved);
-
+        for (size_t i = 0; i < roots.size(); i++) {
+            regAssign(roots[i], regs, order, reserved);
+            // don't let the next expression clobber the output of the
+            // previous expressions
+            reserved |= (1 << roots[i]->reg);
+        }
+        
         // detect what registers get clobbered
         for (int i = 0; i < 5; i++) {
             clobberedRegs[i] = (1<<30) | (1<<31);
@@ -1498,7 +1572,9 @@ protected:
                 }
             }
         }
-        outputRegs[4] = (1 << root->reg);
+        for (size_t i = 0; i < roots.size(); i++) {
+            outputRegs[4] = (1 << roots[i]->reg);
+        }
 
         return order;        
     }
