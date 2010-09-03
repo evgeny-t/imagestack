@@ -6,45 +6,65 @@
 #include "X64.h"
 #include "header.h"
 
-static const char *opname[] = {"ConstFloat", "ConstBool", "NoOp",
-                        "VarX", "VarY", "VarT", "VarC", "VarVal", "Plus", "Minus", 
-                        "Times", "Divide", "Sin", "Cos", "Tan", "Power",
-                        "ASin", "ACos", "ATan", "ATan2", "Abs", "Floor", "Ceil", "Round",
-                        "Exp", "Log", "Mod", "SampleHere", "Sample2D", "Sample3D",
-                        "LT", "GT", "LTE", "GTE", "EQ", "NEQ",
-                        "And", "Or", "Nand"};    
+static const char *opname[] = {"Const", "NoOp",
+                               "VarX", "VarY", "VarT", "VarC", 
+                               "Plus", "Minus", "Times", "Divide", "Power",
+                               "Sin", "Cos", "Tan", "ASin", "ACos", "ATan", "ATan2", 
+                               "Abs", "Floor", "Ceil", "Round",
+                               "Exp", "Log", "Mod", 
+                               "LT", "GT", "LTE", "GTE", "EQ", "NEQ",
+                               "And", "Or", "Nand",
+                               "IntToFloat", "FloatToInt", 
+                               "Load", "PlusImm", "TimesImm", "LoadImm"};    
 
 
-static const float const0123[] = {0, 1, 2, 3};
+enum OpCode {Const = 0, NoOp, 
+             VarX, VarY, VarT, VarC, 
+             Plus, Minus, Times, Divide, Power,
+             Sin, Cos, Tan, ASin, ACos, ATan, ATan2, 
+             Abs, Floor, Ceil, Round,
+             Exp, Log, Mod, 
+             LT, GT, LTE, GTE, EQ, NEQ,
+             And, Or, Nand,
+             IntToFloat, FloatToInt, 
+             Load, PlusImm, TimesImm, LoadImm};
+
+enum {DepT = 1, DepY = 2, DepX = 4, DepC = 8, DepMem = 16};
+
+enum Type {Unknown = 0, Float, Bool, Int};
 
 class Compiler {
 
-    enum {ConstFloat = 0, ConstBool, NoOp, 
-          VarX, VarY, VarT, VarC, VarVal, Plus, Minus, 
-          Times, Divide, Sin, Cos, Tan, Power,
-          ASin, ACos, ATan, ATan2, Abs, Floor, Ceil, Round,
-          Exp, Log, Mod, SampleHere, Sample2D, Sample3D,
-          LT, GT, LTE, GTE, EQ, NEQ,
-          And, Or, Nand};
-    
-    enum {DepT = 1, DepY = 2, DepX = 4, DepC = 8, DepVal = 16};
-
-    enum Type {Unknown = 0, Float, Bool, Int, Bool4, Float4, IntRange4};
     
     // One node in the intermediate representation
     class IRNode {
     public:
         // Opcode
-        uint32_t op;
+        OpCode op;
         
         // Data for Const ops
-        float val;
+        float fval;
+        int ival;
+
+        // Derivative w.r.t vectorized variable
+
+        // This is a way of preventing early expansion to full vectors
+        // for expressions that are linear w.r.t the vectorized
+        // variable. For example, when loading some image data whilst
+        // vectorized across X, usually the load addresses will be
+        // linear in X, and don't need to be stored separately.
+
+        int idv; // only valid if type is Int and width is 1
+        float fdv; // only valid if type is Float and width is 1
+        
+        // Vector width. Should be one or four on X64.
+        int width;
 
         // Inputs
-        vector<IRNode *> children;    
+        vector<IRNode *> inputs;    
         
         // Who uses my value?
-        vector<IRNode *> parents;
+        vector<IRNode *> outputs;
         
         // Which loop variables does this node depend on?
         uint32_t deps;
@@ -68,108 +88,363 @@ class Compiler {
             return floatInstances[v];
         };
 
-        static IRNode *make(Type t, uint32_t opcode, 
-               Type t1 = Float, IRNode *child1 = NULL, 
-               Type t2 = Float, IRNode *child2 = NULL, 
-               Type t3 = Float, IRNode *child3 = NULL,
-               Type t4 = Float, IRNode *child4 = NULL) {
+        static IRNode *make(int v) {
+            if (intInstances[v] == NULL) 
+                return (intInstances[v] = new IRNode(v));
+            return intInstances[v];
+        };
 
-            // collect the children into a vector
-            vector<IRNode *> children;
-            vector<Type> childTypes;
-            if (child1) {
-                children.push_back(child1);
-                childTypes.push_back(t1);
+        static IRNode *make(OpCode opcode, 
+                            IRNode *input1 = NULL, 
+                            IRNode *input2 = NULL, 
+                            IRNode *input3 = NULL,
+                            IRNode *input4 = NULL) {
+
+            // collect the inputs into a vector
+            vector<IRNode *> inputs;
+            if (input1) {
+                inputs.push_back(input1);
             }
-            if (child2) {
-                children.push_back(child2);
-                childTypes.push_back(t2);
+            if (input2) {
+                inputs.push_back(input2);
             }
-            if (child3) {
-                children.push_back(child3);
-                childTypes.push_back(t3);
+            if (input3) {
+                inputs.push_back(input3);
             }
-            if (child4) {
-                children.push_back(child4);
-                childTypes.push_back(t4);
+            if (input4) {
+                inputs.push_back(input4);
             }
-            return make(t, opcode, childTypes, children);
+            return make(opcode, inputs);
         }
 
-        static IRNode *make(Type t, uint32_t opcode,
-                            vector<Type> childTypes,
-                            vector<IRNode *> children) {
+        static IRNode *make(OpCode opcode,
+                            vector<IRNode *> inputs) {
 
-            // type coercion
-            for (size_t i = 0; i < children.size(); i++) {
-                if (children[i]->type != childTypes[i]) {
-                    if (childTypes[i] == Bool && children[i]->type == Float) {
-                        children[i] = IRNode::make(Bool, NEQ, Float, children[i], Float, IRNode::make(0.0f));
-                    } else if (childTypes[i] == Float && children[i]->type == Bool) {
-                        children[i] = IRNode::make(Float, And, Bool, children[i], Float, IRNode::make(1.0f));
+
+            // type inference and coercion
+            Type t;
+            switch(opcode) {
+            case Const:
+                panic("Shouldn't make Consts using this make function\n");
+            case NoOp:
+                assert(inputs.size() == 1, "Wrong number of inputs for opcode: %s %d\n",
+                       opname[opcode], inputs.size());
+                t = inputs[0]->type;
+                break;
+            case VarX: 
+            case VarY: 
+            case VarT:
+            case VarC:
+                assert(inputs.size() == 0, "Wrong number of inputs for opcode: %s %d\n",
+                       opname[opcode], inputs.size());
+                t = Int;
+                break;
+            case PlusImm:
+            case TimesImm:
+                assert(inputs.size() == 1, "Wrong number of inputs for opcode: %s %d\n",
+                       opname[opcode], inputs.size());
+                assert(inputs[0]->type == Int,
+                       "PlusImm and TimesImm can only be applied to Ints\n");
+                t = Int;
+                break;
+            case Plus:
+            case Minus:
+            case Times:
+            case Power:
+            case Mod:
+                assert(inputs.size() == 2, "Wrong number of inputs for opcode: %s %d\n",
+                       opname[opcode], inputs.size());
+                // the output is either int or float
+                if (inputs[0]->type == Float ||
+                    inputs[1]->type == Float) t = Float;
+                else t = Int;
+
+                // upgrade everything to the output type
+                inputs[0] = inputs[0]->as(t);
+                inputs[1] = inputs[1]->as(t);
+                break;
+            case Divide:
+            case ATan2:
+                t = Float;
+                inputs[0] = inputs[0]->as(Float);
+                inputs[1] = inputs[1]->as(Float);
+                break;
+            case Sin:
+            case Cos:
+            case Tan:
+            case ASin:
+            case ACos:
+            case ATan:
+            case Exp:
+            case Log:
+                assert(inputs.size() == 1, "Wrong number of inputs for opcode: %s %d\n", 
+                       opname[opcode], inputs.size());
+                t = Float;
+                inputs[0] = inputs[0]->as(Float);
+                break;
+            case Abs:
+                assert(inputs.size() == 1, "Wrong number of inputs for opcode: %s %d\n", 
+                       opname[opcode], inputs.size());
+                if (inputs[0]->type == Bool) return inputs[0];
+                t = inputs[0]->type;
+                break;
+            case Floor:
+            case Ceil:
+            case Round:
+                assert(inputs.size() == 1, "Wrong number of inputs for opcode: %s %d\n", 
+                       opname[opcode], inputs.size());    
+                if (inputs[0]->type != Float) return inputs[0];
+                t = Float; // TODO: perhaps Int?
+                break;
+            case LT:
+            case GT:
+            case LTE:
+            case GTE:
+            case EQ:
+            case NEQ:
+                assert(inputs.size() == 2, "Wrong number of inputs for opcode: %s %d\n",
+                       opname[opcode], inputs.size());    
+                if (inputs[0]->type == Float || inputs[1]->type == Float) {
+                    t = Float;                    
+                } else { // TODO: compare ints?
+                    t = Bool;
+                }
+                inputs[0] = inputs[0]->as(t);
+                inputs[1] = inputs[1]->as(t);
+                t = Bool;
+                break;
+            case And:
+            case Nand:
+                assert(inputs.size() == 2, "Wrong number of inputs for opcode: %s %d\n",
+                       opname[opcode], inputs.size());    
+                // first arg is always bool
+                inputs[0] = inputs[0]->as(Bool);
+                t = inputs[1]->type;
+                break;
+            case Or:               
+                assert(inputs.size() == 2, "Wrong number of inputs for opcode: %s %d\n",
+                       opname[opcode], inputs.size());    
+                if (inputs[0]->type == Float || inputs[1]->type == Float) {
+                    t = Float;
+                } else if (inputs[0]->type == Int || inputs[0]->type == Int) {
+                    t = Int;
+                } else {
+                    t = Bool;
+                }
+                inputs[0] = inputs[0]->as(t);
+                inputs[1] = inputs[1]->as(t);
+                break;
+            case IntToFloat:
+                assert(inputs.size() == 1, "Wrong number of inputs for opcode: %s %d\n",
+                       opname[opcode], inputs.size());
+                assert(inputs[0]->type == Int, "IntToFloat can only take integers\n");
+                t = Float;
+                break;
+            case FloatToInt:
+                assert(inputs.size() == 1, "Wrong number of inputs for opcode: %s %d\n",
+                       opname[opcode], inputs.size());
+                assert(inputs[0]->type == Float, "FloatToInt can only take floats\n");
+                t = Int;
+                break;
+            case Load:
+                assert(inputs.size() == 1, "Wrong number of inputs for opcode: %s %d\n",
+                       opname[opcode], inputs.size());
+                inputs[0] = inputs[0]->as(Int);
+                t = Float;
+                break;
+            }
+
+            // constant folding
+            bool allConst = true;
+            for (size_t i = 0; i < inputs.size() && allConst; i++) {
+                if (inputs[i]->deps) allConst = false;
+            }
+            if (allConst && inputs.size()) {
+                switch(opcode) {
+
+                    /*
+enum OpCode {Const = 0, NoOp, 
+             VarX, VarY, VarT, VarC, 
+             Plus, Minus, Times, Divide, Power,
+             Sin, Cos, Tan, ASin, ACos, ATan, ATan2, 
+             Abs, Floor, Ceil, Round,
+             Exp, Log, Mod, 
+             LT, GT, LTE, GTE, EQ, NEQ,
+             And, Or, Nand,
+             IntToFloat, FloatToInt, 
+             Load, PlusImm, TimesImm, LoadImm};                    
+                    */
+                case Plus:
+                    if (t == Float) {
+                        return make(inputs[0]->fval + inputs[1]->fval);
                     } else {
-                        panic("I don't know how to do a type coercion!\n");
+                        return make(inputs[0]->ival + inputs[1]->ival);
                     }
+                case Minus:
+                    if (t == Float) {
+                        return make(inputs[0]->fval - inputs[1]->fval);
+                    } else {
+                        return make(inputs[0]->ival - inputs[1]->ival);
+                    }
+                case Times:
+                    if (t == Float) {
+                        return make(inputs[0]->fval * inputs[1]->fval);
+                    } else {
+                        return make(inputs[0]->ival * inputs[1]->ival);
+                    }
+                case Divide:
+                    return make(inputs[0]->fval / inputs[1]->fval);
+                case And:
+                    if (t == Float) {
+                        return make(inputs[0]->ival ? inputs[1]->fval : 0.0f);
+                    } else {
+                        return make(inputs[0]->ival ? inputs[1]->ival : 0);
+                    }
+                case Or:
+                    if (t == Float) {
+                        return make(inputs[0]->fval + inputs[1]->fval);
+                    } else {
+                        return make(inputs[0]->ival | inputs[1]->ival);
+                    }
+                case Nand:
+                    if (t == Float) {
+                        return make(!inputs[0]->ival ? inputs[1]->fval : 0.0f);
+                    } else {
+                        return make(!inputs[0]->ival ? inputs[1]->ival : 0);
+                    }
+                case IntToFloat:
+                    return make((float)inputs[0]->ival);
+                case FloatToInt:
+                    return make((int)inputs[0]->fval);
+                default:
+                    // TODO: transcendentals, pow, floor, etc
+                    break;
                 } 
             }
 
-           
             // strength reduction
             if (opcode == NoOp) {
-                return children[0];
+                return inputs[0];
             }
 
+            if (opcode == Divide && inputs[1]->op == Const) {
+                // x/alpha = x*(1/alpha)
+                return make(Times, inputs[0], make(1.0f/inputs[1]->fval));
+            }
+
+            // (x+a)*b = x*b + a*b (where a and b are both lower level than x)
+            if (opcode == Times) {
+                IRNode *x = NULL, *a = NULL, *b = NULL;
+                if (inputs[0]->op == Plus) {
+                    b = inputs[1];
+                    x = inputs[0]->inputs[1];
+                    a = inputs[0]->inputs[0];
+                } else if (inputs[1]->op == Plus) {
+                    b = inputs[0];
+                    x = inputs[1]->inputs[1];
+                    a = inputs[1]->inputs[0];
+                }
+
+                if (x) {
+
+                    // x is the higher level of x and a
+                    if (x->level < a->level) {
+                        IRNode *tmp = x;
+                        x = a;
+                        a = tmp;
+                    }
+                    
+                    // it's only worth rebalancing if a and b are both
+                    // lower level than x (e.g. (x+y)*3)
+                    if (x->level > a->level && x->level > b->level) {
+                        return make(Plus, 
+                                    make(Times, x, b),
+                                    make(Times, a, b));
+                    }
+                }
+            }
+
+            // (x*a)*b = x*(a*b) where a and b are lower level than x
+            if (opcode == Times) {
+                IRNode *x = NULL, *a = NULL, *b = NULL;
+                if (inputs[0]->op == Times) {
+                    x = inputs[0]->inputs[0];
+                    a = inputs[0]->inputs[1];
+                    b = inputs[1];
+                } else if (inputs[1]->op == Times) {
+                    x = inputs[1]->inputs[0];
+                    a = inputs[1]->inputs[1];
+                    b = inputs[0];
+                }
+
+                if (x) {
+                    // x is the higher level of x and a
+                    if (x->level < a->level) {
+                        IRNode *tmp = x;
+                        x = a;
+                        a = tmp;
+                    }
+                    
+                    // it's only worth rebalancing if a and b are both
+                    // lower level than x (e.g. (x+y)*3)
+                    if (x->level > a->level && x->level > b->level) {
+                        return make(Times, 
+                                    x,
+                                    make(Times, a, b));
+                    }
+                }
+            }
+
+            /*
             if (opcode == Times) {
                 // 0*x = 0
-                if (children[0]->op == ConstFloat && children[0]->val == 0.0f) {
-                    return make(0);
+                if (inputs[0]->op == Const &&
+                    inputs[0]->type == Float &&
+                    inputs[0]->fval == 0.0f) {
+                    return make(0.0f);
                 } 
+
                 // x*0 = 0
-                if (children[1]->op == ConstFloat && children[1]->val == 0.0f) {
+                if (inputs[1]->op == ConstFloat && inputs[1]->val == 0.0f) {
                     return make(0);
                 }
 
                 // 1*x = x
-                if (children[0]->op == ConstFloat && children[0]->val == 1.0f) {
-                    return children[1];
+                if (inputs[0]->op == ConstFloat && inputs[0]->val == 1.0f) {
+                    return inputs[1];
                 } 
                 // x*1 = x
-                if (children[1]->op == ConstFloat && children[1]->val == 1.0f) {
-                    return children[0];
+                if (inputs[1]->op == ConstFloat && inputs[1]->val == 1.0f) {
+                    return inputs[0];
                 }
 
                 // 2*x = x+x
-                if (children[0]->op == ConstFloat && children[0]->val == 2.0f) {
-                    return make(t, Plus, childTypes[1], children[1], childTypes[1], children[1]);
+                if (inputs[0]->op == ConstFloat && inputs[0]->val == 2.0f) {
+                    return make(Plus, inputTypes[1], inputs[1], inputTypes[1], inputs[1]);
                 } 
                 // x*2 = x+x
-                if (children[1]->op == ConstFloat && children[1]->val == 2.0f) {
-                    return make(t, Plus, childTypes[0], children[0], childTypes[0], children[0]);
+                if (inputs[1]->op == ConstFloat && inputs[1]->val == 2.0f) {
+                    return make(Plus, inputTypes[0], inputs[0], inputTypes[0], inputs[0]);
                 }
             }
 
-            if (opcode == Divide && children[1]->op == ConstFloat) {
-                // x/alpha = x*(1/alpha)
-                return make(t, Times, childTypes[0], children[0], Float, make(1.0f/children[1]->val));
-            }
-
-            if (opcode == Power && children[1]->op == ConstFloat) {
-                if (children[1]->val == 0.0f) {        // x^0 = 1
+            if (opcode == Power && inputs[1]->op == ConstFloat) {
+                if (inputs[1]->val == 0.0f) {        // x^0 = 1
                     return make(1.0f);
-                } else if (children[1]->val == 1.0f) { // x^1 = x
-                    return children[0];
-                } else if (children[1]->val == 2.0f) { // x^2 = x*x
-                    return make(t, Times, childTypes[0], children[0], childTypes[0], children[0]);
-                } else if (children[1]->val == 3.0f) { // x^3 = x*x*x
-                    IRNode *squared = make(t, Times, childTypes[0], children[0], childTypes[0], children[0]);
-                    return make(t, Times, t, squared, childTypes[0], children[0]);
-                } else if (children[1]->val == 4.0f) { // x^4 = x*x*x*x
-                    IRNode *squared = make(t, Times, childTypes[0], children[0], childTypes[0], children[0]);
-                    return make(t, Times, t, squared, t, squared);                    
-                } else if (children[1]->val == floorf(children[1]->val) &&
-                           children[1]->val > 0) {
+                } else if (inputs[1]->val == 1.0f) { // x^1 = x
+                    return inputs[0];
+                } else if (inputs[1]->val == 2.0f) { // x^2 = x*x
+                    return make(Times, inputTypes[0], inputs[0], inputTypes[0], inputs[0]);
+                } else if (inputs[1]->val == 3.0f) { // x^3 = x*x*x
+                    IRNode *squared = make(Times, inputTypes[0], inputs[0], inputTypes[0], inputs[0]);
+                    return make(t, Times, t, squared, inputTypes[0], inputs[0]);
+                } else if (inputs[1]->val == 4.0f) { // x^4 = x*x*x*x
+                    IRNode *squared = make(Times, inputTypes[0], inputs[0], inputTypes[0], inputs[0]);
+                    return make(Times, t, squared, t, squared);                    
+                } else if (inputs[1]->val == floorf(inputs[1]->val) &&
+                           inputs[1]->val > 0) {
                     // iterated multiplication
-                    int power = (int)floorf(children[1]->val);
+                    int power = (int)floorf(inputs[1]->val);
 
                     // find the largest power of two less than power
                     int pow2 = 1;
@@ -182,17 +457,16 @@ class Compiler {
                     // make a stack x, x^2, x^4, x^8 ...
                     // and multiply the appropriate terms from it
                     vector<IRNode *> powStack;
-                    powStack.push_back(children[0]);
-                    IRNode *result = (power & 1) ? children[0] : NULL;
-                    IRNode *last = children[0];
+                    powStack.push_back(inputs[0]);
+                    IRNode *result = (power & 1) ? inputs[0] : NULL;
+                    IRNode *last = inputs[0];
                     for (int i = 2; i < power; i *= 2) {
-                        printf("Making %dth power\n", i);
-                        last = make(t, Times, last->type, last, last->type, last);
+                        last = make(Times, last->type, last, last->type, last);
                         powStack.push_back(last);
                         if (power & i) {
                             if (!result) result = last;
                             else {
-                                result = make(t, Times,
+                                result = make(Times,
                                               result->type, result,
                                               last->type, last);
                             }
@@ -201,57 +475,60 @@ class Compiler {
                     return result;
                  }
 
-                // todo: negative powers (integer)
-                
+                 // todo: negative powers (integer)               
             }            
+            */
 
             // rebalance summations
             if (opcode != Plus && opcode != Minus) {
-                for (size_t i = 0; i < children.size(); i++) {
-                    children[i]->rebalanceSum();
+                for (size_t i = 0; i < inputs.size(); i++) {
+                    inputs[i] = inputs[i]->rebalanceSum();
                 }
             }              
 
-            // deal with variables and loads
-            if (opcode == VarX || opcode == VarY || opcode == VarT || opcode == VarVal || opcode == VarC) {
-                vector<Type> a;
+            // deal with variables 
+            if (opcode == VarX || opcode == VarY || opcode == VarT || opcode == VarC) {
                 vector<IRNode *> b;
                 if (varInstances[opcode] == NULL)
-                    return (varInstances[opcode] = new IRNode(t, opcode, a, b));
+                    return (varInstances[opcode] = new IRNode(t, opcode, b));
                 return varInstances[opcode];
             }
 
             // common subexpression elimination - check if one of the
-            // children already has a parent that does this op
-            if (children.size() && children[0]->parents.size() ) {
-                for (size_t i = 0; i < children[0]->parents.size(); i++) {
-                    IRNode *candidate = children[0]->parents[i];
+            // inputs already has a parent that does this op
+            if (inputs.size() && inputs[0]->outputs.size() ) {
+                for (size_t i = 0; i < inputs[0]->outputs.size(); i++) {
+                    IRNode *candidate = inputs[0]->outputs[i];
                     if (candidate->op != opcode) continue;
                     if (candidate->type != t) continue;
-                    if (candidate->children.size() != children.size()) continue;
-                    bool childrenMatch = true;
-                    for (size_t j = 0; j < children.size(); j++) {
-                        if (candidate->children[j] != children[j]) childrenMatch = false;
+                    if (candidate->inputs.size() != inputs.size()) continue;
+                    bool inputsMatch = true;
+                    for (size_t j = 0; j < inputs.size(); j++) {
+                        if (candidate->inputs[j] != inputs[j]) inputsMatch = false;
                     }
-                    // it's the same op on the same children, reuse the old node
-                    if (childrenMatch) return candidate;
+                    // it's the same op on the same inputs, reuse the old node
+                    if (inputsMatch) return candidate;
                 }
             }
 
             // make a new node
-            return new IRNode(t, opcode, childTypes, children);
+            return new IRNode(t, opcode, inputs);
         }
 
         // An optimization pass done after generation
         IRNode *optimize() {
             IRNode * newNode = rebalanceSum();
+            newNode = newNode->fuseInstructions();
             newNode->killOrphans();
             return newNode;
         }
 
+        
+
         // kill everything
         static void clearAll() {
             IRNode::floatInstances.clear();
+            IRNode::intInstances.clear();
             IRNode::varInstances.clear();
             for (size_t i = 0; i < IRNode::allNodes.size(); i++) {
                 delete IRNode::allNodes[i];
@@ -259,9 +536,155 @@ class Compiler {
             IRNode::allNodes.clear();            
         }
 
+        // type coercion
+        IRNode *as(Type t) {
+            if (t == type) return this;
+
+            // insert new casting operators
+            if (type == Int) {
+                if (t == Float) 
+                    return make(IntToFloat, this);
+                if (t == Bool)
+                    return make(NEQ, this, make(0));
+            }
+
+            if (type == Bool) {            
+                if (t == Float) 
+                    return make(And, this, make(1.0f));
+                if (t == Int) 
+                    return make(And, this, make(1));
+            }
+
+            if (type == Float) {
+                if (t == Bool) 
+                    return make(NEQ, this, make(0.0f));
+                if (t == Int) 
+                    return make(FloatToInt, this);
+            }            
+
+            panic("Casting to/from unknown type\n");
+            return this;
+            
+        }
+
+        void printExp() {
+            switch(op) {
+            case Const:
+                if (type == Float) printf("%f", fval);
+                else printf("%d", ival);
+                break;
+            case VarX:
+                printf("x");
+                break;
+            case VarY:
+                printf("y");
+                break;
+            case VarT:
+                printf("t");
+                break;
+            case VarC:
+                printf("c");
+                break;
+            case Plus:
+                printf("(");
+                inputs[0]->printExp();
+                printf("+");
+                inputs[1]->printExp();
+                printf(")");
+                break;
+            case Minus:
+                printf("(");
+                inputs[0]->printExp();
+                printf("-");
+                inputs[1]->printExp();
+                printf(")");
+                break;
+            case Times:
+                printf("(");
+                inputs[0]->printExp();
+                printf("*");
+                inputs[1]->printExp();
+                printf(")");
+                break;
+            case Divide:
+                printf("(");
+                inputs[0]->printExp();
+                printf("/");
+                inputs[1]->printExp();
+                printf(")");
+                break;
+            default:
+                if (inputs.size() == 0) {
+                    printf("%s", opname[op]);
+                } else {
+                    printf("%s(", opname[op]); 
+                    inputs[0]->printExp();
+                    for (size_t i = 1; i < inputs.size(); i++) {
+                        printf(", ");
+                        inputs[1]->printExp();
+                    }
+                    printf(")");
+                }
+                break;
+            }
+        }
+
+        void print() {
+            
+            if (reg < 16)
+                printf("r%d = ", reg);
+            else 
+                printf("xmm%d = ", reg-16);
+
+            vector<string> args(inputs.size());
+            char buf[32];
+            for (size_t i = 0; i < inputs.size(); i++) {
+                if (inputs[i]->reg < 16)
+                    sprintf(buf, "r%d", inputs[i]->reg);
+                else
+                    sprintf(buf, "xmm%d", inputs[i]->reg-16);
+                args[i] += buf;
+            }
+            
+            switch (op) {
+            case Const:
+                if (type == Float) printf("%f\n", fval);
+                else printf("%d\n", ival);
+                break;                
+            case Plus:
+                printf("%s + %s\n", args[0].c_str(), args[1].c_str());
+                break;
+            case Minus:
+                printf("%s - %s\n", args[0].c_str(), args[1].c_str());
+                break;
+            case Times:
+                printf("%s * %s\n", args[0].c_str(), args[1].c_str());
+                break;
+            case Divide:
+                printf("%s / %s\n", args[0].c_str(), args[1].c_str());
+                break;
+            case PlusImm:
+                printf("%s + %d\n", args[0].c_str(), ival);
+                break;
+            case TimesImm:
+                printf("%s * %d\n", args[0].c_str(), ival);
+                break;
+            case LoadImm:
+                printf("%s + %d\n", args[0].c_str(), ival);
+                break;
+            default:
+                printf(opname[op]);
+                for (size_t i = 0; i < args.size(); i++)
+                    printf(" %s", args[i].c_str());
+                printf("\n");
+                break;
+            }
+        }
+
     protected:
         static map<float, IRNode *> floatInstances;
-        static map<uint32_t, IRNode *> varInstances;
+        static map<int, IRNode *> intInstances;
+        static map<OpCode, IRNode *> varInstances;
         static vector<IRNode *> allNodes;
 
         // Is this node marked for death
@@ -279,30 +702,33 @@ class Compiler {
 
             vector<IRNode *> newAllNodes;
             map<float, IRNode *> newFloatInstances;
-            map<uint32_t, IRNode *> newVarInstances;
+            map<int, IRNode *> newIntInstances;
+            map<OpCode, IRNode *> newVarInstances;
 
             // save the unmarked nodes by migrating them to new data structures
             for (size_t i = 0; i < allNodes.size(); i++) {
                 IRNode *n = allNodes[i];
                 if (!n->marked) {
                     newAllNodes.push_back(n);
-                    if (n->op == ConstFloat) {
-                        newFloatInstances[n->val] = n;
+                    if (n->op == Const) {
+                        if (n->type == Float) 
+                            newFloatInstances[n->fval] = n;
+                        else
+                            newIntInstances[n->ival] = n;
                     } else if (n->op == VarX ||
                                n->op == VarY ||
                                n->op == VarT ||
-                               n->op == VarC ||
-                               n->op == VarVal) {
+                               n->op == VarC) {
                         newVarInstances[n->op] = n;
                     }
 
-                    // remove any marked parents
-                    vector<IRNode *> newParents;
-                    for (size_t j = 0; j < n->parents.size(); j++) {
-                        if (!n->parents[j]->marked)
-                            newParents.push_back(n->parents[j]);
+                    // remove any marked outputs
+                    vector<IRNode *> newOutputs;
+                    for (size_t j = 0; j < n->outputs.size(); j++) {
+                        if (!n->outputs[j]->marked)
+                            newOutputs.push_back(n->outputs[j]);
                     }
-                    n->parents.swap(newParents);
+                    n->outputs.swap(newOutputs);
                 }
             }
 
@@ -314,22 +740,78 @@ class Compiler {
 
             allNodes.swap(newAllNodes);
             floatInstances.swap(newFloatInstances);
+            intInstances.swap(newIntInstances);
             varInstances.swap(newVarInstances);
         }
 
 
+        IRNode *fuseInstructions() {
+            // some instructions can be fused, depending on architecture
+            for (size_t i = 0; i < inputs.size(); i++) {
+                IRNode *newInput = inputs[i]->fuseInstructions();
+                if (newInput != inputs[i]) {
+                    newInput->outputs.push_back(this);
+                    inputs[i] = newInput;
+                }
+            }
+
+            // We can pack int + constant or int * constant into a smaller opcode on x64
+            if (op == Plus && type == Int) {
+                if (inputs[0]->op == Const) {
+                    IRNode *n = make(PlusImm, inputs[1]);
+                    n->ival = inputs[0]->ival;
+                    return n;
+                } else if (inputs[1]->op == Const) {
+                    IRNode *n = make(PlusImm, inputs[0]);
+                    n->ival = inputs[1]->ival;
+                    return n;
+                }
+            }
+
+            if (op == Minus && type == Int) {
+                if (inputs[1]->op == Const) {
+                    IRNode *n = make(PlusImm, inputs[0]);
+                    n->ival = -inputs[1]->ival;
+                    return n;
+                }
+            }
+
+            if (op == Times && type == Int) {
+                if (inputs[0]->op == Const) {
+                    IRNode *n = make(TimesImm, inputs[1]);
+                    n->ival = inputs[0]->ival;
+                    return n;
+                } else if (inputs[1]->op == Const) {
+                    IRNode *n = make(TimesImm, inputs[0]);
+                    n->ival = inputs[1]->ival;
+                    return n;
+                }
+            }                       
+
+            // A load of a PlusImm can become a LoadImm
+            if (op == Load && inputs[0]->op == PlusImm) {
+                IRNode *n = make(LoadImm, inputs[0]->inputs[0]);
+                n->ival = inputs[0]->ival;
+                return n;
+            }
+
+            // no fusion took place
+            return this;
+        }
+
         void markDescendents(bool newMark) {
             if (marked == newMark) return;
-            for (size_t i = 0; i < children.size(); i++) {
-                children[i]->markDescendents(newMark);
+            for (size_t i = 0; i < inputs.size(); i++) {
+                inputs[i]->markDescendents(newMark);
             }
             marked = newMark;
         }
 
         IRNode *rebalanceSum() {
-            if (op != Plus && op != Minus) return this;
 
-            // collect all the children
+            if (op != Plus && op != Minus) return this;
+            
+            // collect all the inputs
             vector<pair<IRNode *, bool> > terms;
 
             collectSum(terms);
@@ -346,50 +828,36 @@ class Compiler {
                 }
             }
 
-            // collect the constant terms
-            float constant = 0.0f;
-            int firstNonConst = -1;
             for (size_t i = 0; i < terms.size(); i++) {
-                if (terms[i].first->op == ConstFloat) {
-                    if (terms[i].second) {
-                        constant += terms[i].first->val;
-                    } else {
-                        constant -= terms[i].first->val;
-                    }
-                } else {
-                    firstNonConst = i;
-                    break;
-                }
+                printf("%d)", i);
+                if (!terms[i].second) printf("-(");
+                terms[i].first->printExp();
+                if (!terms[i].second) printf(")");
+                printf("\n");
             }
-
-            // constants only
-            if (firstNonConst < 0) return make(constant);
 
             // remake the summation
             IRNode *t;
             bool tPos;
-            if (constant != 0.0f) {
-                // constant term plus other stuff
-                t = make(constant);
-                tPos = true;
-            } else {
-                // just non-constants
-                t = terms[firstNonConst].first;
-                tPos = terms[firstNonConst].second;
-                firstNonConst++;
-            }
-            for (size_t i = firstNonConst; i < terms.size(); i++) {
+            t = terms[0].first;
+            tPos = terms[0].second;
+
+            for (size_t i = 1; i < terms.size(); i++) {
                 bool nextPos = terms[i].second;
                 if (tPos == nextPos)
-                    t = make(Float, Plus, Float, t, Float, terms[i].first);
+                    t = make(Plus, t, terms[i].first);
                 else if (tPos) // and not nextPos
-                    t = make(Float, Minus, Float, t, Float, terms[i].first);
+                    t = make(Minus, t, terms[i].first);
                 else { // nextPos and not tPos
                     tPos = true;
-                    t = make(Float, Minus, Float, terms[i].first, Float, t);
+                    t = make(Minus, terms[i].first, t);
                 }
                     
             }
+
+            printf("Result: ");
+            t->printExp();
+            printf("\n");
 
             return t;
         }
@@ -397,11 +865,11 @@ class Compiler {
 
         void collectSum(vector<pair<IRNode *, bool> > &terms, bool positive = true) {
             if (op == Plus) {
-                children[0]->collectSum(terms, positive);
-                children[1]->collectSum(terms, positive);
+                inputs[0]->collectSum(terms, positive);
+                inputs[1]->collectSum(terms, positive);
             } else if (op == Minus) {
-                children[0]->collectSum(terms, positive);
-                children[1]->collectSum(terms, !positive);                
+                inputs[0]->collectSum(terms, positive);
+                inputs[1]->collectSum(terms, !positive);                
             } else {
                 terms.push_back(make_pair(this, positive));
             }
@@ -411,48 +879,66 @@ class Compiler {
 
         IRNode(float v) {
             allNodes.push_back(this);
-            op = ConstFloat;
-            val = v;
+            op = Const;
+            fval = v;
+            ival = 0;
             deps = 0;
             reg = -1;
             level = 0;
             type = Float;
+            fdv = 0.0f;
+            idv = 0;
+            width = 1;
         }
 
-        IRNode(Type t, uint32_t opcode, 
-               vector<Type> childTypes,
-               vector<IRNode *> child) {
+        IRNode(int v) {
+            allNodes.push_back(this);
+            op = Const;
+            ival = v;
+            fval = 0.0f;
+            deps = 0;
+            reg = -1;
+            level = 0;
+            type = Int;
+            fdv = 0.0f;
+            idv = 0;
+            width = 1;
+        }
+
+        IRNode(Type t, OpCode opcode, 
+               vector<IRNode *> input) {
             allNodes.push_back(this);
 
-            for (size_t i = 0; i < child.size(); i++) 
-                children.push_back(child[i]);
+            for (size_t i = 0; i < input.size(); i++) 
+                inputs.push_back(input[i]);
 
             type = t;
+            fdv = 0.0f;
+            idv = 0;
+            width = 1;
+
             deps = 0;
             op = opcode;
             if (opcode == VarX) deps |= DepX;
             else if (opcode == VarY) deps |= DepY;
             else if (opcode == VarT) deps |= DepT;
             else if (opcode == VarC) deps |= DepC;
-            else if (opcode == VarVal) deps |= DepVal;
+            else if (opcode == Load) deps |= DepMem;
 
-            // attach myself to these children and compute deps
-            for (size_t i = 0; i < children.size(); i++) {
-                IRNode *c = children[i];
-                c->parents.push_back(this);
+            for (size_t i = 0; i < inputs.size(); i++) {
+                IRNode *c = inputs[i];
+                c->outputs.push_back(this);
                 deps |= c->deps;
             }
 
             reg = -1;
 
             // compute the level based on deps
-            if (deps & DepVal ||
-                deps & DepC) level = 4;
+            if ((deps & DepC) || (deps & DepMem)) level = 4;
             else if (deps & DepX) level = 3;
             else if (deps & DepY) level = 2;
             else if (deps & DepT) level = 1;
             else level = 0;
-
         }
     };
 
@@ -469,11 +955,32 @@ public:
         IRNode * root = irGenerator.generate(im, exp);
 
         // force it to be a float
-        root = IRNode::make(Float, NoOp, Float, root);
+        root = root->as(Float);
+
+        // vectorize across X
+        // root->vectorize(VarX, 4);
+
+        // Assign the variables some registers
+        AsmX64::Reg x = a->rax, y = a->rcx, 
+            t = a->r8, c = a->rsi, 
+            tmp = a->r15,
+            outPtr = a->rdi;
+        uint32_t reserved = ((1 << x.num) |
+                             (1 << y.num) |
+                             (1 << t.num) |
+                             (1 << c.num) |
+                             (1 << outPtr.num) |
+                             (1 << tmp.num) | 
+                             (1 << a->rsp.num));
+
+        IRNode::make(VarX)->reg = x.num;
+        IRNode::make(VarY)->reg = y.num;
+        IRNode::make(VarT)->reg = t.num;
+        IRNode::make(VarC)->reg = c.num;
 
         // Register assignment and evaluation ordering
-        uint16_t clobbered[5], outputs[5];
-        vector<vector<IRNode *> > ordering = doRegisterAssignment(root, clobbered, outputs);        
+        uint32_t clobbered[5], outputs[5];
+        vector<vector<IRNode *> > ordering = doRegisterAssignment(root, clobbered, outputs, reserved);        
 
         // print out the assembly for inspection
         const char *dims = "tyxc";
@@ -485,22 +992,12 @@ public:
             for (size_t i = 0; i < ordering[l].size(); i++) {
                 IRNode *next = ordering[l][i];
                 for (size_t k = 0; k < l; k++) putchar(' ');
-                printf("xmm%d = %s", next->reg, opname[next->op]);
-                if (next->op == ConstFloat) {
-                    printf(" %f\n", next->val);
-                } else if (next->children.size() == 0) {
-                    printf("\n");
-                } else {
-                    for (size_t j = 0; j < next->children.size(); j++) {
-                        printf(" xmm%d", next->children[j]->reg);
-                    }
-                    printf("\n");
-                }            
+                next->print();
             }
-            if (clobbered[l] & 0x3fff) {
+            if (clobbered[l] & 0x3fffffff) {
                 for (size_t k = 0; k < l; k++) putchar(' ');
                 printf("clobbered: ");
-                for (int i = 0; i < 14; i++) {
+                for (int i = 0; i < 32; i++) {
                     if (clobbered[l] & (1 << i)) printf("%d ", i);
                 }
                 printf("\n");
@@ -508,17 +1005,12 @@ public:
             if (outputs[l]) {
                 for (size_t k = 0; k < l; k++) putchar(' ');
                 printf("output: ");
-                for (int i = 0; i < 16; i++) {
+                for (int i = 0; i < 32; i++) {
                     if (outputs[l] & (1 << i)) printf("%d ", i);
                 }
                 printf("\n");
             }
         }
-
-        AsmX64::Reg x = a->rax, y = a->rcx, 
-            t = a->r8, c = a->rsi, 
-            imPtr = a->rdx, tmp = a->r15,
-            outPtr = a->rdi;
 
         // align the stack to a 16-byte boundary
         a->sub(a->rsp, 8);
@@ -532,40 +1024,38 @@ public:
         uint16_t inuse = 0;
 
         // generate constants
-        compileBody(a, x, y, t, c, AsmX64::Mem(imPtr), im.channels*4, ordering[0]);
+        compileBody(a, x, y, t, c, ordering[0]);
         a->mov(t, 0);
         a->label("tloop"); 
 
         // generate the values that don't depend on Y, X, C, or val
-        compileBody(a, x, y, t, c, AsmX64::Mem(imPtr), im.channels*4, ordering[1]);        
+        compileBody(a, x, y, t, c, ordering[1]);        
         a->mov(y, 0);
         a->label("yloop"); 
 
         // compute the address of the start of this scanline
-        a->mov(imPtr, im(0, 0));           
+        a->mov(outPtr, out(0, 0));           
         a->mov(tmp, t); 
-        a->imul(tmp, im.tstride*sizeof(float));
-        a->add(imPtr, tmp);
+        a->imul(tmp, out.tstride*sizeof(float));
+        a->add(outPtr, tmp);
         a->mov(tmp, y);
-        a->imul(tmp, im.ystride*sizeof(float));
-        a->add(imPtr, tmp);
-        a->mov(outPtr, (int64_t)(sizeof(float)*(out(0, 0) - im(0, 0))));
-        a->add(outPtr, imPtr);
+        a->imul(tmp, out.ystride*sizeof(float));
+        a->add(outPtr, tmp);
         
         // generate the values that don't depend on X, C, or val
-        compileBody(a, x, y, t, c, AsmX64::Mem(imPtr), im.channels*4, ordering[2]);        
+        compileBody(a, x, y, t, c, ordering[2]);        
         a->mov(x, 0);               
         a->label("xloop"); 
         
         // generate the values that don't depend on C or val
-        compileBody(a, x, y, t, c, AsmX64::Mem(imPtr), im.channels*4, ordering[3]);        
+        compileBody(a, x, y, t, c, ordering[3]);        
         
         a->mov(c, 0);
         //a->label("cloop");                         
 
         for (int i = 0; i < im.channels; i++) {
             // insert code for the expression body
-            compileBody(a, x, y, t, c, AsmX64::Mem(imPtr, i*4), im.channels*4, ordering[4]);
+            compileBody(a, x, y, t, c, ordering[4]);
             // push the result onto the stack
             a->movaps(AsmX64::Mem(a->rsp, i*4*4), AsmX64::SSEReg(root->reg));
             a->add(c, 1);
@@ -573,12 +1063,12 @@ public:
 
         // find five free registers
         vector<AsmX64::SSEReg> tmps;
-        for (int i = 0; i < 16; i++) {
+        for (int i = 16; i < 32; i++) {
             if (outputs[0] & (1<<i)) continue;
             if (outputs[1] & (1<<i)) continue;
             if (outputs[2] & (1<<i)) continue;
             if (outputs[3] & (1<<i)) continue;            
-            tmps.push_back(AsmX64::SSEReg(i));
+            tmps.push_back(AsmX64::SSEReg(i-16));
             if (tmps.size() == 5) break;            
         }
         assert(tmps.size() == 5, 
@@ -625,7 +1115,6 @@ public:
         //a->cmp(c, im.channels);
         //a->jl("cloop");
 
-        a->add(imPtr, im.channels*4*4);
         a->add(outPtr, im.channels*4*4);
         a->add(x, 4);
         a->cmp(x, im.width);
@@ -646,110 +1135,174 @@ public:
     void compileBody(AsmX64 *a, 
                      AsmX64::Reg x, AsmX64::Reg y,
                      AsmX64::Reg t, AsmX64::Reg c, 
-                     AsmX64::Mem ptr, int stride, 
                      vector<IRNode *> code) {
         
         AsmX64::SSEReg tmp2 = a->xmm14;
         AsmX64::SSEReg tmp = a->xmm15;
+        AsmX64::Reg gtmp = a->r15;
 
         for (size_t i = 0; i < code.size(); i++) {
-            // extract the node, its register, and any children and their registers
+            // extract the node, its register, and any inputs and their registers
+            int offset = 0;
             IRNode *node = code[i];
-            IRNode *c1 = (node->children.size() >= 1) ? node->children[0] : NULL;
-            IRNode *c2 = (node->children.size() >= 2) ? node->children[1] : NULL;
-            IRNode *c3 = (node->children.size() >= 3) ? node->children[2] : NULL;
-            IRNode *c4 = (node->children.size() >= 4) ? node->children[3] : NULL;
-            AsmX64::Mem memRef(ptr);
-            AsmX64::SSEReg dst(node->reg);
-            AsmX64::SSEReg src1(c1 ? c1->reg : 0);
-            AsmX64::SSEReg src2(c2 ? c2->reg : 0);
-            AsmX64::SSEReg src3(c3 ? c3->reg : 0);
-            AsmX64::SSEReg src4(c4 ? c4->reg : 0);
+            IRNode *c1 = (node->inputs.size() >= 1) ? node->inputs[0] : NULL;
+            IRNode *c2 = (node->inputs.size() >= 2) ? node->inputs[1] : NULL;
+            IRNode *c3 = (node->inputs.size() >= 3) ? node->inputs[2] : NULL;
+            IRNode *c4 = (node->inputs.size() >= 4) ? node->inputs[3] : NULL;
+
+            AsmX64::SSEReg dst(node->reg-16);
+            AsmX64::SSEReg src1(c1 ? c1->reg-16 : 0);
+            AsmX64::SSEReg src2(c2 ? c2->reg-16 : 0);
+            AsmX64::SSEReg src3(c3 ? c3->reg-16 : 0);
+            AsmX64::SSEReg src4(c4 ? c4->reg-16: 0);
+
+            bool gpr = node->reg < 16;
+            bool gpr1 = c1 && c1->reg < 16;
+            bool gpr2 = c2 && c2->reg < 16;
+            bool gpr3 = c3 && c3->reg < 16;
+            bool gpr4 = c4 && c4->reg < 16;
+
+            AsmX64::Reg gdst(node->reg);
+            AsmX64::Reg gsrc1(c1 ? c1->reg : 0);
+            AsmX64::Reg gsrc2(c2 ? c2->reg : 0);
+            AsmX64::Reg gsrc3(c3 ? c3->reg : 0);
+            AsmX64::Reg gsrc4(c4 ? c4->reg : 0);
 
             switch(node->op) {
-            case ConstFloat: 
-                if (node->val == 0.0f) {
-                    a->bxorps(dst, dst);
+            case Const: 
+                if (node->type == Float) {
+                    if (node->fval == 0.0f) {
+                        a->bxorps(dst, dst);
+                    } else {
+                        a->mov(gtmp, &(node->fval));
+                        a->movss(dst, AsmX64::Mem(gtmp));
+                        a->shufps(dst, dst, 0, 0, 0, 0);
+                    }
+                } else if (node->type == Bool) {
+                    if (gpr) {
+                        if (node->ival) 
+                            a->mov(gdst, -1);
+                        else
+                            a->mov(gdst, 0);
+                    } else {
+                        if (node->ival) {
+                            a->cmpeqps(dst, dst);
+                        } else {
+                            a->bxorps(dst, dst);                    
+                        }
+                    }
                 } else {
-                    a->mov(a->r15, &(node->val));
-                    a->movss(dst, AsmX64::Mem(a->r15));
-                    a->shufps(dst, dst, 0, 0, 0, 0);
+                    if (gpr) {
+                        a->mov(gdst, node->ival);
+                    } else {
+                        a->mov(a->r15, node->ival);
+                        a->cvtsi2ss(dst, a->r15);
+                        // dubious... shouldn't this be a wider int?
+                        a->shufps(dst, dst, 0, 0, 0, 0);                        
+                    }
                 }
                 break;
-            case ConstBool:
-                if (node->val == 0.0f) {
-                    a->bxorps(dst, dst);                    
-                } else {
-                    a->cmpeqps(dst, dst);
-                }
-                break;
-            case VarX:
-                // TODO, this is not correct - we're vectorizing across X
-                a->cvtsi2ss(dst, x);
-                a->punpckldq(dst, dst);
-                a->punpcklqdq(dst, dst);
-                break;
+            case VarX:                
             case VarY:
-                a->cvtsi2ss(dst, y);
-                a->punpckldq(dst, dst);
-                a->punpcklqdq(dst, dst);
-                break;
             case VarT:
-                a->cvtsi2ss(dst, t);
-                a->punpckldq(dst, dst);
-                a->punpcklqdq(dst, dst);
-                break;
             case VarC:
-                a->cvtsi2ss(dst, c);
-                a->punpckldq(dst, dst);
-                a->punpcklqdq(dst, dst);
-                break;
-            case VarVal:
-                memRef = ptr;                
-                a->movss(dst, memRef);
-                memRef.offset += stride;
-                a->movss(tmp, memRef);
-                a->punpckldq(dst, tmp);
-                memRef.offset += stride;
-                a->movss(tmp, memRef);
-                memRef.offset += stride;
-                a->movss(tmp2, memRef);
-                a->punpckldq(tmp, tmp2);
-                a->punpcklqdq(dst, tmp);
+                // These are placed in GPRs externally
+                assert(gpr, "Vars must go in gprs\n");
                 break;
             case Plus:
-                if (dst == src1)
-                    a->addps(dst, src2);
-                else if (dst == src2) 
-                    a->addps(dst, src1);
-                else {
-                    a->movaps(dst, src1);
-                    a->addps(dst, src2);
+                if (gpr && gpr1 && gpr2) {
+                    if (gdst == gsrc1)
+                        a->add(gdst, gsrc2);
+                    else if (gdst == gsrc2) 
+                        a->add(gdst, gsrc1);
+                    else {
+                        a->mov(gdst, gsrc1);
+                        a->add(gdst, gsrc2);
+                    }
+                } else if (!gpr && !gpr1 && !gpr2) {
+                    if (dst == src1)
+                        a->addps(dst, src2);
+                    else if (dst == src2) 
+                        a->addps(dst, src1);
+                    else {
+                        a->movaps(dst, src1);
+                        a->addps(dst, src2);
+                    }
+                } else {
+                    panic("Can't add between gpr/sse\n");
                 }
                 break;
             case Minus:
-                if (dst == src1) {
-                    a->subps(dst, src2);
-                } else if (dst == src2) {
-                    a->movaps(tmp, src2);
-                    a->movaps(src2, src1);
-                    a->subps(src2, tmp);
-                } else { 
-                    a->movaps(dst, src1);
-                    a->subps(dst, src2);
+                if (gpr && gpr1 && gpr2) {
+                    if (gdst == gsrc1) {
+                        a->sub(gdst, gsrc2);
+                    } else if (gdst == gsrc2) {
+                        a->mov(gtmp, gsrc2);
+                        a->mov(gsrc2, gsrc1);
+                        a->sub(gsrc2, gtmp);
+                    } else { 
+                        a->mov(gdst, gsrc1);
+                        a->sub(gdst, gsrc2);
+                    }
+                } else if (!gpr && !gpr1 && !gpr2) {
+                    if (dst == src1) {
+                        a->subps(dst, src2);
+                    } else if (dst == src2) {
+                        a->movaps(tmp, src2);
+                        a->movaps(src2, src1);
+                        a->subps(src2, tmp);
+                    } else { 
+                        a->movaps(dst, src1);
+                        a->subps(dst, src2);
+                    }
+                } else {
+                    panic("Can't sub between gpr/sse\n");
                 }
                 break;
             case Times: 
-                if (dst == src1)
-                    a->mulps(dst, src2);
-                else if (dst == src2) 
-                    a->mulps(dst, src1);
-                else {
-                    a->movaps(dst, src1);
-                    a->mulps(dst, src2);
+                if (gpr && gpr1 && gpr2) {
+                    if (gdst == gsrc1)
+                        a->imul(gdst, gsrc2);
+                    else if (gdst == gsrc2) 
+                        a->imul(gdst, gsrc1);
+                    else {
+                        a->mov(gdst, gsrc1);
+                        a->imul(gdst, gsrc2);
+                    }
+                } else if (!gpr && !gpr1 && !gpr2) {
+                    if (dst == src1)
+                        a->mulps(dst, src2);
+                    else if (dst == src2) 
+                        a->mulps(dst, src1);
+                    else {
+                        a->movaps(dst, src1);
+                        a->mulps(dst, src2);
+                    }
+                } else {
+                    panic("Can't sub between gpr/sse\n");
+                }
+                break;
+            case PlusImm:
+                assert(gpr, "Can only add immediates into a gpr\n");
+                if (gdst == gsrc1) {
+                    a->add(gdst, node->ival);
+                } else {
+                    // TODO: use lea instead
+                    a->mov(gdst, gsrc1);
+                    a->add(gdst, node->ival);
+                }
+                break;
+            case TimesImm:
+                assert(gpr, "Can only multiply immediates into a gpr\n");
+                if (gdst == gsrc1) {
+                    a->imul(gdst, node->ival);
+                } else {
+                    a->mov(gdst, gsrc1);
+                    a->imul(gdst, node->ival);
                 }
                 break;
             case Divide: 
+                assert(!gpr && !gpr1 && !gpr2, "Can only divide in sse regs for now\n");
                 if (dst == src1) {
                     a->divps(dst, src2);
                 } else if (dst == src2) {
@@ -762,6 +1315,7 @@ public:
                 }
                 break;
             case And:
+                assert(!gpr && !gpr1 && !gpr2, "Can only and in sse regs for now\n");
                 if (dst == src1) 
                     a->bandps(dst, src2);
                 else if (dst == src2)
@@ -772,6 +1326,7 @@ public:
                 }
                 break;
             case Nand:
+                assert(!gpr && !gpr1 && !gpr2, "Can only nand in sse regs for now\n");
                 if (dst == src1) {
                     a->bandnps(dst, src2);
                 } else if (dst == src2) {
@@ -784,6 +1339,7 @@ public:
                 }
                 break;
             case Or:               
+                assert(!gpr && !gpr1 && !gpr2, "Can only or in sse regs for now\n");
                 if (dst == src1) 
                     a->borps(dst, src2);
                 else if (dst == src2)
@@ -794,6 +1350,7 @@ public:
                 }
                 break;
             case NEQ:                               
+                assert(!gpr && !gpr1 && !gpr2, "Can only neq in sse regs for now\n");
                 if (dst == src1) 
                     a->cmpneqps(dst, src2);
                 else if (dst == src2)
@@ -804,6 +1361,7 @@ public:
                 }
                 break;
             case EQ:
+                assert(!gpr && !gpr1 && !gpr2, "Can only eq in sse regs for now\n");
                 if (dst == src1) 
                     a->cmpeqps(dst, src2);
                 else if (dst == src2)
@@ -814,6 +1372,7 @@ public:
                 }
                 break;
             case LT:
+                assert(!gpr && !gpr1 && !gpr2, "Can only lt in sse regs for now\n");
                 if (dst == src1) 
                     a->cmpltps(dst, src2);
                 else if (dst == src2)
@@ -824,6 +1383,7 @@ public:
                 }
                 break;
             case GT:
+                assert(!gpr && !gpr1 && !gpr2, "Can only gt in sse regs for now\n");
                 if (dst == src1) 
                     a->cmpnleps(dst, src2);
                 else if (dst == src2)
@@ -834,6 +1394,7 @@ public:
                 }
                 break;
             case LTE:
+                assert(!gpr && !gpr1 && !gpr2, "Can only lte in sse regs for now\n");
                 if (dst == src1) 
                     a->cmpleps(dst, src2);
                 else if (dst == src2)
@@ -844,6 +1405,7 @@ public:
                 }
                 break;
             case GTE:
+                assert(!gpr && !gpr1 && !gpr2, "Can only gte in sse regs for now\n");
                 if (dst == src1) 
                     a->cmpnltps(dst, src2);
                 else if (dst == src2)
@@ -868,11 +1430,30 @@ public:
             case Ceil:
             case Round:
             case Abs:               
-            case Sample2D: 
-            case Sample3D:
-            case SampleHere:
-                printf("Not implemented: %s\n", opname[node->op]);                
+            case FloatToInt:
+                panic("Not implemented: %s\n", opname[node->op]);                
                 break;
+            case IntToFloat:
+                if (gpr1 && !gpr) {
+                    a->cvtsi2ss(dst, gsrc1);
+                    a->shufps(dst, dst, 0, 0, 0, 0);
+                } else {
+                    panic("IntToFloat can only go from gpr to sse\n");
+                }
+                break;
+            case LoadImm:
+                offset = node->ival;
+            case Load:
+                assert(gpr1, "Can only load using addresses in gprs\n");
+                assert(!gpr, "Can only load into sse regs\n");
+                a->movss(dst, AsmX64::Mem(gsrc1, offset));
+                a->movss(tmp, AsmX64::Mem(gsrc1, offset + 3*4));
+                a->punpckldq(dst, tmp);
+                a->movss(tmp, AsmX64::Mem(gsrc1, offset + 3*8));
+                a->movss(tmp2, AsmX64::Mem(gsrc1, offset + 3*12));
+                a->punpckldq(tmp, tmp2);
+                a->punpcklqdq(dst, tmp);
+
             case NoOp:
                 break;
             }
@@ -881,85 +1462,100 @@ public:
 
 protected:
 
-    vector<vector<IRNode *> > doRegisterAssignment(IRNode *root, uint16_t clobbered[5], uint16_t output[5]) {
+    vector<vector<IRNode *> > doRegisterAssignment(IRNode *root, uint32_t clobberedRegs[5], uint32_t outputRegs[5], uint32_t reserved) {
+        // first the 16 gprs, then the 16 sse registers
+        vector<IRNode *> regs(32);
+
         // reserve xmm14-15 for the code generator
-        vector<IRNode *> regs(14);
+        assert(!(reserved & ((1<<30) | (1<<31))), 
+               "Registers xmm14 and xmm15 are reserved for the code generator\n");
+        reserved |= (1<<30) | (1<<31);
         
         // the resulting evaluation order
         vector<vector<IRNode *> > order(5);
-        regAssign(root, regs, order);
+        regAssign(root, regs, order, reserved);
 
         // detect what registers get clobbered
         for (int i = 0; i < 5; i++) {
-            clobbered[i] = (1<<15) | (1<<14);
+            clobberedRegs[i] = (1<<30) | (1<<31);
             for (size_t j = 0; j < order[i].size(); j++) {
                 IRNode *node = order[i][j];
-                clobbered[i] |= (1 << node->reg);
+                clobberedRegs[i] |= (1 << node->reg);
             }
         }
 
         // detect what registers are used for inter-level communication
-        output[0] = 0;
+        outputRegs[0] = 0;
         for (int i = 1; i < 5; i++) {
-            output[i] = 0;
+            outputRegs[i] = 0;
             for (size_t j = 0; j < order[i].size(); j++) {
                 IRNode *node = order[i][j];
-                for (size_t k = 0; k < node->children.size(); k++) {
-                    IRNode *child = node->children[k];
-                    if (child->level != node->level) {
-                        output[child->level] |= (1 << child->reg);
+                for (size_t k = 0; k < node->inputs.size(); k++) {
+                    IRNode *input = node->inputs[k];
+                    if (input->level != node->level) {
+                        outputRegs[input->level] |= (1 << input->reg);
                     }
                 }
             }
         }
-        output[4] = (1 << root->reg);
+        outputRegs[4] = (1 << root->reg);
 
         return order;        
     }
        
-    void regAssign(IRNode *node, vector<IRNode *> &regs, vector<vector<IRNode *> > &order) {
+    void regAssign(IRNode *node, vector<IRNode *> &regs, 
+                   vector<vector<IRNode *> > &order, uint32_t reserved) {
         // if I already have a register bail out
         if (node->reg >= 0) return;
 
-        // assign registers to the children
-        for (size_t i = 0; i < node->children.size(); i++) {
-            regAssign(node->children[i], regs, order);
+        // assign registers to the inputs
+        for (size_t i = 0; i < node->inputs.size(); i++) {
+            regAssign(node->inputs[i], regs, order, reserved);
         }
 
-        // if there are children, see if we can use the register of
-        // the one of the children - the first is optimal, as this
+        // figure out if we're going into a GPR or an SSE register
+        bool gpr = (node->width == 1) && (node->type != Float);
+
+        // if there are inputs, see if we can use the register of
+        // the one of the inputs - the first is optimal, as this
         // makes x64 codegen easier. To reuse the register of the
-        // child it has to be at the same level as us (otherwise it
+        // input it has to be at the same level as us (otherwise it
         // will have been computed once and stored outside the for
         // loop this node lives in), and have no other
-        // parents. There's an exception to this: if you're the last
-        // parent of a set of parents to use a child's value, it's OK
-        // to clobber. We currently don't handle this exception
-        // (because we currently don't do CSE, so it never crops up).
+        // outputs that haven't already been evaluated.
 
-        if (node->children.size()) {
-            IRNode *child1 = node->children[0];
+        if (node->inputs.size()) {
+
+            IRNode *input1 = node->inputs[0];
             bool okToClobber = true;
+
+            // check it's not reserved
+            if (reserved & (1 << input1->reg)) okToClobber = false;
+
+            // check it's the same type of register
+            if (gpr && input1->reg >= 16 ||
+                !gpr && input1->reg < 16) okToClobber = false;
+
             // must be the same level
-            if (node->level != child1->level) okToClobber = false;
+            if (node->level != input1->level) okToClobber = false;
             // every parent must be this, or at the same level and already evaluated
-            for (size_t i = 0; i < child1->parents.size() && okToClobber; i++) {
-                if (child1->parents[i] != node && 
-                    (child1->parents[i]->level != node->level ||
-                     child1->parents[i]->reg < 0)) {
+            for (size_t i = 0; i < input1->outputs.size() && okToClobber; i++) {
+                if (input1->outputs[i] != node && 
+                    (input1->outputs[i]->level != node->level ||
+                     input1->outputs[i]->reg < 0)) {
                     okToClobber = false;
                 }
             }
             if (okToClobber) {
-                node->reg = child1->reg;
-                regs[child1->reg] = node;
+                node->reg = input1->reg;
+                regs[input1->reg] = node;
                 node->order = order[node->level].size();
                 order[node->level].push_back(node);
                 return;
             }
         }
         
-        // Some binary ops are easy to flip, so we should try to clobber the second child
+        // Some binary ops are easy to flip, so we should try to clobber the second input
         if (node->op == And ||
             node->op == Or ||
             node->op == Plus ||
@@ -971,21 +1567,30 @@ protected:
             node->op == EQ ||
             node->op == NEQ) {
 
-            IRNode *child2 = node->children[1];
+            IRNode *input2 = node->inputs[1];
             bool okToClobber = true;
+
+            // check it's not reserved
+            if (reserved & (1 << input2->reg)) okToClobber = false;
+
+            // check it's the same type of register
+            if (gpr && input2->reg >= 16 ||
+                !gpr && input2->reg < 16) okToClobber = false;
+
             // must be the same level
-            if (node->level != child2->level) okToClobber = false;
+            if (node->level != input2->level) okToClobber = false;
+
             // every parent must be this, or at the same level and already evaluated
-            for (size_t i = 0; i < child2->parents.size() && okToClobber; i++) {
-                if (child2->parents[i] != node && 
-                    (child2->parents[i]->level != node->level ||
-                     child2->parents[i]->reg < 0)) {
+            for (size_t i = 0; i < input2->outputs.size() && okToClobber; i++) {
+                if (input2->outputs[i] != node && 
+                    (input2->outputs[i]->level != node->level ||
+                     input2->outputs[i]->reg < 0)) {
                     okToClobber = false;
                 }
             }
             if (okToClobber) {
-                node->reg = child2->reg;
-                regs[child2->reg] = node;
+                node->reg = input2->reg;
+                regs[input2->reg] = node;
                 node->order = order[node->level].size();
                 order[node->level].push_back(node);
                 return;
@@ -994,19 +1599,26 @@ protected:
 
         // else find a previously used register that is safe to evict
         // - meaning it's at the same or higher level and all its
-        // parents will have already been evaluated and are at the same or higher level
+        // outputs will have already been evaluated and are at the same or higher level
         for (size_t i = 0; i < regs.size(); i++) {            
             // don't consider unused registers yet
             if (!regs[i]) continue;
 
+            // check it's not reserved
+            if (reserved & (1 << i)) continue;
+
+            // don't consider the wrong type of register
+            if (gpr && i >= 16) break;
+            if (!gpr && i < 16) continue;
+
             // don't clobber registers from a higher level
             if (regs[i]->level < node->level) continue;
 
-            // only clobber registers whose parents will have been fully evaluated
+            // only clobber registers whose outputs will have been fully evaluated
             bool safeToEvict = true;            
-            for (size_t j = 0; j < regs[i]->parents.size(); j++) {
-                if (regs[i]->parents[j]->reg < 0 ||
-                    regs[i]->parents[j]->level > node->level) {
+            for (size_t j = 0; j < regs[i]->outputs.size(); j++) {
+                if (regs[i]->outputs[j]->reg < 0 ||
+                    regs[i]->outputs[j]->level > node->level) {
                     safeToEvict = false;
                     break;
                 }
@@ -1023,6 +1635,13 @@ protected:
 
         // else find a completely unused register and use that. 
         for (size_t i = 0; i < regs.size(); i++) {
+            // don't consider the wrong type of register
+            if (gpr && i >= 16) break;
+            if (!gpr && i < 16) continue;
+
+            // don't consider reserved registers
+            if (reserved & (1 << i)) continue;
+
             if (regs[i] == NULL) {
                 node->reg = i;
                 regs[i] = node;
@@ -1032,14 +1651,34 @@ protected:
             }
         }
 
-        // else clobber a non-primary child. This sometimes requires
+        // else clobber a non-primary input. This sometimes requires
         // two movs, so it's the least favored option
-        for (size_t i = 1; i < node->children.size(); i++) {
-            IRNode *child = node->children[i];
-            if (node->level == child->level &&
-                child->parents.size() == 1) {
-                node->reg = child->reg;
-                regs[child->reg] = node;
+        for (size_t i = 1; i < node->inputs.size(); i++) {
+            IRNode *input = node->inputs[i];
+
+            bool okToClobber = true;
+
+            // check it's not reserved
+            if (reserved & (1 << input->reg)) okToClobber = false;
+
+            // check it's the same type of register
+            if (gpr && input->reg >= 16 ||
+                !gpr && input->reg < 16) okToClobber = false;
+
+            // must be the same level
+            if (node->level != input->level) okToClobber = false;
+
+            // every parent must be this, or at the same level and already evaluated
+            for (size_t i = 0; i < input->outputs.size() && okToClobber; i++) {
+                if (input->outputs[i] != node && 
+                    (input->outputs[i]->level != node->level ||
+                     input->outputs[i]->reg < 0)) {
+                    okToClobber = false;
+                }
+            }
+            if (okToClobber) {
+                node->reg = input->reg;
+                regs[input->reg] = node;
                 node->order = order[node->level].size();
                 order[node->level].push_back(node);
                 return;
@@ -1048,7 +1687,16 @@ protected:
 
         // else freak out - we're out of registers and we don't know
         // how to spill to the stack yet.
-        panic("Out of registers!\n");
+        printf("Register assignments:\n");
+        for (size_t i = 0; i < regs.size(); i++) {
+            if (regs[i])
+                printf("%d: %s\n", i, opname[regs[i]->op]);
+            else if (reserved & (1<<i)) 
+                printf("%d: (reserved)\n", i);
+            else
+                printf("%d: (empty)\n", i);
+        }
+        panic("Out of registers compiling %s!\n", opname[node->op]);
     }
 
     
@@ -1080,27 +1728,59 @@ protected:
 
 #define nullary(a, b)                             \
         void visit(Expression::a *node) {         \
-            root = IRNode::make(Float, b);        \
+            root = IRNode::make(b);               \
         }
         
         nullary(Var_x, VarX);
         nullary(Var_y, VarY);
         nullary(Var_t, VarT);
         nullary(Var_c, VarC);
-        nullary(Var_val, VarVal);
         
 #undef nullary
-        
-#define constFloat(a, b)                      \
-        void visit(Expression::a *node) {         \
-            root = IRNode::make(b);               \
+
+        void visit(Expression::Var_val *node) {
+            IRNode *x = IRNode::make(VarX);
+            IRNode *y = IRNode::make(VarY);
+            //IRNode *t = IRNode::make(VarT);
+            IRNode *c = IRNode::make(VarC);
+            IRNode *addr = IRNode::make((int)im(0, 0));
+            //t = IRNode::make(Times, t, IRNode::make(4*im.tstride));
+            y = IRNode::make(Times, y, IRNode::make(4*im.ystride));
+            x = IRNode::make(Times, x, IRNode::make(4*im.xstride));            
+            c = IRNode::make(Times, c, IRNode::make(4));
+            //addr = IRNode::make(Plus, addr, t);
+            addr = IRNode::make(Plus, addr, y);
+            addr = IRNode::make(Plus, addr, x);
+            addr = IRNode::make(Plus, addr, c);
+            root = IRNode::make(Load, addr);
         }
         
-        constFloat(Float, node->value);
-        constFloat(Uniform_width, im.width);
-        constFloat(Uniform_height, im.height);
-        constFloat(Uniform_frames, im.frames);
-        constFloat(Uniform_channels, im.channels);
+#define constInt(a, b)                            \
+        void visit(Expression::a *node) {         \
+            root = IRNode::make((int)b);          \
+        }        
+
+        constInt(Uniform_width, im.width);
+        constInt(Uniform_height, im.height);
+        constInt(Uniform_frames, im.frames);
+        constInt(Uniform_channels, im.channels);
+
+#undef constInt
+
+        void visit(Expression::Float *node) {
+            if (node->value == floorf(node->value)) {
+                root = IRNode::make((int)node->value);
+            } else {
+                root = IRNode::make((float)node->value);
+            }
+        }
+
+
+#define constFloat(a, b)                          \
+        void visit(Expression::a *node) {         \
+            root = IRNode::make((float)b);        \
+        }
+        
         constFloat(Funct_mean0, stats->mean());
         constFloat(Funct_sum0, stats->sum());
         constFloat(Funct_min0, stats->minimum());
@@ -1131,141 +1811,94 @@ protected:
         
         // -x gets compiled to (0-x)
         void visit(Expression::Negation *node) {
-            IRNode *child1 = descend(node->arg1);
-            if (child1->op == ConstFloat) {            
-                root = IRNode::make(-child1->val);
+            IRNode *input1 = descend(node->arg1);
+            if (input1->op == Const) {            
+                if (input1->type == Float) {
+                    root = IRNode::make(-input1->fval);
+                } else {
+                    root = IRNode::make(-input1->ival);
+                }
             } else {
-                root = IRNode::make(Float, Minus, Float, IRNode::make(0.0f), Float, root);
+                root = IRNode::make(Minus, IRNode::make(0), root);
             }
         }
         
-#define unary(a, b, c)                                            \
+#define unary(a, b)                                               \
         void visit(Expression::a *node) {                         \
-            IRNode *child1 = descend(node->arg1);                 \
-            if (child1->op == ConstFloat) {                       \
-                root = IRNode::make(b(child1->val));              \
-            } else {                                              \
-                root = IRNode::make(Float, c, Float, root);       \
-            }                                                     \
+            root = IRNode::make(b, descend(node->arg1));          \
         }
         
-        unary(Funct_sin, sinf, Sin);
-        unary(Funct_cos, cosf, Cos);
-        unary(Funct_tan, tanf, Tan);
-        unary(Funct_asin, asinf, ASin);
-        unary(Funct_acos, acosf, ACos);
-        unary(Funct_atan, atanf, ATan);
-        unary(Funct_abs, fabs, Abs);
-        unary(Funct_floor, floorf, Floor);
-        unary(Funct_ceil, ceilf, Ceil);
-        unary(Funct_round, myRound, Round);
-        unary(Funct_log, logf, Log);
-        unary(Funct_exp, expf, Exp);
+        unary(Funct_sin, Sin);
+        unary(Funct_cos, Cos);
+        unary(Funct_tan, Tan);
+        unary(Funct_asin, ASin);
+        unary(Funct_acos, ACos);
+        unary(Funct_atan, ATan);
+        unary(Funct_abs, Abs);
+        unary(Funct_floor, Floor);
+        unary(Funct_ceil, Ceil);
+        unary(Funct_round, Round);
+        unary(Funct_log, Log);
+        unary(Funct_exp, Exp);
         
 #undef unary
         
-// TODO: boolean eq and neq
-#define bincmp(a, b)                                                    \
+#define binary(a, b)                                                    \
         void visit(Expression::a *node) {                               \
-            IRNode *child1 = descend(node->arg1);                       \
-            IRNode *child2 = descend(node->arg2);                       \
-            if (child1->op == ConstFloat && child2->op == ConstFloat) { \
-                root = IRNode::make((child1->val b child2->val) ? 1.0f : 0.0f); \
-                root->type = Bool;                                      \
-            } else {                                                    \
-                root = IRNode::make(Bool, a, Float, child1, Float, child2); \
-            }                                                           \
-        } 
-        
-        
-        bincmp(LTE, <=);
-        bincmp(LT, <);
-        bincmp(GT, >);
-        bincmp(GTE, >=);
-        bincmp(EQ, ==);
-        bincmp(NEQ, !=);
-        
-#undef bincmp
-
-// TODO: bool * bool = bool
-#define binop(a, b)                                                     \
-        void visit(Expression::a *node) {                               \
-            IRNode *child1 = descend(node->arg1);                       \
-            IRNode *child2 = descend(node->arg2);                       \
-            if (child1->op == ConstFloat && child2->op == ConstFloat) { \
-                root = IRNode::make(child1->val b child2->val);         \
-            } else {                                                    \
-                root = IRNode::make(Float, a, Float, child1, Float, child2); \
-            }                                                           \
-        } 
-        
-        binop(Plus, +);
-        binop(Minus, -);
-        binop(Times, *);
-        binop(Divide, /);
-        
-#undef binop
-        
-#define binfunc(a, b, c)                                                \
-        void visit(Expression::a *node) {                               \
-            IRNode *child1 = descend(node->arg1);                       \
-            IRNode *child2 = descend(node->arg2);                       \
-            if (child1->op == ConstFloat && child2->op == ConstFloat) { \
-                root = IRNode::make(b(child1->val, child2->val));       \
-            } else {                                                    \
-                root = IRNode::make(Float, c, Float, child1, Float, child2); \
-            }                                                           \
+            root = IRNode::make(b, descend(node->arg1), descend(node->arg2)); \
         }
         
         
-        binfunc(Mod, fmod, Mod);
-        binfunc(Funct_atan2, atan2f, ATan2);
-        binfunc(Power, powf, Power);
-        
-#undef binfunc
+        binary(Mod, Mod);
+        binary(Funct_atan2, ATan2);
+        binary(Power, Power);
+        binary(Plus, Plus);
+        binary(Minus, Minus);
+        binary(Times, Times);
+        binary(Divide, Divide);
+        binary(LTE, LTE);
+        binary(LT, LT);
+        binary(GT, GT);
+        binary(GTE, GTE);
+        binary(EQ, EQ);
+        binary(NEQ, NEQ);
+
+#undef binary
         
         void visit(Expression::IfThenElse *node) {
+            // no branching allowed (because we're going to
+            // vectorize), so use masking
             IRNode *cond = descend(node->arg1);
-            
-            if (cond->op == ConstBool || cond->op == ConstFloat) {
-                if (cond->val) {
-                    root = descend(node->arg2);
-                    return;
-                } else { 
-                    root = descend(node->arg3);
-                    return;
-                }            
-            }
-            
             IRNode *thenCase = descend(node->arg2);
             IRNode *elseCase = descend(node->arg3);
-            IRNode *left = IRNode::make(thenCase->type, And, Bool, cond, thenCase->type, thenCase);
-            IRNode *right = IRNode::make(elseCase->type, Nand, Bool, cond, elseCase->type, elseCase);
-            Type t = Float;
-            if (thenCase->type == Bool && elseCase->type == Bool) 
-                t = Bool;
-            root = IRNode::make(t, Or, left->type, left, right->type, right);
-            
+            IRNode *thenMasked = IRNode::make(And, cond, thenCase);
+            IRNode *elseMasked = IRNode::make(Nand, cond, elseCase);
+            root = IRNode::make(Or, thenMasked, elseMasked);   
         }
         
         void visit(Expression::SampleHere *node) {        
-            IRNode *child1 = descend(node->arg1);
-            root = IRNode::make(Float, SampleHere, Float, child1);
+            panic("Unimplemented\n");
         }
         
         void visit(Expression::Sample2D *node) {
-            IRNode *child1 = descend(node->arg1);                       
-            IRNode *child2 = descend(node->arg2);                       
-            root = IRNode::make(Float, Sample2D, Float, child1, Float, child2);
+            panic("Unimplemented\n");
         }
         
         void visit(Expression::Sample3D *node) {
-            IRNode *child1 = descend(node->arg1);                       
-            IRNode *child2 = descend(node->arg2);                       
-            IRNode *child3 = descend(node->arg3);
-            root = IRNode::make(Float, Sample3D, Float, child1, Float, child2, Float, child3);
+            IRNode *x = descend(node->arg1)->as(Int);
+            IRNode *y = descend(node->arg2)->as(Int);
+            IRNode *c = descend(node->arg3)->as(Int);
+            y = IRNode::make(Times, y, IRNode::make(4*im.ystride));
+            x = IRNode::make(Times, x, IRNode::make(4*im.xstride));            
+            c = IRNode::make(Times, c, IRNode::make(4));
+            IRNode *addr = IRNode::make((int)im(0, 0));
+            addr = IRNode::make(Plus, addr, y);
+            addr = IRNode::make(Plus, addr, x);
+            addr = IRNode::make(Plus, addr, c);
+            root = IRNode::make(Load, addr);            
         }
-    } irGenerator;    
+
+    } irGenerator;  
 };
 
 #include "footer.h"
