@@ -36,10 +36,6 @@ in a 4 bytes per pixel red green blue exponent (rgbe) format.
 the quality. This defaults to 90. A jpeg image always has a single frame,
 and may have either one or three channels.
 
-.exr files. These store high dynamic range data as 16 bit floats. They must
-have one frame, and one to four channels.  When saving, the optional second
-argument represents the compression type, and must be one of none, rle,
-zips, zip, piz, or pxr24. piz is the default, all but pxr24 are lossless.
 
 .png files. These have a bit depth of 8, and may have 1-4 channels. They may
 only have 1 frame.
@@ -67,6 +63,10 @@ float image for horizontal and vertical flow components.
 scanline of the image corresponds to a line in the file. x and c are thus
 conflated, as are y and t. When loading csv files, ImageStack assumes 1 channel
 and 1 frame.
+
+.pba files. This format is a human-readable space-separated 2D array of
+numbers. It is used by petabricks. Width and channels become columns of the
+file, and height and frames becomes rows.
 
 Usage: ImageStack -load foo.jpg
 

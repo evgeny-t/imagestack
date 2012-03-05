@@ -4,9 +4,7 @@ _This page was auto-generated from the !ImageStack -help operator. Direct edits 
 {{{
 ImageStack -help pop
 
-
 -pop removes the top image from the stack
 
 Usage: ImageStack -load a.tga -load b.tga -save b.gif -pop -save a.gif
-
 }}}
