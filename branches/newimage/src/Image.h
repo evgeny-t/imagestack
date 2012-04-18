@@ -4,77 +4,6 @@
 #include "tables.h"
 #include "header.h"
 
-class NewImage {
-  public:
-    NewImage(int w, int h) {
-        init(w, h, 1, 1);
-    }
-
-    NewImage(int w, int h, int c) {
-        init(w, h, 1, c);
-    }
-
-    NewImage(int w, int h, int f, int c) {
-        init(w, h, f, c);
-    }
-
-    float &operator()(int x, int y) {
-        return base[x + y*ystride];
-    }
-
-    float &operator()(int x, int y, int c) {
-        return base[x + y*ystride + c*cstride];
-    }
-
-    float &operator()(int x, int y, int t, int c) {
-        return base[x + y*ystride + t*tstride + c*cstride];
-    }
-
-    const float &operator()(int x, int y) const {
-        return base[x + y*ystride];
-    }
-
-    const float &operator()(int x, int y, int c) const {
-        return base[x + y*ystride + c*cstride];
-    }
-
-    const float &operator()(int x, int y, int t, int c) const {
-        return base[x + y*ystride + t*tstride + c*cstride];
-    }
-
-    float *baseAddress() {
-        return base;
-    }
-
-    NewImage copy() {
-        NewImage m(width, height, frames, channels);
-        memcpy(m.baseAddress(), baseAddress(), sizeof(float)*width*height*frames*channels);
-        return m;
-    }
-
-  private:
-
-    void init(int w, int h, int f, int c) {
-        width = w;
-        height = h;
-        frames = f;
-        channels = c;
-
-        cstride = width*height*frames;
-        tstride = width*height;
-        ystride = width;
-
-        data.reset(new vector<float>(w*h*f*c+3));
-        base = &((*data)[0]);
-        while (((size_t)base) & 0xf) base++;
-    }
-
-    std::shared_ptr<std::vector<float> > data;
-    float *base;
-    int frames, width, height, channels;
-    int ystride, tstride, cstride;
-};
-
 
 class Window {
 public:
@@ -534,6 +463,144 @@ protected:
         return *this;
     }
 };
+
+
+
+class NewImage {
+  public:
+    NewImage() {
+        init(0, 0, 0, 0);
+    }
+
+    NewImage(int w, int h) {
+        init(w, h, 1, 1);
+    }
+
+    NewImage(int w, int h, int c) {
+        init(w, h, 1, c);
+    }
+
+    NewImage(int w, int h, int f, int c) {
+        init(w, h, f, c);
+    }
+
+    float &operator()(int x, int y) {
+        return base[x + y*ystride];
+    }
+
+    float &operator()(int x, int y, int c) {
+        return base[x + y*ystride + c*cstride];
+    }
+
+    float &operator()(int x, int y, int t, int c) {
+        return base[x + y*ystride + t*tstride + c*cstride];
+    }
+
+    const float &operator()(int x, int y) const {
+        return base[x + y*ystride];
+    }
+
+    const float &operator()(int x, int y, int c) const {
+        return base[x + y*ystride + c*cstride];
+    }
+
+    const float &operator()(int x, int y, int t, int c) const {
+        return base[x + y*ystride + t*tstride + c*cstride];
+    }
+
+    float *baseAddress() {
+        return base;
+    }
+
+    NewImage copy() {
+        NewImage m(width, height, frames, channels);
+        memcpy(m.baseAddress(), baseAddress(), sizeof(float)*width*height*frames*channels);
+        return m;
+    }
+
+    bool dense() {
+        return (cstride == width*height*frames && tstride == width*height && ystride == width);
+    }
+
+    void sample2D(float x, float y, int t, vector<float> &sample) {
+        panic("Not implemented\n");
+    }
+
+    void sample3D(float x, float y, float t, vector<float> &sample) {
+        panic("Not implemented\n");
+    }
+
+    int frames, width, height, channels;
+    int ystride, tstride, cstride;
+    
+    // Convert to and from old classes
+    NewImage(Window im) {
+        init(im.width, im.height, im.frames, im.channels);
+        for (int c = 0; c < im.channels; c++) {
+            for (int t = 0; t < im.frames; t++) {
+                for (int y = 0; y < im.height; y++) {
+                    for (int x = 0; x < im.width; x++) {
+                        (*this)(x, y, t, c) = im(x, y, t)[c];
+                    }
+                }
+            }
+        }
+    }
+
+    
+    operator Image() {
+        updateLegacy();
+        return legacy;
+    }
+    
+    /*
+    operator Window() {
+        updateLegacy();
+        return legacy;        
+    }
+    */
+
+  private:
+
+    // Also store this as an image for temporary compatability. This doubles memory usage, so remove this asap.
+    Image legacy;
+
+    void updateLegacy() {
+        legacy = Image(width, height, frames, channels);
+        for (int c = 0; c < channels; c++) {
+            for (int t = 0; t < frames; t++) {
+                for (int y = 0; y < height; y++) {
+                    for (int x = 0; x < width; x++) {
+                        legacy(x, y, t)[c] = (*this)(x, y, t, c);
+                    }
+                }
+            }
+        }                
+    }
+
+    void init(int w, int h, int f, int c) {
+        width = w;
+        height = h;
+        frames = f;
+        channels = c;
+
+        cstride = width*height*frames;
+        tstride = width*height;
+        ystride = width;
+
+        if (w*h*f*c) {
+            data.reset(new vector<float>(w*h*f*c+3));
+            base = &((*data)[0]);
+            while (((size_t)base) & 0xf) base++;
+        } else {
+            base = NULL;
+        }
+    }
+
+    std::shared_ptr<std::vector<float> > data;
+    float *base;
+};
+
 
 #include "footer.h"
 #endif
