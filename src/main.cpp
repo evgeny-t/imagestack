@@ -7,13 +7,13 @@
 #endif
 #include "header.h"
 
-vector<Image> stack_;
-Image &stack(size_t idx) {
+vector<NewImage> stack_;
+NewImage &stack(size_t idx) {
     assert(idx < stack_.size(), "Stack underflow\n");
     return stack_[stack_.size() - 1 - idx];
 }
 
-void push(Image im) {
+void push(NewImage im) {
     stack_.push_back(im);
 }
 
@@ -23,18 +23,13 @@ void pop() {
 }
 
 void dup() {
-    Image &top = stack(0);
-    Image newTop(top.width, top.height, top.frames, top.channels);
-    memcpy(newTop.data, top.data, top.frames * top.width * top.height * top.channels * sizeof(float));
-    stack_.push_back(newTop);
+    push(stack(0).copy());
 }
 
 void pull(size_t n) {
     assert(n < stack_.size(), "Stack underflow\n");
     for (size_t i = stack_.size() - n - 1; i < stack_.size()-1; i++) {
-        Image tmp = stack_[i+1];
-        stack_[i+1] = stack_[i];
-        stack_[i] = tmp;
+        swap(stack_[i+1], stack_[i]);
     }
 }
 
@@ -141,7 +136,7 @@ float readFloat(string arg) {
     bool needToPop = false;
     Expression e(arg, false);
     if (stack_.size() == 0) {
-        push(Image(1, 1, 1, 1));
+        push(NewImage(1, 1, 1, 1));
         needToPop = true;
     }
     Expression::State s(stack(0));

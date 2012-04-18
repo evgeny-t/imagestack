@@ -28,6 +28,7 @@ using ::std::pair;
 using ::std::make_pair;
 using ::std::map;
 using ::std::list;
+using ::std::swap;
 
 #ifdef WIN32
 #include <windows.h>
@@ -45,12 +46,11 @@ using ::std::list;
 #include "header.h"
 
 // Below are the data structures and functions available to operations:
-class Image;
-
+class NewImage;
 
 // Deal with the stack of images that gives this program its name
-Image &stack(size_t index);
-void push(Image);
+NewImage &stack(size_t index);
+void push(NewImage);
 void pop();
 void dup();
 void pull(size_t);
