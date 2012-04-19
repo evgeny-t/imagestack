@@ -282,7 +282,7 @@ void Interleave::parse(vector<string> args) {
     } else if (args.size() == 3) {
         apply(stack(0), readInt(args[0]), readInt(args[1]), readInt(args[2]));
     } else {
-        panic("-interleave takes one, two, or three arguments\n");
+        panic("-interleave takes two or three arguments\n");
     }
 }
 
@@ -326,9 +326,9 @@ void Interleave::apply(NewImage im, int rx, int ry, int rt) {
                     int oldX = 0;
                     for (int x = 0; x < im.width; x++) {
                         im(oldX, y, t, c) = tmp[x];
+                        oldX += rx;
+                        if (oldX >= im.width) oldX = (oldX % rx) + 1;
                     }
-                    oldX += rx;
-                    if (oldX >= im.width) oldX = (oldX % rx) + 1;
                 }
             }
         }
@@ -349,9 +349,9 @@ void Interleave::apply(NewImage im, int rx, int ry, int rt) {
                     int oldY = 0;
                     for (int y = 0; y < im.height; y++) {
                         im(x, oldY, t, c) = tmp[y];
+                        oldY += ry;
+                        if (oldY >= im.height) oldY = (oldY % ry) + 1;
                     }
-                    oldY += ry;
-                    if (oldY >= im.height) oldY = (oldY % ry) + 1;
                 }
             }
         }
@@ -416,9 +416,9 @@ void Deinterleave::apply(NewImage im, int rx, int ry, int rt) {
                     int oldX = 0;
                     for (int x = 0; x < im.width; x++) {
                         im(x, y, t, c) = tmp[oldX];
+                        oldX += rx;
+                        if (oldX >= im.width) oldX = (oldX % rx) + 1;
                     }
-                    oldX += rx;
-                    if (oldX >= im.width) oldX = (oldX % rx) + 1;
                 }
             }
         }
@@ -439,9 +439,9 @@ void Deinterleave::apply(NewImage im, int rx, int ry, int rt) {
                     int oldY = 0;
                     for (int y = 0; y < im.height; y++) {
                         im(x, y, t, c) = tmp[oldY];
+                        oldY += ry;
+                        if (oldY >= im.height) oldY = (oldY % ry) + 1;
                     }
-                    oldY += ry;
-                    if (oldY >= im.height) oldY = (oldY % ry) + 1;
                 }
             }
         }
