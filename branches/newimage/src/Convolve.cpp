@@ -45,7 +45,7 @@ void Convolve::parse(vector<string> args) {
     string boundaryCondition = "homogeneous";
     string channelMode = "outer";
 
-    Image filter;
+    NewImage filter;
 
     if (args.size() > 3) {
         int frames, width, height;
@@ -63,7 +63,7 @@ void Convolve::parse(vector<string> args) {
                "a size of %ix%ix%i requires at most %i more arguments. %i were given.",
                width, height, frames, size, (int)args.size() - 2);
 
-        filter = Image(width, height, frames, 1);
+        filter = NewImage(width, height, frames, 1);
 
         size_t i = 3;
         float *filterPtr = filter(0, 0, 0);
@@ -110,7 +110,7 @@ void Convolve::parse(vector<string> args) {
         panic("Unknown vector-vector multiplication: %s\n", channelMode.c_str());
     }
 
-    Image im = apply(stack(0), filter, b, m);
+    NewImage im = apply(stack(0), filter, b, m);
     pop();
     push(im);
 
@@ -170,7 +170,7 @@ inline void Convolve__Scalar(float *a, int na, float *b, int nb, float *out, int
 typedef void (*Convolve__VectorVectorMult)(float *, int, float *, int, float *, int);
 
 template<Convolve::BoundaryCondition b, Convolve__VectorVectorMult m>
-static Image Convolve__apply(Window im, Window filter, Image out) {
+static NewImage Convolve__apply(NewImage im, NewImage filter, NewImage out) {
 
     int filterSize = filter.frames * filter.width * filter.height;
     assert(filterSize % 2 == 1, "filter must have odd size\n");
@@ -331,7 +331,7 @@ static Image Convolve__apply(Window im, Window filter, Image out) {
 
 // This function is a jumping off point for the fully-templatized version above
 template<Convolve__VectorVectorMult m>
-Image Convolve__apply(Window im, Window filter, Image out, Convolve::BoundaryCondition b) {
+NewImage Convolve__apply(NewImage im, NewImage filter, NewImage out, Convolve::BoundaryCondition b) {
     switch (b) {
     case Convolve::Zero:
         return Convolve__apply<Convolve::Zero, m>(im, filter, out);
@@ -343,10 +343,10 @@ Image Convolve__apply(Window im, Window filter, Image out, Convolve::BoundaryCon
         return Convolve__apply<Convolve::Wrap, m>(im, filter, out);
     }
     panic("Unknown boundary condition: %d\n", b);
-    return Image();
+    return NewImage();
 }
 
-Image Convolve::apply(Window im, Window filter, BoundaryCondition b, Multiply::Mode m) {
+NewImage Convolve::apply(NewImage im, NewImage filter, BoundaryCondition b, Multiply::Mode m) {
     // This function is a jumping off point for the partially-templatized version above
 
 #ifndef NO_FFTW
@@ -357,23 +357,23 @@ Image Convolve::apply(Window im, Window filter, BoundaryCondition b, Multiply::M
 
     if (im.channels == 1 && filter.channels == 1) {
         // INNER, OUTER, and ELEMENTWISE all have the same meaning here
-        Image out(im.width, im.height, im.frames, 1);
+        NewImage out(im.width, im.height, im.frames, 1);
         return Convolve__apply<Convolve__Scalar>(im, filter, out, b);
     }
 
     if (m == Multiply::Inner) {
         if (im.channels < filter.channels && filter.channels % im.channels == 0) {
-            Image out(im.width, im.height, im.frames, filter.channels / im.channels);
+            NewImage out(im.width, im.height, im.frames, filter.channels / im.channels);
             return Convolve__apply<Convolve__Inner1>(im, filter, out, b);
         } else if (im.channels >= filter.channels && im.channels % filter.channels == 0) {
-            Image out(im.width, im.height, im.frames, im.channels / filter.channels);
+            NewImage out(im.width, im.height, im.frames, im.channels / filter.channels);
             return Convolve__apply<Convolve__Inner2>(im, filter, out, b);
         } else {
             panic("For inner products, either the number of channels in the filter must"
                   "be a multiple of the number of channels in the image, or vice-versa\n");
         }
     } else if (m == Multiply::Outer) {
-        Image out(im.width, im.height, im.frames, filter.channels * im.channels);
+        NewImage out(im.width, im.height, im.frames, filter.channels * im.channels);
         if (filter.channels == 1) { // common case optimization
             Convolve__apply<Convolve__Outer1>(im, filter, out, b);
         } else {
@@ -381,7 +381,7 @@ Image Convolve::apply(Window im, Window filter, BoundaryCondition b, Multiply::M
         }
         return out;
     } else if (m == Multiply::Elementwise) {
-        Image out(im.width, im.height, im.frames, im.channels);
+        NewImage out(im.width, im.height, im.frames, im.channels);
         if (im.channels != filter.channels) {
             panic("For elementwise multiplication, the filter must have the same"
                   " number of channels as the image\n");
@@ -390,7 +390,7 @@ Image Convolve::apply(Window im, Window filter, BoundaryCondition b, Multiply::M
     }
 
     panic("Unknown channel mode: %d\n", m);
-    return Image();
+    return NewImage();
 }
 
 #include "footer.h"

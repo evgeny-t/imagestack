@@ -6,45 +6,45 @@ class ColorMatrix : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static Image apply(Window im, vector<float> matrix);
+    static NewImage apply(NewImage im, vector<float> matrix);
 };
 
 class ColorConvert : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static Image apply(Window im, string from, string to);
-    static Image rgb2hsv(Window im);
-    static Image hsv2rgb(Window im);
-    static Image rgb2y(Window im);
-    static Image y2rgb(Window im);
-    static Image rgb2yuv(Window im);
-    static Image yuv2rgb(Window im);
-    static Image rgb2xyz(Window im);
-    static Image xyz2rgb(Window im);
-    static Image lab2xyz(Window im);
-    static Image xyz2lab(Window im);
-    static Image rgb2lab(Window im);
-    static Image lab2rgb(Window im);
+    static NewImage apply(NewImage im, string from, string to);
+    static NewImage rgb2hsv(NewImage im);
+    static NewImage hsv2rgb(NewImage im);
+    static NewImage rgb2y(NewImage im);
+    static NewImage y2rgb(NewImage im);
+    static NewImage rgb2yuv(NewImage im);
+    static NewImage yuv2rgb(NewImage im);
+    static NewImage rgb2xyz(NewImage im);
+    static NewImage xyz2rgb(NewImage im);
+    static NewImage lab2xyz(NewImage im);
+    static NewImage xyz2lab(NewImage im);
+    static NewImage rgb2lab(NewImage im);
+    static NewImage lab2rgb(NewImage im);
 
-    static Image uyvy2yuv(Window im);
-    static Image yuyv2yuv(Window im);
+    static NewImage uyvy2yuv(NewImage im);
+    static NewImage yuyv2yuv(NewImage im);
 
-    static Image uyvy2rgb(Window im);
-    static Image yuyv2rgb(Window im);
+    static NewImage uyvy2rgb(NewImage im);
+    static NewImage yuyv2rgb(NewImage im);
 
-    static Image argb2xyz(Window im);
-    static Image xyz2argb(Window im);
+    static NewImage argb2xyz(NewImage im);
+    static NewImage xyz2argb(NewImage im);
 
-    static Image argb2rgb(Window im);
-    static Image rgb2argb(Window im);
+    static NewImage argb2rgb(NewImage im);
+    static NewImage rgb2argb(NewImage im);
 };
 
 class Demosaic : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static Image apply(Window win, int xoff, int yoff, bool awb);
+    static NewImage apply(NewImage win, int xoff, int yoff, bool awb);
 };
 
 #include "footer.h"
