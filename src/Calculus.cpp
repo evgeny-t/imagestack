@@ -29,13 +29,13 @@ void Gradient::parse(vector<string> args) {
 }
 
 // gradient can be called as gradient('t') or gradient("xyt")
-void Gradient::apply(Window im, string dimensions) {
+void Gradient::apply(NewImage im, string dimensions) {
     for (size_t i = 0; i < dimensions.size(); i++) {
         apply(im, dimensions[i]);
     }
 }
 
-void Gradient::apply(Window im, char dimension) {
+void Gradient::apply(NewImage im, char dimension) {
     int mint = 0, minx = 0, miny = 0;
     int dt = 0, dx = 0, dy = 0;
 
@@ -53,11 +53,11 @@ void Gradient::apply(Window im, char dimension) {
     }
 
     // walk backwards through the data, looking at the untouched data for the differences
-    for (int t = im.frames - 1; t >= mint; t--) {
-        for (int y = im.height - 1; y >= miny; y--) {
-            for (int x = im.width - 1; x >= minx; x--) {
-                for (int c = 0; c < im.channels; c++) {
-                    im(x, y, t)[c] -= im(x - dx, y - dy, t - dt)[c];
+    for (int c = 0; c < im.channels; c++) {
+        for (int t = im.frames - 1; t >= mint; t--) {
+            for (int y = im.height - 1; y >= miny; y--) {
+                for (int x = im.width - 1; x >= minx; x--) {
+                    im(x, y, t, c) -= im(x - dx, y - dy, t - dt, c);
                 }
             }
         }
@@ -83,13 +83,13 @@ void Integrate::parse(vector<string> args) {
 }
 
 // integrate can be called as integrate('t') or integrate("xyt")
-void Integrate::apply(Window im, string dimensions) {
+void Integrate::apply(NewImage im, string dimensions) {
     for (size_t i = 0; i < dimensions.size(); i++) {
         apply(im, dimensions[i]);
     }
 }
 
-void Integrate::apply(Window im, char dimension) {
+void Integrate::apply(NewImage im, char dimension) {
     int minx = 0, miny = 0, mint = 0;
     int dx = 0, dy = 0, dt = 0;
 
@@ -107,11 +107,11 @@ void Integrate::apply(Window im, char dimension) {
     }
 
     // walk forwards through the data, adding up as we go
-    for (int t = mint; t < im.frames; t++) {
-        for (int y = miny; y < im.height; y++) {
-            for (int x = minx; x < im.width; x++) {
-                for (int c = 0; c < im.channels; c++) {
-                    im(x, y, t)[c] += im(x - dx, y - dy, t - dt)[c];
+    for (int c = 0; c < im.channels; c++) {
+        for (int t = mint; t < im.frames; t++) {
+            for (int y = miny; y < im.height; y++) {
+                for (int x = minx; x < im.width; x++) {                    
+                    im(x, y, t, c) += im(x - dx, y - dy, t - dt, c);
                 }
             }
         }
@@ -130,27 +130,22 @@ void GradMag::help() {
 }
 
 void GradMag::parse(vector<string> args) {
-    assert(args.size() == 0, "-laplacian takes no arguments\n");
-    Image im = apply(stack(0));
-    pop();
-    push(im);
+    assert(args.size() == 0, "-gradmag takes no arguments\n");
+    apply(stack(0));
 }
 
-Image GradMag::apply(Window im) {
-    Image out(im.width, im.height, im.frames, im.channels);
-    for (int t = 0; t < im.frames; t++) {
-        for (int y = 0; y < im.height; y++) {
-            for (int x = 0; x < im.width; x++) {
-                for (int c = 0; c < im.channels; c++) {
-                    float dx = im(x, y, t)[c] - (x > 0 ? im(x-1, y, t)[c] : 0);
-                    float dy = im(x, y, t)[c] - (y > 0 ? im(x, y-1, t)[c] : 0);
-                    out(x, y, t)[c] = dx*dx + dy*dy;
+void GradMag::apply(NewImage im) {
+    for (int c = 0; c < im.channels; c++) {
+        for (int t = 0; t < im.frames; t++) {
+            for (int y = im.height-1; y >=0; y--) {
+                for (int x = im.width-1; x >= 0; x--) {
+                    float dx = im(x, y, t, c) - (x > 0 ? im(x-1, y, t, c) : 0);
+                    float dy = im(x, y, t, c) - (y > 0 ? im(x, y-1, t, c) : 0);
+                    im(x, y, t, c) = dx*dx + dy*dy;
                 }
             }
         }
     }
-
-    return out;
 }
 
 
@@ -175,7 +170,7 @@ void Poisson::parse(vector<string> args) {
     push(apply(stack(1), stack(0), rms));
 }
 
-Image Poisson::apply(Window dx, Window dy, float rms) {
+NewImage Poisson::apply(NewImage dx, NewImage dy, float rms) {
     assert(dx.width  == dy.width &&
            dx.height == dy.height &&
            dx.frames == dy.frames &&
@@ -183,9 +178,9 @@ Image Poisson::apply(Window dx, Window dy, float rms) {
            "derivatives must be matching size and number of channels\n");
 
 
-    Image zerosc(dx.width, dx.height, dx.frames, dx.channels);
-    Image zeros1(dx.width, dx.height, dx.frames, 1);
-    Image ones1(dx.width, dx.height, dx.frames, 1);
+    NewImage zerosc(dx.width, dx.height, dx.frames, dx.channels);
+    NewImage zeros1(dx.width, dx.height, dx.frames, 1);
+    NewImage ones1(dx.width, dx.height, dx.frames, 1);
     Offset::apply(ones1, 1.0f);
     return LAHBPCG::apply(zerosc, dx, dy, zeros1, ones1, ones1, 999999, rms);
 }

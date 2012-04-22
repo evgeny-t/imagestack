@@ -518,6 +518,21 @@ class NewImage {
         return m;
     }
 
+    NewImage region(int x, int y, int t, int c,
+                    int width, int height, int frames, int channels) {
+        NewImage im;
+        im.data = data;
+        im.base = &((*this)(x, y, t, c));
+        im.width = width;
+        im.height = height;
+        im.frames = frames;
+        im.channels = channels;
+        im.cstride = cstride;
+        im.tstride = tstride;
+        im.ystride = ystride;
+        return im;
+    }
+
     bool dense() {
         return (cstride == width*height*frames && tstride == width*height && ystride == width);
     }
