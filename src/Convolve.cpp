@@ -328,6 +328,144 @@ static NewImage Convolve__apply(NewImage im, NewImage filter, NewImage out) {
     return out;
 }
 
+// For a single channel, out += in * filter
+void Convolve::convolveSingle(NewImage in, NewImage filter, NewImage out, 
+                              BoundaryCondition b) {
+  
+    int filterSize = filter.frames * filter.width * filter.height;
+    assert(filterSize % 2 == 1, "filter must have odd size\n");
+
+    int xoff = (filter.width - 1)/2;
+    int yoff = (filter.height - 1)/2;
+    int toff = (filter.frames - 1)/2;
+
+    if (b == Zero) {
+        for (int t = 0; t < in.frames; t++) {
+            for (int y = 0; y < in.height; y++) {
+                for (int x = 0; x < in.width; x++) {
+                    float v = 0;
+                    for (int dt = -toff; dt <= toff; dt++) {
+                        if (t + dt < 0) continue;
+                        if (t + dt >= in.frames) break;
+                        for (int dy = -yoff; dt <= yoff; dy++) {
+                            if (y + dy < 0) continue;
+                            if (y + dy >= in.height) break;
+                            for (int dx = -xoff; dt <= xoff; dx++) {
+                                if (x + dx < 0) continue;
+                                if (x + dx >= in.width) break;
+                                float w = filter(dx+xoff, dy+yoff, dt+toff, 0);
+                                v += in(x+dx, y+dy, t+dt, 0) * w;
+                            }
+                        }                                        
+                    }
+                    out(x, y, t, 0) += v;
+                }
+            }
+        }
+    } else if (b == Homogeneous) {
+        for (int t = 0; t < in.frames; t++) {
+            for (int y = 0; y < in.height; y++) {
+                for (int x = 0; x < in.width; x++) {
+                    float weightSum = 0;
+                    float v = 0;
+                    for (int dt = -toff; dt <= toff; dt++) {
+                         if (t + dt < 0) continue;
+                        if (t + dt >= in.frames) break;
+                        for (int dy = -yoff; dt <= yoff; dy++) {
+                            if (y + dy < 0) continue;
+                            if (y + dy >= in.height) break;
+                            for (int dx = -xoff; dt <= xoff; dx++) {
+                                if (x + dx < 0) continue;
+                                if (x + dx >= in.width) break;
+                                float w = filter(dx+xoff, dy+yoff, dt+toff, 0);
+                                v += in(x+dx, y+dy, t+dt, 0) * w;
+                                weightSum += w;
+                            }
+                        }                                        
+                    }
+                    out(x, y, t, 0) += v/weightSum;
+                }
+            }
+        }
+    } else if (b == Clamp) {
+        for (int t = 0; t < in.frames; t++) {
+            for (int y = 0; y < in.height; y++) {
+                for (int x = 0; x < in.width; x++) {
+                    float v = 0;
+                    for (int dt = -toff; dt <= toff; dt++) {
+                        int tc = clamp(t+dt, 0, in.frames-1);
+                        for (int dy = -yoff; dt <= yoff; dy++) {
+                            int yc = clamp(y+dy, 0, in.height-1);
+                            for (int dx = -xoff; dt <= xoff; dx++) {
+                                int xc = clamp(x+dx, 0, in.width-1);
+                                float w = filter(dx+xoff, dy+yoff, dt+toff, 0);
+                                v += in(xc, yc, tc, 0) * w;
+                            }
+                        }                                        
+                    }
+                    out(x, y, t, 0) += v;
+                }
+            }
+        }
+    } else if (b == Wrap) {
+        for (int t = 0; t < in.frames; t++) {
+            for (int y = 0; y < in.height; y++) {
+                for (int x = 0; x < in.width; x++) {
+                    float v = 0;
+                    for (int dt = -toff; dt <= toff; dt++) {
+                        int tc = (t+dt+toff*in.frames)%in.frames;
+                        for (int dy = -yoff; dt <= yoff; dy++) {
+                            int yc = (y+dy+yoff*in.height)%in.height;
+                            for (int dx = -xoff; dt <= xoff; dx++) {
+                                int xc = (x+dx+xoff*in.width)%in.width;
+                                float w = filter(dx+xoff, dy+yoff, dt+toff, 0);
+                                v += in(xc, yc, tc, 0) * w;
+                            }
+                        }                                        
+                    }
+                    out(x, y, t, 0) += v;
+                }
+            }
+        }
+    } else {
+        panic("Unknown boundary condition");
+    }
+}
+
+NewImage Convolve::apply(NewImage im, NewImage filter, BoundaryCondition b, Multiply::Mode m) {
+    NewImage out;
+    if (m == Multiply::Inner) {
+        assert(filter.channels % im.channels == 0 ||
+               im.channels % filter.channels == 0,
+               "To perform an inner or matrix product, the channel count "
+               "of either the image or the filter must be a multiple of "
+               "the channel count of the other.");
+        int channels;
+        if (im.channels > filter.channels) {
+            channels = im.channels / filter.channels;
+        } else {
+            channels = filter.channels / im.channels;
+        }
+
+        out = NewImage(im.width, im.height, im.frames, channels);
+        for (int c = 0; c < max(im.channels, filter.channels); c++) {
+            NewImage imc = im.region(0, 0, 0, c%im.channels,
+                                     im.width, im.height, im.frames, 1);
+            NewImage fc = filter.region(0, 0, 0, c%filter.channels,
+                                        filter.width, filter.height, filter.frames, 1);
+            NewImage outc = im.region(0, 0, 0, c/(,
+                                     im.width, im.height, im.frames, 1);
+
+            convolveSingle(im.region(0, 0, 0, c%im.channels,
+                                     im.width
+        }
+    } else if (m == Multiply::Outer) {
+    } else if (m == Multiply::Elementwise) {
+    } else {
+        panic("Unknown multiplication mode");
+    }
+    return out;
+}
 
 // This function is a jumping off point for the fully-templatized version above
 template<Convolve__VectorVectorMult m>
