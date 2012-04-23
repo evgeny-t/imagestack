@@ -14,7 +14,8 @@ public:
 
     static NewImage apply(NewImage im, NewImage filter, BoundaryCondition b = Zero,
                        Multiply::Mode m = Multiply::Outer);
-
+ private:
+    static void convolveSingle(NewImage im, NewImage filter, NewImage out, BoundaryCondition b);
 };
 
 #include "footer.h"

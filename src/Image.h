@@ -533,6 +533,22 @@ class NewImage {
         return im;
     }
 
+    NewImage column(int x) {
+        return region(x, 0, 0, 0, 1, height, frames, channels);
+    }
+
+    NewImage row(int y) {
+        return region(0, y, 0, 0, width, 1, frames, channels);
+    }
+
+    NewImage frame(int t) {
+        return region(0, 0, t, 0, width, height, 1, channels);
+    }
+    
+    NewImage channel(int c) {
+        return region(0, 0, 0, c, width, height, frames, 1);
+    }
+
     bool dense() {
         return (cstride == width*height*frames && tstride == width*height && ystride == width);
     }

@@ -189,7 +189,7 @@ Image KernelEstimation::apply(Window B, int kernel_size) {
     }
 
     /******************************* Declare Local Variables */
-    Image Bgray = (B.channels == 3) ? ColorConvert::apply(B, "rgb", "y") : Image(B);
+    Image Bgray = (B.channels == 3) ? Image(ColorConvert::apply(B, "rgb", "y")) : Image(B);
     Image Blurry;
     Image guess;
     Image K(3, 3, 1, 1);
