@@ -23,7 +23,7 @@ void KernelEstimation::help() {
 void KernelEstimation::parse(vector<string> args) {
     assert(args.size() <= 1, "-kernelestimation takes at most one argument.\n");
     int kernel_size = args.size() == 1 ? readInt(args[0]) : 25;
-    Image im = apply(stack(0), kernel_size);
+    NewImage im = apply(stack(0), kernel_size);
     push(im);
 }
 
@@ -31,37 +31,37 @@ void KernelEstimation::parse(vector<string> args) {
  * Normalizes the window to have a sum of 1, provided that
  * the window has one channel and one frame, and a nonzero sum.
  */
-void KernelEstimation::NormalizeSum(Window im) {
+void KernelEstimation::NormalizeSum(NewImage im) {
     assert(im.channels == 1 && im.frames == 1,
            "The image to be normalized must have one channel and one frame!\n");
     double sum = 0.0;
     for (int y = 0; y < im.height; y++)
         for (int x = 0; x < im.width; x++)
-            sum += im(x, y)[0];
+            sum += im(x, y);
     Scale::apply(im, 1.0 / sum);
 }
 
-Image KernelEstimation::EnlargeKernel(Window im, int w, int h) {
-    Image ret(w, h, 1, 2);
+NewImage KernelEstimation::EnlargeKernel(NewImage im, int w, int h) {
+    NewImage ret(w, h, 1, 2);
     for (int y = 0; y < im.height; y++) {
         int new_y = (y - (im.height >> 1) + h) % h;
         int new_x =  - (im.width >> 1) + w;
         for (int x = 0; x < im.width; x++, new_x++) {
             if (new_x == w) new_x = 0;
-            ret(new_x, new_y)[0] = im(x, y)[0];
+            ret(new_x, new_y) = im(x, y);
         }
     }
     return ret;
 }
 
-Image KernelEstimation::ContractKernel(Window im, int size) {
-    Image ret(size, size, 1, 1);
+NewImage KernelEstimation::ContractKernel(NewImage im, int size) {
+    NewImage ret(size, size, 1, 1);
     for (int y = 0; y < size; y++) {
         int y_old = (y - (size >> 1) + im.height) % im.height;
         int x_old = ( - (size >> 1) + im.width) % im.width;
         for (int x = 0; x < size; x++, x_old++) {
             if (x_old >= im.width) x_old = 0;
-            ret(x, y)[0] = im(x_old, y_old)[0];
+            ret(x, y) = im(x_old, y_old);
         }
     }
     return ret;
@@ -70,18 +70,18 @@ Image KernelEstimation::ContractKernel(Window im, int size) {
 /*
  * Applies the shock filter of Osher and Rudin 1990, as described by Cho and Lee 2009.
  */
-void KernelEstimation::ShockFilterIteration(Window im, float dt) {
-    Image input(im.width+2, im.height+2, im.frames, im.channels);
+void KernelEstimation::ShockFilterIteration(NewImage im, float dt) {
+    NewImage input(im.width+2, im.height+2, im.frames, im.channels);
     Paste::apply(input, im, 0, 0, 0, 0, im.width, im.height);
     for (int t = 0; t < im.frames; t++) {
         for (int y = 1; y < im.height - 1; y++) {
             for (int x = 1; x < im.width - 1; x++) {
                 for (int c = 0; c < im.channels; c++) {
-                    float dx = input(x, y, t)[c] - input(x+1, y, t)[c];
-                    float dy = input(x, y, t)[c] - input(x, y+1, t)[c];
-                    float laplacian = input(x, y-1, t)[c] + input(x, y+1, t)[c] +
-                        input(x-1, y, t)[c] + input(x+1, y, t)[c] - 4 * input(x, y, t)[c];
-                    im(x, y, t)[c] -= sqrtf(dx*dx+dy*dy) * (laplacian > 0.f ? 1.f : -1.f) * dt;
+                    float dx = input(x, y, t, c) - input(x+1, y, t, c);
+                    float dy = input(x, y, t, c) - input(x, y+1, t, c);
+                    float laplacian = input(x, y-1, t, c) + input(x, y+1, t, c) +
+                        input(x-1, y, t, c) + input(x+1, y, t, c) - 4 * input(x, y, t, c);
+                    im(x, y, t, c) -= sqrtf(dx*dx+dy*dy) * (laplacian > 0.f ? 1.f : -1.f) * dt;
                 }
             }
         }
@@ -93,13 +93,13 @@ void KernelEstimation::ShockFilterIteration(Window im, float dt) {
  * The support is a 5x5 window, with spatial standard deviation at 2, and the range
  * standard deviation specified.
  */
-void KernelEstimation::BilateralFilterIteration(Window im, float sigma_r) {
+void KernelEstimation::BilateralFilterIteration(NewImage im, float sigma_r) {
     float sigma_s = 2.0f;
     float gaussian[5][5];
     for (int y = 0; y < 5; y++)
         for (int x = 0; x < 5; x++)
             gaussian[y][x] = expf(-(float)((x-2)*(x-2)+(y-2)*(y-2)) / (2.0f * sigma_s * sigma_s));
-    Image input(im);
+    NewImage input(im);
     for (int t = 0; t < im.frames; t++)
         for (int y = 0; y < im.height; y++)
             for (int x = 0; x < im.width; x++)
@@ -107,45 +107,34 @@ void KernelEstimation::BilateralFilterIteration(Window im, float sigma_r) {
                     float total_weight = 0.f, pixel = 0.f;
                     for (int y2 = (y>2?y-2:0); y2 <= y + 2 && y2 < im.height; y2++) {
                         for (int x2 = (x>2?x-2:0); x2 <= x + 2 && x2 < im.width; x2++) {
-                            float color_dist = input(x2,y2,t)[c] - input(x,y,t)[c];
+                            float color_dist = input(x2,y2,t, c) - input(x,y,t, c);
                             float weight = expf(-color_dist * color_dist / (2.0f * sigma_r * sigma_r)) * gaussian[y2-y+2][x2-x+2];
                             total_weight += weight;
-                            pixel += weight * input(x2,y2,t)[c];
+                            pixel += weight * input(x2,y2,t, c);
                         }
                     }
-                    im(x,y,t)[c] = pixel / total_weight;
+                    im(x,y,t, c) = pixel / total_weight;
                 }
 }
 
-/*
- * Computes the component-wise multiplication between the two images and reports the sum.
- */
-float KernelEstimation::DotProduct(Window im1, Window im2, int channel, int frame) {
-    assert(im1.width == im2.width && im1.height == im2.height &&
-           im1.channels > channel && im2.channels > channel &&
-           im1.frames > frame && im2.frames > frame,
-           "Either the two images have mismatched dimensions, or not enough "
-           "channels or frames.\n");
-    double ret = 0.f;
-    for (int y = 0; y < im1.height; y++)
-        for (int x = 0; x < im1.width; x++)
-            ret += im1(x, y, frame)[channel] * im2(x, y, frame)[channel];
-    return (float)ret;
-}
-
-Image KernelEstimation::BilinearResample(Image im, int w, int h) {
-    Image ret(w, h, im.frames, im.channels);
+NewImage KernelEstimation::BilinearResample(NewImage im, int w, int h) {
+    NewImage ret(w, h, im.frames, im.channels);
+    vector<float> sample(im.channels);
     float x_factor = ((float)im.width-1) / (w-1);
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < h - 1; y++) {
             float y_old = ((float)y) / (h-1) * (im.height-1);
             int y_old_int = (int)y_old;
             float y_old_frac = y_old - y_old_int;
-            for (int x = 0; x < w - 1; x++)
-                im.sample2DLinear(x * x_factor, y_old, t, ret(x, y, t));
+            for (int x = 0; x < w - 1; x++) {
+                im.sample2DLinear(x * x_factor, y_old, t, sample);
+                for (int c = 0; c < im.channels; c++) {
+                    ret(x, y, t, c) = sample[c];
+                }
+            }
             for (int c = 0; c < im.channels; c++) {
-                ret(w-1, y, t)[c] = im(im.width-1, y_old_int, t)[0] * (1 - y_old_frac)
-                    + im(im.width-1, y_old_int + 1, t)[0] * (y_old_frac);
+                ret(w-1, y, t, c) = im(im.width-1, y_old_int, t, c) * (1 - y_old_frac)
+                    + im(im.width-1, y_old_int + 1, t, c) * (y_old_frac);
             }
         }
         for (int x = 0; x < w - 1; x++) {
@@ -153,17 +142,17 @@ Image KernelEstimation::BilinearResample(Image im, int w, int h) {
             int x_old_int = (int)x_old;
             float x_old_frac = x_old - x_old_int;
             for (int c = 0; c < im.channels; c++) {
-                ret(x, h-1, t)[c] = im(x_old_int, im.height-1, t)[0] * (1 - x_old_frac)
-                    + im(x_old_int+1, im.height-1, t)[0] * (x_old_frac);
+                ret(x, h-1, t, c) = im(x_old_int, im.height-1, t, c) * (1 - x_old_frac)
+                    + im(x_old_int+1, im.height-1, t, c) * (x_old_frac);
             }
         }
         for (int c = 0; c < im.channels; c++)
-            ret(w-1,h-1,t)[c] = im(im.width-1,im.height-1,t)[c];
+            ret(w-1, h-1, t, c) = im(im.width-1, im.height-1, t, c);
     }
     return ret;
 }
 
-Image KernelEstimation::apply(Window B, int kernel_size) {
+NewImage KernelEstimation::apply(NewImage B, int kernel_size) {
 
     /******************************* Parameter check */
 
@@ -189,12 +178,12 @@ Image KernelEstimation::apply(Window B, int kernel_size) {
     }
 
     /******************************* Declare Local Variables */
-    Image Bgray = (B.channels == 3) ? Image(ColorConvert::apply(B, "rgb", "y")) : Image(B);
-    Image Blurry;
-    Image guess;
-    Image K(3, 3, 1, 1);
-    K(1,1)[0] = 0.4;
-    K(0,1)[0] = K(2,1)[0] = K(1,0)[0] = K(1,2)[0] = 0.15;
+    NewImage Bgray = (B.channels == 3) ? ColorConvert::apply(B, "rgb", "y") : B.copy();
+    NewImage Blurry;
+    NewImage guess;
+    NewImage K(3, 3, 1, 1);
+    K(1,1) = 0.4;
+    K(0,1) = K(2,1) = K(1,0) = K(1,2) = 0.15;
 
     float tic = currentTime(), toc;
     /******************************* Coarse-to-Fine Loop */
@@ -239,53 +228,54 @@ Image KernelEstimation::apply(Window B, int kernel_size) {
         // Compute gradient and generate an angular histogram.
         if (iteration == 1) {
             // Compute the gradient histogram.
-            unsigned int GRAD_CAP = min((newwidth-1) * (newheight-1), 100000);
-            float probability_cutoff = GRAD_CAP / (newwidth-1) * (newheight-1);
-            std::vector<float> GRAD_HIST[4];
+            unsigned int grad_cap = min((newwidth-1) * (newheight-1), 100000);
+            float probability_cutoff = grad_cap / (newwidth-1) * (newheight-1);
+            std::vector<float> grad_hist[4];
             for (int i = 0; i < 4; i++) {
-                GRAD_HIST[i].clear();
-                GRAD_HIST[i].reserve(GRAD_CAP);
+                grad_hist[i].clear();
+                grad_hist[i].reserve(grad_cap);
             }
             for (int y = 0; y < newheight - 1; y++)
                 for (int x = 0; x < newwidth - 1; x++) {
-                    float dx = guess(x+1, y)[0] - guess(x, y)[0];
-                    float dy = guess(x, y+1)[0] - guess(x, y)[0];
+                    float dx = guess(x+1, y) - guess(x, y);
+                    float dy = guess(x, y+1) - guess(x, y);
                     float angle = atan2(dy, dx);
                     int bin = (int)(floor(angle / (M_PI * 0.25f)) + 4) % 4;
-                    if (GRAD_HIST[bin].size() < GRAD_CAP && rand() / RAND_MAX < probability_cutoff) {
-                        GRAD_HIST[bin].push_back(dx*dx+dy*dy);
+                    if (grad_hist[bin].size() < grad_cap && 
+                        (double)rand() / RAND_MAX < probability_cutoff) {
+                        grad_hist[bin].push_back(dx*dx+dy*dy);
                     }
                 }
             // Find the cutoff.
             float cutoff = 0.f;
             float inclusion_count = m * 4.0f; // m * r in the paper, and r=2.
             for (int i = 0; i < 4; i++) {
-                std::sort(GRAD_HIST[i].begin(), GRAD_HIST[i].end());
+                std::sort(grad_hist[i].begin(), grad_hist[i].end());
                 int cutoff_index = 0;
-                cutoff_index = GRAD_HIST[i].size() - 1 - inclusion_count;
-                if (cutoff_index >= 0 && cutoff < GRAD_HIST[i][cutoff_index])
-                    cutoff = GRAD_HIST[i][cutoff_index];
+                cutoff_index = grad_hist[i].size() - 1 - inclusion_count;
+                if (cutoff_index >= 0 && cutoff < grad_hist[i][cutoff_index])
+                    cutoff = grad_hist[i][cutoff_index];
             }
             gradient_threshold = cutoff * 0.1f;
         } else {
             gradient_threshold *= 0.9f * 0.9f;
         }
         // Generate the gradient channels.
-        Image Px(padded_width, padded_height, 1, 2);
-        Image Py(padded_width, padded_height, 1, 2);
-        Image Bx(padded_width, padded_height, 1, 2);
-        Image By(padded_width, padded_height, 1, 2);
+        NewImage Px(padded_width, padded_height, 1, 2);
+        NewImage Py(padded_width, padded_height, 1, 2);
+        NewImage Bx(padded_width, padded_height, 1, 2);
+        NewImage By(padded_width, padded_height, 1, 2);
         int xoffset = (padded_width - newwidth) >> 1;
         int yoffset = (padded_height - newheight) >> 1;
         for (int y = 0; y < newheight - 1; y++) {
             for (int x = 0; x < newwidth - 1; x++) {
-                float dx = guess(x+1, y)[0] - guess(x, y)[0];
-                float dy = guess(x, y+1)[0] - guess(x, y)[0];
+                float dx = guess(x+1, y) - guess(x, y);
+                float dy = guess(x, y+1) - guess(x, y);
                 if (dx*dx+dy*dy > gradient_threshold) {
-                    Px(x + xoffset, y + yoffset)[0] = dx; Py(x + xoffset, y + yoffset)[0] = dy;
+                    Px(x + xoffset, y + yoffset) = dx; Py(x + xoffset, y + yoffset) = dy;
                 }
-                Bx(x + xoffset, y + yoffset)[0] = Blurry(x+1, y)[0] - Blurry(x, y)[0];
-                By(x + xoffset, y + yoffset)[0] = Blurry(x, y+1)[0] - Blurry(x, y)[0];
+                Bx(x + xoffset, y + yoffset) = Blurry(x+1, y) - Blurry(x, y);
+                By(x + xoffset, y + yoffset) = Blurry(x, y+1) - Blurry(x, y);
             }
         }
         // Update constants for next iteration.
@@ -302,20 +292,20 @@ Image KernelEstimation::apply(Window B, int kernel_size) {
         /**************************************************************/
         // Build the gradient images.
         float beta = 1.f;
-        Image dxPx(padded_width, padded_height, 1, 2);    
-        Image dyPy(padded_width, padded_height, 1, 2);    
-        Image dxyPxy(padded_width, padded_height, 1, 2);    
-        Image dxBx(padded_width, padded_height, 1, 2);    
-        Image dyBy(padded_width, padded_height, 1, 2);    
-        Image dxyBxy(padded_width, padded_height, 1, 2);    
+        NewImage dxPx(padded_width, padded_height, 1, 2);    
+        NewImage dyPy(padded_width, padded_height, 1, 2);    
+        NewImage dxyPxy(padded_width, padded_height, 1, 2);    
+        NewImage dxBx(padded_width, padded_height, 1, 2);    
+        NewImage dyBy(padded_width, padded_height, 1, 2);    
+        NewImage dxyBxy(padded_width, padded_height, 1, 2);    
         for (int y = yoffset; y < newheight - 2 + yoffset; y++) {
             for (int x = xoffset; x < newwidth - 2 + xoffset; x++) {
-                dxPx(x, y)[0] = Px(x+1, y)[0] - Px(x, y)[0];
-                dyPy(x, y)[0] = Py(x, y+1)[0] - Py(x, y)[0];
-                dxyPxy(x, y)[0] = (Px(x, y+1)[0] - Px(x, y)[0] + Py(x+1, y)[0] - Py(x, y)[0]) * 0.5f;
-                dxBx(x, y)[0] = Bx(x+1, y)[0] - Bx(x, y)[0];
-                dyBy(x, y)[0] = By(x, y+1)[0] - By(x, y)[0];
-                dxyBxy(x, y)[0] = (Bx(x, y+1)[0] - Bx(x, y)[0] + By(x+1, y)[0] - By(x, y)[0]) * 0.5f;
+                dxPx(x, y) = Px(x+1, y) - Px(x, y);
+                dyPy(x, y) = Py(x, y+1) - Py(x, y);
+                dxyPxy(x, y) = (Px(x, y+1) - Px(x, y) + Py(x+1, y) - Py(x, y)) * 0.5f;
+                dxBx(x, y) = Bx(x+1, y) - Bx(x, y);
+                dyBy(x, y) = By(x, y+1) - By(x, y);
+                dxyBxy(x, y) = (Bx(x, y+1) - Bx(x, y) + By(x+1, y) - By(x, y)) * 0.5f;
             }
         }
         FourierTransform(Px); FourierTransform(Py);
@@ -336,11 +326,11 @@ Image KernelEstimation::apply(Window B, int kernel_size) {
         // This requires us to precompute, among other things,
         // "CoeffA" = 2.0 * sum_i w_i F{A_i^T} .* F{A_i}) + F{beta} /// in fourier domain!
         // "CoeffB" = 2.0 * sum_i w_i F^{-1} { F{A_i^T} F{B_i} }
-        Image CoeffA(padded_width, padded_height, 1, 2);
-        Image CoeffB(padded_width, padded_height, 1, 2);
-        Image Ri[CG_ITERATIONS], Di;
+        NewImage CoeffA(padded_width, padded_height, 1, 2);
+        NewImage CoeffB(padded_width, padded_height, 1, 2);
+        NewImage Ri[CG_ITERATIONS], Di;
         float alpha = 0.f;
-        Image CoeffADi;
+        NewImage CoeffADi;
 
         // Compute CoeffB:
         ComplexMultiply::apply(Bx, Px, true);
@@ -351,8 +341,8 @@ Image KernelEstimation::apply(Window B, int kernel_size) {
         for (int y = 0; y < padded_height; y++)
             for (int x = 0; x < padded_width; x++)
                 for (int c = 0; c < 2; c++)
-                    CoeffB(x, y)[c] = 25.f * (Bx(x, y)[c] + By(x, y)[c]) + 12.5f * (dxBx(x, y)[c] + dyBy(x, y)[c])
-                        + 6.25f * (dxyBxy(x, y)[c]);
+                    CoeffB(x, y, c) = 25.f * (Bx(x, y, c) + By(x, y, c)) + 12.5f * (dxBx(x, y, c) + dyBy(x, y, c))
+                        + 6.25f * (dxyBxy(x, y, c));
         Scale::apply(CoeffB, 2.0f);
         InverseFourierTransform(CoeffB);
     
@@ -364,9 +354,10 @@ Image KernelEstimation::apply(Window B, int kernel_size) {
         ComplexMultiply::apply(dxyPxy, dxyPxy, true);
         for (int y = 0; y < padded_height; y++)
             for (int x = 0; x < padded_width; x++)
-                for (int c = 0; c < 1; c++) // c=1 should always be zero.
-                    CoeffA(x, y)[c] = 25.f * (Px(x, y)[c] + Py(x, y)[c]) + 12.5f * (dxPx(x, y)[c] + dyPy(x, y)[c])
-                        + 6.25f * (dxyPxy(x, y)[c]) + beta;
+              CoeffA(x, y) = 
+                25.f * (Px(x, y) + Py(x, y)) + 
+                12.5f * (dxPx(x, y) + dyPy(x, y)) +
+                6.25f * (dxyPxy(x, y)) + beta;
         Scale::apply(CoeffA, 2.0f);
 
         // Enlarge the kernel
@@ -391,16 +382,16 @@ Image KernelEstimation::apply(Window B, int kernel_size) {
                     int x_old = ( - (m >> 1) + padded_width) % padded_width;
                     for (int x = 0; x < m; x++, x_old++) {
                     if (x_old >= padded_width) x_old = 0;
-                    score += (K2(x_old, y_old)[0] * 0.5f - CoeffB(x_old, y_old)[0]) * K(x_old, y_old)[0];
+                    score += (K2(x_old, y_old) * 0.5f - CoeffB(x_old, y_old)) * K(x_old, y_old);
                     }
                     }     
                     printf("Iteration %d CG %d: %f\n", iteration, i, score); */
 
             // 1) Compute residual Ri: CoeffB - CoeffA * K,
             // In subsequent iterations, Ri = CoeffB - CoeffA * (K{i-1} + delta) = R{i-1} - CoeffA * Di * coeff
-            Ri[i] = Image(padded_width, padded_height, 1, 1);
+            Ri[i] = NewImage(padded_width, padded_height, 1, 1);
             if (i == 0) {
-                Image tmp = K.copy();
+                NewImage tmp = K.copy();
                 FourierTransform(tmp);  // tmp = F{K}
                 ComplexMultiply::apply(tmp, CoeffA, false); // tmp =  F{CoeffA} F{K}
                 InverseFourierTransform(tmp); // tmp = CoeffA * K
@@ -409,7 +400,7 @@ Image KernelEstimation::apply(Window B, int kernel_size) {
                     int x_old = ( - (m >> 1) + padded_width) % padded_width;
                     for (int x = 0; x < m; x++, x_old++) {
                         if (x_old >= padded_width) x_old = 0;
-                        Ri[i](x_old, y_old)[0] = CoeffB(x_old, y_old)[0] - tmp(x_old, y_old)[0];
+                        Ri[i](x_old, y_old) = CoeffB(x_old, y_old) - tmp(x_old, y_old);
                     }
                 }
             } else {
@@ -418,7 +409,7 @@ Image KernelEstimation::apply(Window B, int kernel_size) {
                     int x_old = ( - (m >> 1) + padded_width) % padded_width;
                     for (int x = 0; x < m; x++, x_old++) {
                         if (x_old >= padded_width) x_old = 0;
-                        Ri[i](x_old, y_old)[0] = Ri[i-1](x_old, y_old)[0] - alpha * CoeffADi(x_old, y_old)[0];
+                        Ri[i](x_old, y_old) = Ri[i-1](x_old, y_old) - alpha * CoeffADi(x_old, y_old);
                     }
                 }	
             }
@@ -435,8 +426,8 @@ Image KernelEstimation::apply(Window B, int kernel_size) {
                         int x_old = ( - (m >> 1) + padded_width) % padded_width;
                         for (int x = 0; x < m; x++, x_old++) {
                             if (x_old >= padded_width) x_old = 0;
-                            modifier_top += Ri[i](x_old, y_old)[0] * Ri[i](x_old, y_old)[0];
-                            modifier_bottom += Ri[i-1](x_old, y_old)[0] * Ri[i-1](x_old, y_old)[0];
+                            modifier_top += Ri[i](x_old, y_old) * Ri[i](x_old, y_old);
+                            modifier_bottom += Ri[i-1](x_old, y_old) * Ri[i-1](x_old, y_old);
                         }
                     }
                     float modifier = modifier_top / modifier_bottom;
@@ -446,7 +437,7 @@ Image KernelEstimation::apply(Window B, int kernel_size) {
                         int x_old = ( - (m >> 1) + padded_width) % padded_width;
                         for (int x = 0; x < m; x++, x_old++) {
                             if (x_old >= padded_width) x_old = 0;
-                            Di(x_old, y_old)[0] = Ri[i](x_old, y_old)[0] + Di(x_old, y_old)[0] * modifier;
+                            Di(x_old, y_old) = Ri[i](x_old, y_old) + Di(x_old, y_old) * modifier;
                         }
                     }
                 }
@@ -467,8 +458,8 @@ Image KernelEstimation::apply(Window B, int kernel_size) {
                     int x_old = ( - (m >> 1) + padded_width) % padded_width;
                     for (int x = 0; x < m; x++, x_old++) {
                         if (x_old >= padded_width) x_old = 0;
-                        numerator += Ri[i](x_old, y_old)[0] * Ri[i](x_old, y_old)[0];
-                        denominator += CoeffADi(x_old, y_old)[0] * Di(x_old, y_old)[0];
+                        numerator += Ri[i](x_old, y_old) * Ri[i](x_old, y_old);
+                        denominator += CoeffADi(x_old, y_old) * Di(x_old, y_old);
                     }
                 }
                 alpha = numerator / denominator;
@@ -477,7 +468,7 @@ Image KernelEstimation::apply(Window B, int kernel_size) {
                     int x_old = ( - (m >> 1) + padded_width) % padded_width;
                     for (int x = 0; x < m; x++, x_old++) {	  
                         if (x_old >= padded_width) x_old = 0;
-                        K(x_old, y_old)[0] += Di(x_old, y_old)[0] * alpha;
+                        K(x_old, y_old) += Di(x_old, y_old) * alpha;
                     }
                 }
             }
@@ -487,10 +478,10 @@ Image KernelEstimation::apply(Window B, int kernel_size) {
         float max_K = 0.f;
         for (int y = 0; y < m; y++)
             for (int x = 0; x < m; x++)
-                if (max_K < K(x,y)[0]) max_K = K(x,y)[0];
+                if (max_K < K(x,y)) max_K = K(x,y);
         for (int y = 0; y < m; y++)
             for (int x = 0; x < m; x++)
-                if (max_K * 0.05f > K(x,y)[0]) K(x,y)[0] = 0.f;
+                if (max_K * 0.05f > K(x,y)) K(x,y) = 0.f;
         NormalizeSum(K);
         /*    char filename_c[20];
               sprintf(filename_c, "kernel%d_final.tmp", iteration);
@@ -500,8 +491,8 @@ Image KernelEstimation::apply(Window B, int kernel_size) {
         float avg_x = 0, avg_y = 0;
         for (int y = 0; y < m; y++)
             for (int x = 0; x < m; x++) {
-                avg_x += x * K(x,y)[0];
-                avg_y += y * K(x,y)[0];
+                avg_x += x * K(x,y);
+                avg_y += y * K(x,y);
             }
         int offset_x = (int)((avg_x + 0.5f) - (m >> 1));
         int offset_y = (int)((avg_y + 0.5f) - (m >> 1));

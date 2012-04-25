@@ -553,6 +553,19 @@ class NewImage {
         return (cstride == width*height*frames && tstride == width*height && ystride == width);
     }
 
+    void sample2DLinear(float fx, float fy, int t, vector<float> &result) {
+        int ix = (int)fx;
+        int iy = (int)fy;
+        fx -= ix;
+        fy -= iy;
+
+        for (int c = 0; c < channels; c++) {
+            float s1 = (1-fx) * (*this)(ix, iy, t, c) + fx * (*this)(ix+1, iy, t, c);
+            float s2 = (1-fx) * (*this)(ix, iy+1, t, c) + fx * (*this)(ix+1, iy+1, t, c);
+            result[c] = (1-fy) * s1 + fy * s2;
+        }        
+    }    
+
     void sample2D(float x, float y, int t, vector<float> &sample) {
         panic("Not implemented\n");
     }
