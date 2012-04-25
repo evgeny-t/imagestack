@@ -324,7 +324,7 @@ Expression::~Expression() {
     delete root;
 }
 
-float Expression::eval(State *state) {
+float Expression::eval(State &state) {
     return root->eval(state);
 }
 

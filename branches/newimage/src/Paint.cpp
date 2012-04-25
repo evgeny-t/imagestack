@@ -12,23 +12,22 @@ void Eval::help() {
 
 void Eval::parse(vector<string> args) {
     assert(args.size() == 1, "-eval takes exactly one argument\n");
-    Image im = apply(stack(0), args[0]);
+    NewImage im = apply(stack(0), args[0]);
     pop();
     push(im);
 }
 
-Image Eval::apply(Window im, string expression_) {
+NewImage Eval::apply(NewImage im, string expression_) {
     Expression expression(expression_);
     Expression::State state(im);
 
-    Image out(im.width, im.height, im.frames, im.channels);
+    NewImage out(im.width, im.height, im.frames, im.channels);
 
-    for (state.t = 0; state.t < im.frames; state.t++) {
-        for (state.y = 0; state.y < im.height; state.y++) {
-            for (state.x = 0; state.x < im.width; state.x++) {
-                state.val = im(state.x, state.y, state.t);
-                for (state.c = 0; state.c < im.channels; state.c++) {
-                    out(state.x, state.y, state.t)[state.c] = expression.eval(&state);
+    for (state.c = 0; state.c < im.channels; state.c++) {
+        for (state.t = 0; state.t < im.frames; state.t++) {
+            for (state.y = 0; state.y < im.height; state.y++) {
+                for (state.x = 0; state.x < im.width; state.x++) {
+                    out(state.x, state.y, state.t, state.c) = expression.eval(state);
                 }
             }
         }
@@ -48,7 +47,7 @@ void EvalChannels::help() {
 }
 
 void EvalChannels::parse(vector<string> args) {
-    Image im = apply(stack(0), args);
+    NewImage im = apply(stack(0), args);
     pop();
     push(im);
 }
@@ -56,7 +55,7 @@ void EvalChannels::parse(vector<string> args) {
 
 
 
-Image EvalChannels::apply(Window im, vector<string> expressions_) {
+NewImage EvalChannels::apply(NewImage im, vector<string> expressions_) {
     vector<Expression *> expressions(expressions_.size());
     for (size_t i = 0; i < expressions_.size(); i++) {
         expressions[i] = new Expression(expressions_[i]);
@@ -64,16 +63,15 @@ Image EvalChannels::apply(Window im, vector<string> expressions_) {
 
     int channels = (int)expressions_.size();
 
-    Image out(im.width, im.height, im.frames, channels);
+    NewImage out(im.width, im.height, im.frames, channels);
 
     Expression::State state(im);
 
-    for (state.t = 0; state.t < im.frames; state.t++) {
-        for (state.y = 0; state.y < im.height; state.y++) {
-            for (state.x = 0; state.x < im.width; state.x++) {
-                state.val = im(state.x, state.y, state.t);
-                for (state.c = 0; state.c < channels; state.c++) {
-                    out(state.x, state.y, state.t)[state.c] = expressions[state.c]->eval(&state);
+    for (state.c = 0; state.c < channels; state.c++) {
+        for (state.t = 0; state.t < im.frames; state.t++) {
+            for (state.y = 0; state.y < im.height; state.y++) {
+                for (state.x = 0; state.x < im.width; state.x++) {
+                    out(state.x, state.y, state.t, state.c) = expressions[state.c]->eval(state);
                 }
             }
         }
@@ -92,12 +90,12 @@ void Plot::help() {
 }
 
 void Plot::parse(vector<string> args) {
-    Image im = apply(stack(0), readInt(args[0]), readInt(args[1]), readFloat(args[2]));
+    NewImage im = apply(stack(0), readInt(args[0]), readInt(args[1]), readFloat(args[2]));
     push(im);
 }
 
-Image Plot::apply(Window im, int width, int height, float lineThickness) {
-    Image out(width, height, im.frames, im.channels);
+NewImage Plot::apply(NewImage im, int width, int height, float lineThickness) {
+    NewImage out(width, height, im.frames, im.channels);
 
     // convert from diameter to radius
     lineThickness /= 2;
@@ -109,8 +107,8 @@ Image Plot::apply(Window im, int width, int height, float lineThickness) {
             for (int c = 0; c < im.channels; c++) {
                 float x1 = i*widthScale;
                 float x2 = (i+1)*widthScale;
-                float y1 = ((1-im(i, 0, t)[c]) * out.height + 0.5);
-                float y2 = ((1-im(i+1, 0, t)[c]) * out.height + 0.5);
+                float y1 = ((1-im(i, 0, t, c)) * out.height + 0.5);
+                float y2 = ((1-im(i+1, 0, t, c)) * out.height + 0.5);
                 int minY, maxY;
                 int minX = (int)floor(x1 - lineThickness - 1);
                 int maxX = (int)ceil(x2 + lineThickness + 1);
@@ -155,7 +153,7 @@ Image Plot::apply(Window im, int width, int height, float lineThickness) {
                         float result = 0;
                         if (bestDistance < lineThickness - 0.5) { result = 1; }
                         else if (bestDistance < lineThickness + 0.5) { result = (lineThickness + 0.5) - bestDistance; }
-                        if (out(x, y, t)[c] < result) { out(x, y, t)[c] = result; }
+                        if (out(x, y, t, c) < result) { out(x, y, t, c) = result; }
                     }
                 }
             }
@@ -191,38 +189,24 @@ void Composite::parse(vector<string> args) {
     }
 }
 
-void Composite::apply(Window dst, Window src) {
+void Composite::apply(NewImage dst, NewImage src) {
     assert(src.channels > 1, "Source image needs at least two channels\n");
     assert(src.channels == dst.channels || src.channels == dst.channels + 1,
            "Source image and destination image must either have matching channel counts (if they both have an alpha channel), or the source image should have one more channel than the destination.\n");
     assert(dst.frames == src.frames && dst.width == src.width && dst.height == src.height,
            "The source and destination images must be the same size\n");
 
-    float *srcPtr = src(0, 0);
-    float *dstPtr = dst(0, 0);
-
     if (src.channels > dst.channels) {
-        for (int i = 0; i < dst.width*dst.height*dst.frames; i++) {
-            float alpha = srcPtr[dst.channels];
-            for (int c = 0; c < dst.channels; c++) {
-                dstPtr[0] = alpha*(*srcPtr++) + (1-alpha)*dstPtr[0];
-                dstPtr++;
-            }
-            srcPtr++;
-        }
+        apply(dst, 
+              src.region(0, 0, 0, 0, src.width, src.height, src.frames, dst.channels),
+              src.channel(dst.channels));
+              
     } else {
-        for (int i = 0; i < dst.width*dst.height*dst.frames; i++) {
-            float alpha = srcPtr[dst.channels-1];
-            for (int c = 0; c < dst.channels; c++) {
-                dstPtr[0] = alpha*(*srcPtr++) + (1-alpha)*dstPtr[0];
-                dstPtr++;
-            }
-        }
+        apply(dst, src, src.channel(dst.channels-1));
     }
-
 }
 
-void Composite::apply(Window dst, Window src, Window mask) {
+void Composite::apply(NewImage dst, NewImage src, NewImage mask) {
     assert(src.channels == dst.channels, "The source and destination images must have the same number of channels\n");
 
     assert(dst.frames == src.frames && dst.width == src.width && dst.height == src.height,
@@ -230,14 +214,14 @@ void Composite::apply(Window dst, Window src, Window mask) {
     assert(dst.frames == mask.frames && dst.width == mask.width && dst.height == mask.height,
            "The source and destination images must be the same size as the mask\n");
 
-    float *srcPtr = src(0, 0);
-    float *dstPtr = dst(0, 0);
-    float *maskPtr = mask(0, 0);
-    for (int i = 0; i < dst.width*dst.height*dst.frames; i++) {
-        float alpha = *maskPtr++;
-        for (int c = 0; c < dst.channels; c++) {
-            dstPtr[0] = alpha*(*srcPtr++) + (1-alpha)*dstPtr[0];
-            dstPtr++;
+    for (int t = 0; t < dst.frames; t++) {
+        for (int y = 0; y < dst.height; y++) {
+            for (int x = 0; x < dst.width; x++) {
+                float alpha = mask(x, y, t, 0);
+                for (int c = 0; c < dst.channels; c++) {
+                    dst(x, y, t, c) = alpha*src(x, y, t, c) + (1-alpha)*dst(x, y, t, c);
+                }
+            }
         }
     }
 }

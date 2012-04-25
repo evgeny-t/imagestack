@@ -18,8 +18,6 @@ class KernelEstimation : public Operation {
   private:
     static void ShockFilterIteration(NewImage im, float dt = 1.f);
     static void BilateralFilterIteration(NewImage im, float sigma_r);
-    static float DotProduct(NewImage im1, NewImage im2,
-                            int channel = 0, int frame = 0);
 };
 
 #include "footer.h"

@@ -140,7 +140,7 @@ float readFloat(string arg) {
         needToPop = true;
     }
     Expression::State s(stack(0));
-    float val = e.eval(&s);
+    float val = e.eval(s);
     if (needToPop) { pop(); }
     return val;
 }
