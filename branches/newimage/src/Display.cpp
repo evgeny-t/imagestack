@@ -5,7 +5,7 @@
 
 #ifndef NO_SDL
 Display::~Display() {
-    DisplayWindow::instance()->wait();
+    DisplayWindow::instance().wait();
 }
 
 void Display::help() {
@@ -21,18 +21,18 @@ void Display::parse(vector<string> args) {
     apply(stack(0), args.size() == 1);
 }
 
-void Display::apply(Window im, bool fullscreen) {
-    DisplayWindow::instance()->setMode(im.width, im.height, fullscreen);
-    DisplayWindow::instance()->setImage(im);
+void Display::apply(NewImage im, bool fullscreen) {
+    DisplayWindow::instance().setMode(im.width, im.height, fullscreen);
+    DisplayWindow::instance().setImage(im);
 
 #ifdef __APPLE_CC__
     // OS X can't deal with launching a UI outside the main thread, so
     // we show it, wait until the user closes it, then continue
-    DisplayWindow::instance()->show();
+    DisplayWindow::instance().show();
 #else
     // In the linux/windows case we show it in the background and
     // continue processing
-    DisplayWindow::instance()->showAsync();
+    DisplayWindow::instance().showAsync();
 #endif
 }
 
@@ -48,7 +48,7 @@ void Display::parse(vector<string> args) {
     panic("This version of ImageStack was compiled without SDL, so cannot display.\n");
 }
 
-void Display::apply(Window im, bool fullscreen) {
+void Display::apply(NewImage im, bool fullscreen) {
     panic("This version of ImageStack was compiled without SDL, so cannot display.\n");
 }
 

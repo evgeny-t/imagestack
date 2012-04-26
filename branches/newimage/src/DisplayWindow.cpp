@@ -10,11 +10,11 @@
 #include <sstream>
 #include "header.h"
 
-DisplayWindow *DisplayWindow::instance() {
+DisplayWindow &DisplayWindow::instance() {
     if (!instance_) {
         instance_ = new DisplayWindow();
     }
-    return instance_;
+    return (*instance_);
 }
 
 
@@ -93,10 +93,10 @@ void DisplayWindow::handleModeChange() {
     SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
 }
 
-void DisplayWindow::setImage(Window im) {
+void DisplayWindow::setImage(NewImage im) {
     unsigned int rmask, gmask, bmask, amask;
 
-    image_ = Image(im);
+    image_ = im.copy();
 
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
     rmask = 0xff000000;
@@ -139,57 +139,41 @@ void DisplayWindow::renderSurface() {
 
     SDL_LockSurface(surface);
 
+    NewImage im = image_.frame(tOffset_);
+
     switch (image_.channels) {
 
     case 1:
-        for (int y = 0; y < image_.height; y++, SDL_y++) {
+        for (int y = 0; y < im.height; y++, SDL_y++) {
             Uint8 *scanlinePtr = (Uint8 *)surface->pixels + SDL_y*surface->pitch;
-            float *imagePtr = image_(0, y, tOffset_);
-            for (int x = 0; x < image_.width; x++) {
-                float val = imagePtr[0];
-                *scanlinePtr++ = HDRtoLDR(scale * val);
-                *scanlinePtr++ = HDRtoLDR(scale * val);
-                *scanlinePtr++ = HDRtoLDR(scale * val);
+            for (int x = 0; x < im.width; x++) {
+                *scanlinePtr++ = HDRtoLDR(scale * im(x, y));
+                *scanlinePtr++ = HDRtoLDR(scale * im(x, y));
+                *scanlinePtr++ = HDRtoLDR(scale * im(x, y));
                 *scanlinePtr++ = 255;
-                imagePtr ++;
             }
         }
         break;
     case 2:
-        for (int y = 0; y < image_.height; y++, SDL_y++) {
+        for (int y = 0; y < im.height; y++, SDL_y++) {
             Uint8 *scanlinePtr = (Uint8 *)surface->pixels + SDL_y*surface->pitch;
-            float *imagePtr = image_(0, y, tOffset_);
-            for (int x = 0; x < image_.width; x++) {
-                *scanlinePtr++ = HDRtoLDR(scale*(*imagePtr++));
+            for (int x = 0; x < im.width; x++) {
+                *scanlinePtr++ = HDRtoLDR(scale*im(x, y, 0));
                 *scanlinePtr++ = 0;
-                *scanlinePtr++ = HDRtoLDR(scale*(*imagePtr++));
+                *scanlinePtr++ = HDRtoLDR(scale*im(x, y, 1));
                 *scanlinePtr++ = 255;
             }
         }
         break;
 
-    case 3:
-        for (int y = 0; y < image_.height; y++, SDL_y++) {
-            Uint8 *scanlinePtr = (Uint8 *)surface->pixels + SDL_y*surface->pitch;
-            float *imagePtr = image_(0, y, tOffset_);
-            for (int x = 0; x < image_.width; x++) {
-                *scanlinePtr++ = HDRtoLDR(scale*(*imagePtr++));
-                *scanlinePtr++ = HDRtoLDR(scale*(*imagePtr++));
-                *scanlinePtr++ = HDRtoLDR(scale*(*imagePtr++));
-                *scanlinePtr++ = 255;
-            }
-        }
-        break;
     default:
-        for (int y = 0; y < image_.height; y++, SDL_y++) {
+        for (int y = 0; y < im.height; y++, SDL_y++) {
             Uint8 *scanlinePtr = (Uint8 *)surface->pixels + SDL_y*surface->pitch;
-            float *imagePtr = image_(0, y, tOffset_);
-            for (int x = 0; x < image_.width; x++) {
-                *scanlinePtr++ = HDRtoLDR(imagePtr[0]*scale);
-                *scanlinePtr++ = HDRtoLDR(imagePtr[1]*scale);
-                *scanlinePtr++ = HDRtoLDR(imagePtr[2]*scale);
+            for (int x = 0; x < im.width; x++) {
+                *scanlinePtr++ = HDRtoLDR(scale*im(x, y, 0));
+                *scanlinePtr++ = HDRtoLDR(scale*im(x, y, 1));
+                *scanlinePtr++ = HDRtoLDR(scale*im(x, y, 2));
                 *scanlinePtr++ = 255;
-                imagePtr += image_.channels;
             }
         }
         break;
@@ -254,9 +238,9 @@ void DisplayWindow::updateCaption() {
     cap << "ImageStack (x2^" << stop_ << ") (" << t << ", " << x << ", " << y << ")";
 
     if (x >= 0 && x < image_.width && y >= 0 && y < image_.height) {
-        cap << " = (" << image_(x, y, t)[0];
+        cap << " = (" << image_(x, y, t, 0);
         for (int c = 1; c < image_.channels; c++) {
-            cap << ", " << image_(x, y, t)[c];
+            cap << ", " << image_(x, y, t, c);
         }
         cap << ")";
     }
@@ -274,7 +258,7 @@ void DisplayWindow::show() {
 }
 
 int threadFunc(void *data) {
-    DisplayWindow::instance()->show();
+    DisplayWindow::instance().show();
     return 0;
 }
 
