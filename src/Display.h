@@ -7,7 +7,7 @@ public:
     ~Display();
     void help();
     void parse(vector<string> args);
-    static void apply(Window im, bool fullscreen = false);
+    static void apply(NewImage im, bool fullscreen = false);
 };
 
 
