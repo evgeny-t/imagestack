@@ -46,7 +46,7 @@ void DCT::parse(vector<string> args) {
     apply(stack(0), x, y, t);
 }
 
-void DCT::apply(Window im, bool transformX, bool transformY, bool transformT) {
+void DCT::apply(NewImage im, bool transformX, bool transformY, bool transformT) {
     if (im.width == 1) { transformX = false; }
     if (im.height == 1) { transformY = false; }
     if (im.frames == 1) { transformT = false; }
@@ -54,110 +54,44 @@ void DCT::apply(Window im, bool transformX, bool transformY, bool transformT) {
     // rank 0
     if (!transformX && !transformY && !transformT) { return; }
 
-    if (transformX && transformY && transformT) { // rank 3
-        int n[] = {im.frames, im.height, im.width};
-        int nembed[] = {im.frames, im.tstride/im.ystride, im.ystride/im.xstride};
-        fftw_r2r_kind kinds[] = {FFTW_REDFT00, FFTW_REDFT00, FFTW_REDFT00};
+    vector<fftwf_iodim> loop_dims;
+    vector<fftwf_iodim> fft_dims;
 
-        fftwf_plan plan = fftwf_plan_many_r2r(3, n, im.channels,
-                                              im(0, 0, 0), nembed, im.channels, 1,
-                                              im(0, 0, 0), nembed, im.channels, 1,
-                                              kinds, FFTW_ESTIMATE);
-
-        fftwf_execute(plan);
-        fftwf_destroy_plan(plan);
-    } else if (transformX && transformY) { // rank 2
-        int n[] = {im.height, im.width};
-        int nembed[] = {im.tstride/im.ystride, im.ystride/im.xstride};
-        fftw_r2r_kind kinds[] = {FFTW_REDFT00, FFTW_REDFT00};
-
-        for (int t = 0; t < im.frames; t++) {
-            fftwf_plan plan = fftwf_plan_many_r2r(2, n, im.channels,
-                                                  im(0, 0, t), nembed, im.channels, 1,
-                                                  im(0, 0, t), nembed, im.channels, 1,
-                                                  kinds, FFTW_ESTIMATE);
-
-            fftwf_execute(plan);
-            fftwf_destroy_plan(plan);
-        }
-    } else if (transformT && transformY) { // rank 2
-        int n[] = {im.frames, im.height};
-        int nembed[] = {im.frames, im.tstride/im.ystride};
-        fftw_r2r_kind kinds[] = {FFTW_REDFT00, FFTW_REDFT00};
-
-        fftwf_plan plan = fftwf_plan_many_r2r(2, n, im.width*im.channels,
-                                              im(0, 0, 0), nembed, im.width*im.channels, 1,
-                                              im(0, 0, 0), nembed, im.width*im.channels, 1,
-                                              kinds, FFTW_ESTIMATE);
-
-        fftwf_execute(plan);
-        fftwf_destroy_plan(plan);
-    } else if (transformT && transformX) { // rank 2
-        int n[] = {im.frames, im.width};
-        int nembed[] = {im.frames, im.tstride/im.xstride};
-        fftw_r2r_kind kinds[] = {FFTW_REDFT00, FFTW_REDFT00};
-
-        for (int y = 0; y < im.height; y++) {
-            fftwf_plan plan = fftwf_plan_many_r2r(2, n, im.channels,
-                                                  im(0, y, 0), nembed, im.channels, 1,
-                                                  im(0, y, 0), nembed, im.channels, 1,
-                                                  kinds, FFTW_ESTIMATE);
-
-            fftwf_execute(plan);
-            fftwf_destroy_plan(plan);
-        }
-    } else if (transformX) { // rank 1
-        int n[] = {im.width};
-        int nembed[] = {im.width};
-        fftw_r2r_kind kinds[] = {FFTW_REDFT00};
-
-        for (int t = 0; t < im.frames; t++) {
-            for (int y = 0; y < im.height; y++) {
-                fftwf_plan plan = fftwf_plan_many_r2r(1, n, im.channels,
-                                                      im(0, y, t), nembed, im.channels, 1,
-                                                      im(0, y, t), nembed, im.channels, 1,
-                                                      kinds, FFTW_ESTIMATE);
-
-                fftwf_execute(plan);
-                fftwf_destroy_plan(plan);
-            }
-        }
-    } else if (transformY) { // rank 1
-        int n[] = {im.height};
-        int nembed[] = {im.height};
-        fftw_r2r_kind kinds[] = {FFTW_REDFT00};
-
-        for (int t = 0; t < im.frames; t++) {
-            fftwf_plan plan = fftwf_plan_many_r2r(1, n, im.width*im.channels,
-                                                  im(0, 0, t), nembed, im.ystride, 1,
-                                                  im(0, 0, t), nembed, im.ystride, 1,
-                                                  kinds, FFTW_ESTIMATE);
-
-            fftwf_execute(plan);
-            fftwf_destroy_plan(plan);
-        }
-    } else if (transformT) { // rank 1
-        int n[] = {im.frames};
-        int nembed[] = {im.frames};
-        fftw_r2r_kind kinds[] = {FFTW_REDFT00};
-
-        for (int y = 0; y < im.height; y++) {
-            fftwf_plan plan = fftwf_plan_many_r2r(1, n, im.width*im.channels,
-                                                  im(0, y, 0), nembed, im.tstride, 1,
-                                                  im(0, y, 0), nembed, im.tstride, 1,
-                                                  kinds, FFTW_ESTIMATE);
-            fftwf_execute(plan);
-            fftwf_destroy_plan(plan);
-        }
+    // X
+    {
+        fftwf_iodim d = {im.width, 1, 1};
+        if (transformX) fft_dims.push_back(d);
+        else loop_dims.push_back(d);
     }
+
+    // Y
+    {
+        fftwf_iodim d = {im.height, im.ystride, im.ystride};
+        if (transformY) fft_dims.push_back(d);
+        else loop_dims.push_back(d);
+    }
+    
+    // T
+    {
+        fftwf_iodim d = {im.frames, im.tstride, im.tstride};
+        if (transformT) fft_dims.push_back(d);
+        else loop_dims.push_back(d);
+    }
+
+    vector<fftw_r2r_kind> kinds(fft_dims.size(), FFTW_REDFT00);
+
+    fftwf_plan plan = fftwf_plan_guru_r2r((int)fft_dims.size(), &fft_dims[0],
+                                          (int)loop_dims.size(), &loop_dims[0],
+                                          im.baseAddress(), im.baseAddress(),
+                                          &kinds[0], FFTW_ESTIMATE);
+    fftwf_execute(plan);
+    fftwf_destroy_plan(plan);
 
     float m = 1.0;
     if (transformX) { m *= im.width; }
     if (transformY) { m *= im.height; }
     if (transformT) { m *= im.frames; }
     Scale::apply(im, 1.0f/sqrtf(m));
-
-
 }
 
 void FFT::help() {
@@ -199,7 +133,7 @@ void FFT::parse(vector<string> args) {
     apply(stack(0), x, y, t);
 }
 
-void FFT::apply(Window im, bool transformX, bool transformY, bool transformT, bool inverse) {
+void FFT::apply(NewImage im, bool transformX, bool transformY, bool transformT, bool inverse) {
     assert(im.channels % 2 == 0, "-fft requires an image with an even number of channels\n");
 
     if (im.width == 1) { transformX = false; }
@@ -209,94 +143,41 @@ void FFT::apply(Window im, bool transformX, bool transformY, bool transformT, bo
     // rank 0
     if (!transformX && !transformY && !transformT) { return; }
 
-    if (transformX && transformY && transformT) { // rank 3
-        int n[] = {im.frames, im.height, im.width};
-        int nembed[] = {im.frames, im.tstride/im.ystride, im.ystride/im.xstride};
+    vector<fftwf_iodim> loop_dims;
+    vector<fftwf_iodim> fft_dims;
 
-        fftwf_plan plan = fftwf_plan_many_dft(3, n, im.channels/2,
-                                              (fftwf_complex *)im(0, 0, 0), nembed, im.channels/2, 1,
-                                              (fftwf_complex *)im(0, 0, 0), nembed, im.channels/2, 1,
-                                              inverse ? FFTW_BACKWARD : FFTW_FORWARD, FFTW_ESTIMATE);
-
-        fftwf_execute(plan);
-        fftwf_destroy_plan(plan);
-    } else if (transformX && transformY) { // rank 2
-        int n[] = {im.height, im.width};
-        int nembed[] = {im.tstride/im.ystride, im.ystride/im.xstride};
-
-        for (int t = 0; t < im.frames; t++) {
-            fftwf_plan plan = fftwf_plan_many_dft(2, n, im.channels/2,
-                                                  (fftwf_complex *)im(0, 0, t), nembed, im.channels/2, 1,
-                                                  (fftwf_complex *)im(0, 0, t), nembed, im.channels/2, 1,
-                                                  inverse ? FFTW_BACKWARD : FFTW_FORWARD, FFTW_ESTIMATE);
-
-            fftwf_execute(plan);
-            fftwf_destroy_plan(plan);
-        }
-    } else if (transformT && transformY) { // rank 2
-        int n[] = {im.frames, im.height};
-        int nembed[] = {im.frames, im.tstride/im.ystride};
-
-        fftwf_plan plan = fftwf_plan_many_dft(2, n, im.width*im.channels/2,
-                                              (fftwf_complex *)im(0, 0, 0), nembed, im.width*im.channels/2, 1,
-                                              (fftwf_complex *)im(0, 0, 0), nembed, im.width*im.channels/2, 1,
-                                              inverse ? FFTW_BACKWARD : FFTW_FORWARD, FFTW_ESTIMATE);
-
-        fftwf_execute(plan);
-        fftwf_destroy_plan(plan);
-    } else if (transformT && transformX) { // rank 2
-        int n[] = {im.frames, im.width};
-        int nembed[] = {im.frames, im.tstride/im.xstride};
-
-        for (int y = 0; y < im.height; y++) {
-            fftwf_plan plan = fftwf_plan_many_dft(2, n, im.channels/2,
-                                                  (fftwf_complex *)im(0, y, 0), nembed, im.channels/2, 1,
-                                                  (fftwf_complex *)im(0, y, 0), nembed, im.channels/2, 1,
-                                                  inverse ? FFTW_BACKWARD : FFTW_FORWARD, FFTW_ESTIMATE);
-
-            fftwf_execute(plan);
-            fftwf_destroy_plan(plan);
-        }
-    } else if (transformX) { // rank 1
-        int n[] = {im.width};
-        int nembed[] = {im.width};
-
-        for (int t = 0; t < im.frames; t++) {
-            for (int y = 0; y < im.height; y++) {
-                fftwf_plan plan = fftwf_plan_many_dft(1, n, im.channels/2,
-                                                      (fftwf_complex *)im(0, y, t), nembed, im.channels/2, 1,
-                                                      (fftwf_complex *)im(0, y, t), nembed, im.channels/2, 1,
-                                                      inverse ? FFTW_BACKWARD : FFTW_FORWARD, FFTW_ESTIMATE);
-
-                fftwf_execute(plan);
-                fftwf_destroy_plan(plan);
-            }
-        }
-    } else if (transformY) { // rank 1
-        int n[] = {im.height};
-        int nembed[] = {im.height};
-
-        for (int t = 0; t < im.frames; t++) {
-            fftwf_plan plan = fftwf_plan_many_dft(1, n, im.width*im.channels/2,
-                                                  (fftwf_complex *)im(0, 0, t), nembed, im.ystride/2, 1,
-                                                  (fftwf_complex *)im(0, 0, t), nembed, im.ystride/2, 1,
-                                                  inverse ? FFTW_BACKWARD : FFTW_FORWARD, FFTW_ESTIMATE);
-
-            fftwf_execute(plan);
-            fftwf_destroy_plan(plan);
-        }
-    } else if (transformT) { // rank 1
-        int n[] = {im.frames};
-        int nembed[] = {im.frames};
-        for (int y = 0; y < im.height; y++) {
-            fftwf_plan plan = fftwf_plan_many_dft(1, n, im.width*im.channels/2,
-                                                  (fftwf_complex *)im(0, y, 0), nembed, im.tstride/2, 1,
-                                                  (fftwf_complex *)im(0, y, 0), nembed, im.tstride/2, 1,
-                                                  inverse ? FFTW_BACKWARD : FFTW_FORWARD, FFTW_ESTIMATE);
-            fftwf_execute(plan);
-            fftwf_destroy_plan(plan);
-        }
+    // X
+    {
+        fftwf_iodim d = {im.width, 1, 1};
+        if (transformX) fft_dims.push_back(d);
+        else loop_dims.push_back(d);
     }
+
+    // Y
+    {
+        fftwf_iodim d = {im.height, im.ystride, im.ystride};
+        if (transformY) fft_dims.push_back(d);
+        else loop_dims.push_back(d);
+    }
+    
+    // T
+    {
+        fftwf_iodim d = {im.frames, im.tstride, im.tstride};
+        if (transformT) fft_dims.push_back(d);
+        else loop_dims.push_back(d);
+    }
+
+    // An inverse fft can be done by swapping real and imaginary parts
+    int real_c = inverse ? 1 : 0;
+    int imag_c = inverse ? 0 : 1;
+
+    fftwf_plan plan = fftwf_plan_guru_split_dft((int)fft_dims.size(), &fft_dims[0],
+                                               (int)loop_dims.size(), &loop_dims[0],
+                                               &(im(0, 0, 0, real_c)), &(im(0, 0, 0, imag_c)),
+                                               &(im(0, 0, 0, real_c)), &(im(0, 0, 0, imag_c)),
+                                               FFTW_ESTIMATE);
+    fftwf_execute(plan);
+    fftwf_destroy_plan(plan);
 
     if (inverse) {
         float m = 1.0;
@@ -305,8 +186,6 @@ void FFT::apply(Window im, bool transformX, bool transformY, bool transformT, bo
         if (transformT) { m *= im.frames; }
         Scale::apply(im, 1.0f/m);
     }
-
-
 }
 
 
@@ -347,7 +226,7 @@ void IFFT::parse(vector<string> args) {
 }
 
 
-void IFFT::apply(Window im, bool x, bool y, bool t) {
+void IFFT::apply(NewImage im, bool x, bool y, bool t) {
     FFT::apply(im, x, y, t, true);
 }
 
@@ -392,12 +271,12 @@ void FFTConvolve::parse(vector<string> args) {
         m = Multiply::Outer;
     }
 
-    Image im = apply(stack(0), stack(1), b, m);
+    NewImage im = apply(stack(0), stack(1), b, m);
     pop();
     push(im);
 }
 
-Image FFTConvolve::apply(Window im, Window filter, Convolve::BoundaryCondition b, Multiply::Mode m) {
+NewImage FFTConvolve::apply(NewImage im, NewImage filter, Convolve::BoundaryCondition b, Multiply::Mode m) {
 
     int resultChannels = 0;
 
@@ -423,10 +302,10 @@ Image FFTConvolve::apply(Window im, Window filter, Convolve::BoundaryCondition b
     // inefficient because we construct and transform the filter
     // twice, but it makes the code much simpler
     if (b == Convolve::Homogeneous) {
-        Image result = apply(im, filter, Convolve::Zero, m);
-        Image weight(im.width, im.height, im.frames, im.channels);
+        NewImage result = apply(im, filter, Convolve::Zero, m);
+        NewImage weight(im.width, im.height, im.frames, im.channels);
         Offset::apply(weight, 1.0f);
-        Image resultW = apply(weight, filter, Convolve::Zero, m);
+        NewImage resultW = apply(weight, filter, Convolve::Zero, m);
         Divide::apply(result, resultW);
         return result;
     }
@@ -444,38 +323,32 @@ Image FFTConvolve::apply(Window im, Window filter, Convolve::BoundaryCondition b
         xPad = yPad = tPad = 0;
     }
 
-    Image imT;
-    Image weightT;
+    NewImage imT;
+    NewImage weightT;
 
-    imT = Image(im.width+xPad*2, im.height+yPad*2, im.frames+tPad*2, im.channels*2);
+    imT = NewImage(im.width+xPad*2, im.height+yPad*2, im.frames+tPad*2, im.channels*2);
 
     //printf("1\n"); fflush(stdout);
     // 1) Make the padded complex image
     if (b == Convolve::Clamp) {
-        for (int t = 0; t < imT.frames; t++) {
-            int st = clamp(t-tPad, 0, im.frames-1);
-            for (int y = 0; y < imT.height; y++) {
-                int sy = clamp(y-yPad, 0, im.height-1);
-                float *imTPtr = imT(0, y, t);
-                float *imPtr = im(0, sy, st);
-                for (int x = 0; x < imT.width; x++) {
-                    int sx = clamp(x-xPad, 0, im.width-1);
-                    for (int c = 0; c < im.channels; c++) {
-                        *imTPtr++ = imPtr[sx*im.channels+c];
-                        *imTPtr++ = 0;
+        for (int c = 0; c < im.channels; c++) {
+            for (int t = 0; t < imT.frames; t++) {
+                int st = clamp(t-tPad, 0, im.frames-1);
+                for (int y = 0; y < imT.height; y++) {
+                    int sy = clamp(y-yPad, 0, im.height-1);
+                    for (int x = 0; x < imT.width; x++) {
+                        int sx = clamp(x-xPad, 0, im.width-1);
+                        imT(x, y, t, 2*c) = im(sx, sy, st, c);
                     }
                 }
             }
         }
     } else { // Zero or Wrap
-        for (int t = 0; t < im.frames; t++) {
-            for (int y = 0; y < im.height; y++) {
-                float *imPtr = im(0, y, t);
-                float *imTPtr = imT(xPad, y+yPad, t+tPad);
-                for (int x = 0; x < im.width; x++) {
-                    for (int c = 0; c < im.channels; c++) {
-                        *imTPtr++ = *imPtr++;
-                        imTPtr++;
+        for (int c = 0; c < im.channels; c++) {
+            for (int t = 0; t < im.frames; t++) {
+                for (int y = 0; y < im.height; y++) {
+                    for (int x = 0; x < im.width; x++) {                        
+                        imT(x+xPad, y+yPad, t+tPad, 2*c) = im(x, y, t, c);
                     }
                 }
             }
@@ -488,18 +361,18 @@ Image FFTConvolve::apply(Window im, Window filter, Convolve::BoundaryCondition b
 
     //printf("3\n"); fflush(stdout);
     // 3) Make a padded complex filter of the same size
-    Image filterT(imT.width, imT.height, imT.frames, filter.channels*2);
-    for (int t = 0; t < filter.frames; t++) {
-        int ft = t - filter.frames/2;
-        if (ft < 0) { ft += filterT.frames; }
-        for (int y = 0; y < filter.height; y++) {
-            int fy = y - filter.height/2;
-            if (fy < 0) { fy += filterT.height; }
-            for (int x = 0; x < filter.width; x++) {
-                for (int c = 0; c < filter.channels; c++) {
+    NewImage filterT(imT.width, imT.height, imT.frames, filter.channels*2);
+    for (int c = 0; c < filter.channels; c++) {
+        for (int t = 0; t < filter.frames; t++) {
+            int ft = t - filter.frames/2;
+            if (ft < 0) { ft += filterT.frames; }
+            for (int y = 0; y < filter.height; y++) {
+                int fy = y - filter.height/2;
+                if (fy < 0) { fy += filterT.height; }
+                for (int x = 0; x < filter.width; x++) {                    
                     int fx = x - filter.width/2;
                     if (fx < 0) { fx += filterT.width; }
-                    filterT(fx, fy, ft)[2*c] = filter(x, y, t)[c];
+                    filterT(fx, fy, ft, 2*c) = filter(x, y, t, c);
                 }
             }
         }
@@ -511,23 +384,25 @@ Image FFTConvolve::apply(Window im, Window filter, Convolve::BoundaryCondition b
 
     //printf("5\n"); fflush(stdout);
     // 5) Multiply the two into a padded complex transformed result
-    Image resultT(imT.width, imT.height, imT.frames, resultChannels*2);
+    NewImage resultT(imT.width, imT.height, imT.frames, resultChannels*2);
 
     for (int t = 0; t < resultT.frames; t++) {
         for (int y = 0; y < resultT.height; y++) {
-            float *resultTPtr = resultT(0, y, t);
-            float *filterTPtr = filterT(0, y, t);
-            float *imTPtr     = imT(0, y, t);
             if (m == Multiply::Outer) {
                 for (int x = 0; x < resultT.width; x++) {
+                    int cr = 0;
                     for (int cf = 0; cf < filterT.channels; cf+=2) {
                         for (int ci = 0; ci < imT.channels; ci+=2) {
-                            *resultTPtr++ = filterTPtr[cf]*imTPtr[ci] - filterTPtr[cf+1]*imTPtr[ci+1];
-                            *resultTPtr++ = filterTPtr[cf+1]*imTPtr[ci] + filterTPtr[cf]*imTPtr[ci+1];
+                            float real_i = imT(x, y, t, ci);
+                            float imag_i = imT(x, y, t, ci+1);
+                            float real_f = filterT(x, y, t, cf);
+                            float imag_f = filterT(x, y, t, cf+1);
+                            float real_result = real_i*real_f - imag_i*imag_f;
+                            float imag_result = imag_t*real_f + real_t*imag_f;
+                            resultT(x, y, t, cr++) = real_result;
+                            resultT(x, y, t, cr++) = imag_result;
                         }
                     }
-                    imTPtr     += imT.channels;
-                    filterTPtr += filterT.channels;
                 }
             } else if (m == Multiply::Inner && filter.channels > im.channels) {
                 for (int x = 0; x < resultT.width; x++) {
@@ -573,7 +448,7 @@ Image FFTConvolve::apply(Window im, Window filter, Convolve::BoundaryCondition b
 
     //printf("7\n"); fflush(stdout);
     // 7) Remove the padding, and convert back to real numbers
-    Image result(im.width, im.height, im.frames, resultChannels);
+    NewImage result(im.width, im.height, im.frames, resultChannels);
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
             float *resultPtr = result(0, y, t);
@@ -605,10 +480,10 @@ void FFTPoisson::help() {
 
 
 void FFTPoisson::parse(vector<string> args) {
-    Image im;
+    NewImage im;
 
     if (args.size() == 0) {
-        im = apply(stack(1), stack(0), Window(), 0);
+        im = apply(stack(1), stack(0), NewImage(), 0);
     } else if (args.size() == 1) {
         im = apply(stack(1), stack(0), stack(2), readFloat(args[0]));
     } else {
@@ -630,7 +505,7 @@ void FFTPoisson::parse(vector<string> args) {
 // conditions expected on the gradient images (ImageStack uses zero
 // boundary conditions on gradient images).
 
-Image FFTPoisson::apply(Window dx, Window dy, Window target, float targetStrength) {
+NewImage FFTPoisson::apply(NewImage dx, NewImage dy, NewImage target, float targetStrength) {
 
     assert(dx.width == dy.width &&
            dx.height == dy.height &&
@@ -645,11 +520,11 @@ Image FFTPoisson::apply(Window dx, Window dy, Window target, float targetStrengt
                "target image must have the same size as the gradient images\n");
     }
 
-    Image fftBuff(dx.width, dx.height, dx.frames, 1);
+    NewImage fftBuff(dx.width, dx.height, dx.frames, 1);
 
     //compute two 1D lookup tables for computing the DCT of a 2D Laplacian on the fly
-    Image ftLapY(1, dx.height, 1, 1);
-    Image ftLapX(dx.width, 1, 1, 1);
+    NewImage ftLapY(1, dx.height, 1, 1);
+    NewImage ftLapX(dx.width, 1, 1, 1);
 
     for (int x = 0; x < dx.width; x++) {
         ftLapX(x, 0)[0] = 2.0f * cos((M_PI * x) / (dx.width - 1));
@@ -665,7 +540,7 @@ Image FFTPoisson::apply(Window dx, Window dy, Window target, float targetStrengt
                                 fftBuff(0, 0), fftBuff(0, 0),
                                 FFTW_REDFT00, FFTW_REDFT00, FFTW_ESTIMATE); //use FFTW_PATIENT when plan can be reused
 
-    Image out(dx.width, dx.height, dx.frames, dx.channels);
+    NewImage out(dx.width, dx.height, dx.frames, dx.channels);
 
     for (int t = 0; t < dx.frames; t++) {
         for (int c = 0; c < dx.channels; c++) {
