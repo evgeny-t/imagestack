@@ -181,7 +181,7 @@ NewImage Poisson::apply(NewImage dx, NewImage dy, float rms) {
     NewImage zerosc(dx.width, dx.height, dx.frames, dx.channels);
     NewImage zeros1(dx.width, dx.height, dx.frames, 1);
     NewImage ones1(dx.width, dx.height, dx.frames, 1);
-    Offset::apply(ones1, 1.0f);
+    ones1 = 1.0f;
     return LAHBPCG::apply(zerosc, dx, dy, zeros1, ones1, ones1, 999999, rms);
 }
 

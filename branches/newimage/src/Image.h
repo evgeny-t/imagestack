@@ -583,8 +583,8 @@ class NewImage {
         for (int c = 0; c < im.channels; c++) {
             for (int t = 0; t < im.frames; t++) {
                 for (int y = 0; y < im.height; y++) {
-                    for (int x = 0; x < im.width; x++) {
-                        (*this)(x, y, t, c) = im(x, y, t)[c];
+                    for (int x = 0; x < im.width; x++) {			
+			(*this)(x, y, t, c) = im(x, y, t)[c];
                     }
                 }
             }
@@ -603,6 +603,161 @@ class NewImage {
         return legacy;        
     }
     */
+
+    operator bool() {
+        return (base != NULL);
+    }
+
+
+    void operator+=(float f) {
+	for (int c = 0; c < channels; c++) {
+	    for (int t = 0; t < frames; t++) {
+		for (int y = 0; y < height; y++) {
+		    for (int x = 0; x < width; x++) {
+			(*this)(x, y, t, c) += f;
+		    }
+		}
+	    }
+	}
+    }
+
+    void operator*=(float f) {
+	for (int c = 0; c < channels; c++) {
+	    for (int t = 0; t < frames; t++) {
+		for (int y = 0; y < height; y++) {
+		    for (int x = 0; x < width; x++) {
+			(*this)(x, y, t, c) *= f;
+		    }
+		}
+	    }
+	}
+    }
+
+    void operator-=(float f) {
+	(*this) += -f;
+    }
+
+    void operator/=(float f) {
+	(*this) *= 1.0f/f;
+    }
+
+    void operator=(float f) {
+	for (int c = 0; c < channels; c++) {
+	    for (int t = 0; t < frames; t++) {
+		for (int y = 0; y < height; y++) {
+		    for (int x = 0; x < width; x++) {
+			(*this)(x, y, t, c) = f;
+		    }
+		}
+	    }
+	}
+    }
+
+    void operator+=(vector<float> f) {	
+	for (int c = 0; c < channels; c++) {
+	    channel(c) += f[c % f.size()];
+	}
+    }
+
+    void operator*=(vector<float> f) {
+	for (int c = 0; c < channels; c++) {
+	    channel(c) += f[c % f.size()];
+	}
+    }
+
+    void operator-=(vector<float> f) {	
+	for (int c = 0; c < channels; c++) {
+	    channel(c) -= f[c % f.size()];
+	}
+    }
+
+    void operator/=(vector<float> f) {
+	for (int c = 0; c < channels; c++) {
+	    channel(c) /= f[c % f.size()];
+	}
+    }
+
+    void operator=(vector<float> f) {
+	for (int c = 0; c < channels; c++) {
+	    channel(c) = f[c % f.size()];
+	}
+    }
+
+    void operator+=(NewImage other) {
+	assert(other.width == width &&
+	       other.height == height &&
+	       other.frames == frames,
+	       "Can only add images with matching dimensions\n");
+	assert(other.channels == channels || other.channels == 1, 
+	       "Can only add image with matching channel count, or single channel\n");	
+	for (int c = 0; c < channels; c++) {
+	    int co = c % other.channels;
+	    for (int t = 0; t < frames; t++) {
+		for (int y = 0; y < height; y++) {
+		    for (int x = 0; x < width; x++) {
+			(*this)(x, y, t, c) += other(x, y, t, co);
+		    }
+		}
+	    }
+	}
+    }
+
+    void operator*=(NewImage other) {
+	assert(other.width == width &&
+	       other.height == height &&
+	       other.frames == frames,
+	       "Can only multiply images with matching dimensions\n");
+	assert(other.channels == channels || other.channels == 1, 
+	       "Can only multiply image with matching channel count, or single channel\n");	
+	for (int c = 0; c < channels; c++) {
+	    int co = c % other.channels;
+	    for (int t = 0; t < frames; t++) {
+		for (int y = 0; y < height; y++) {
+		    for (int x = 0; x < width; x++) {
+			(*this)(x, y, t, c) *= other(x, y, t, co);
+		    }
+		}
+	    }
+	}
+    }
+
+    void operator-=(NewImage other) {
+	assert(other.width == width &&
+	       other.height == height &&
+	       other.frames == frames,
+	       "Can only subtract images with matching dimensions\n");
+	assert(other.channels == channels || other.channels == 1, 
+	       "Can only subtract image with matching channel count, or single channel\n");	
+	for (int c = 0; c < channels; c++) {
+	    int co = c % other.channels;
+	    for (int t = 0; t < frames; t++) {
+		for (int y = 0; y < height; y++) {
+		    for (int x = 0; x < width; x++) {
+			(*this)(x, y, t, c) -= other(x, y, t, co);
+		    }
+		}
+	    }
+	}
+    }
+
+    void operator/=(NewImage other) {
+	assert(other.width == width &&
+	       other.height == height &&
+	       other.frames == frames,
+	       "Can only divide images with matching dimensions\n");
+	assert(other.channels == channels || other.channels == 1, 
+	       "Can only divide image with matching channel count, or single channel\n");	
+	for (int c = 0; c < channels; c++) {
+	    int co = c % other.channels;
+	    for (int t = 0; t < frames; t++) {
+		for (int y = 0; y < height; y++) {
+		    for (int x = 0; x < width; x++) {
+			(*this)(x, y, t, c) /= other(x, y, t, co);
+		    }
+		}
+	    }
+	}
+    }
 
   private:
 
