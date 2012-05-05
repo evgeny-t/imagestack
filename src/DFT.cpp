@@ -78,6 +78,12 @@ void DCT::apply(NewImage im, bool transformX, bool transformY, bool transformT) 
         else loop_dims.push_back(d);
     }
 
+    // C
+    {
+	fftwf_iodim d = {im.channels, im.cstride, im.cstride};
+	loop_dims.push_back(d);
+    }
+
     vector<fftw_r2r_kind> kinds(fft_dims.size(), FFTW_REDFT00);
 
     fftwf_plan plan = fftwf_plan_guru_r2r((int)fft_dims.size(), &fft_dims[0],
@@ -91,7 +97,7 @@ void DCT::apply(NewImage im, bool transformX, bool transformY, bool transformT) 
     if (transformX) { m *= im.width; }
     if (transformY) { m *= im.height; }
     if (transformT) { m *= im.frames; }
-    Scale::apply(im, 1.0f/sqrtf(m));
+    im /= sqrtf(m);
 }
 
 void FFT::help() {
@@ -167,6 +173,12 @@ void FFT::apply(NewImage im, bool transformX, bool transformY, bool transformT, 
         else loop_dims.push_back(d);
     }
 
+    // C
+    {
+	fftwf_iodim d = {im.channels/2, im.cstride*2, im.cstride*2};
+	loop_dims.push_back(d);
+    }
+
     // An inverse fft can be done by swapping real and imaginary parts
     int real_c = inverse ? 1 : 0;
     int imag_c = inverse ? 0 : 1;
@@ -184,7 +196,7 @@ void FFT::apply(NewImage im, bool transformX, bool transformY, bool transformT, 
         if (transformX) { m *= im.width; }
         if (transformY) { m *= im.height; }
         if (transformT) { m *= im.frames; }
-        Scale::apply(im, 1.0f/m);
+	im /= m;
     }
 }
 
@@ -304,9 +316,9 @@ NewImage FFTConvolve::apply(NewImage im, NewImage filter, Convolve::BoundaryCond
     if (b == Convolve::Homogeneous) {
         NewImage result = apply(im, filter, Convolve::Zero, m);
         NewImage weight(im.width, im.height, im.frames, im.channels);
-        Offset::apply(weight, 1.0f);
+	weight = 1.0f;
         NewImage resultW = apply(weight, filter, Convolve::Zero, m);
-        Divide::apply(result, resultW);
+	result /= resultW;
         return result;
     }
 
@@ -398,7 +410,7 @@ NewImage FFTConvolve::apply(NewImage im, NewImage filter, Convolve::BoundaryCond
                             float real_f = filterT(x, y, t, cf);
                             float imag_f = filterT(x, y, t, cf+1);
                             float real_result = real_i*real_f - imag_i*imag_f;
-                            float imag_result = imag_t*real_f + real_t*imag_f;
+                            float imag_result = imag_i*real_f + real_i*imag_f;
                             resultT(x, y, t, cr++) = real_result;
                             resultT(x, y, t, cr++) = imag_result;
                         }
@@ -406,37 +418,48 @@ NewImage FFTConvolve::apply(NewImage im, NewImage filter, Convolve::BoundaryCond
                 }
             } else if (m == Multiply::Inner && filter.channels > im.channels) {
                 for (int x = 0; x < resultT.width; x++) {
+		    int cf = 0;
                     for (int cr = 0; cr < resultChannels; cr++) {
                         for (int ci = 0; ci < imT.channels; ci+=2) {
-                            resultTPtr[0] += filterTPtr[0]*imTPtr[ci] - filterTPtr[1]*imTPtr[ci+1];
-                            resultTPtr[1] += filterTPtr[1]*imTPtr[ci] + filterTPtr[0]*imTPtr[ci+1];
-                            filterTPtr += 2;
+                            float real_i = imT(x, y, t, ci);
+                            float imag_i = imT(x, y, t, ci+1);
+                            float real_f = filterT(x, y, t, cf++);
+                            float imag_f = filterT(x, y, t, cf++);
+                            float real_result = real_i*real_f - imag_i*imag_f;
+                            float imag_result = imag_i*real_f + real_i*imag_f;
+			    resultT(x, y, t, 2*cr) += real_result;
+			    resultT(x, y, t, 2*cr+1) += imag_result;
                         }
-                        resultTPtr += 2;
                     }
-                    imTPtr += imT.channels;
                 }
             } else if (m == Multiply::Inner) {
                 for (int x = 0; x < resultT.width; x++) {
+		    int ci = 0;
                     for (int cr = 0; cr < resultChannels; cr++) {
                         for (int cf = 0; cf < filterT.channels; cf+=2) {
-                            resultTPtr[0] += filterTPtr[cf]*imTPtr[0] - filterTPtr[cf+1]*imTPtr[1];
-                            resultTPtr[1] += filterTPtr[cf+1]*imTPtr[0] + filterTPtr[cf]*imTPtr[1];
-                            imTPtr += 2;
-                        }
-                        resultTPtr += 2;
-                    }
-                    filterTPtr += filterT.channels;
+                            float real_i = imT(x, y, t, ci++);
+                            float imag_i = imT(x, y, t, ci++);
+                            float real_f = filterT(x, y, t, cf);
+                            float imag_f = filterT(x, y, t, cf+1);
+                            float real_result = real_i*real_f - imag_i*imag_f;
+                            float imag_result = imag_i*real_f + real_i*imag_f;
+			    resultT(x, y, t, 2*cr) += real_result;
+			    resultT(x, y, t, 2*cr+1) += imag_result;
+			}
+		    }
                 }
             } else { // m == ELEMENTWISE
                 for (int x = 0; x < resultT.width; x++) {
-                    for (int c = 0; c < resultChannels; c++) {
-                        resultTPtr[0] += filterTPtr[0]*imTPtr[0] - filterTPtr[1]*imTPtr[1];
-                        resultTPtr[1] += filterTPtr[1]*imTPtr[0] + filterTPtr[0]*imTPtr[1];
-                        imTPtr += 2;
-                        resultTPtr += 2;
-                        filterTPtr += 2;
-                    }
+                    for (int c = 0; c < 2*resultChannels; c+=2) {
+			float real_i = imT(x, y, t, c);
+			float imag_i = imT(x, y, t, c+1);
+			float real_f = filterT(x, y, t, c);
+			float imag_f = filterT(x, y, t, c+1);
+			float real_result = real_i*real_f - imag_i*imag_f;
+			float imag_result = imag_i*real_f + real_i*imag_f;
+			resultT(x, y, t, c) = real_result;
+			resultT(x, y, t, c+1) = imag_result;
+		    }
                 }
             }
         }
@@ -449,15 +472,11 @@ NewImage FFTConvolve::apply(NewImage im, NewImage filter, Convolve::BoundaryCond
     //printf("7\n"); fflush(stdout);
     // 7) Remove the padding, and convert back to real numbers
     NewImage result(im.width, im.height, im.frames, resultChannels);
-    for (int t = 0; t < im.frames; t++) {
-        for (int y = 0; y < im.height; y++) {
-            float *resultPtr = result(0, y, t);
-            float *resultTPtr = resultT(xPad, y+yPad, t+tPad);
-            for (int x = 0; x < im.width; x++) {
-                for (int c = 0; c < resultChannels; c++) {
-                    *resultPtr++ = *resultTPtr++;
-                    // skip the imaginary part
-                    resultTPtr++;
+    for (int c = 0; c < resultChannels; c++) {
+	for (int t = 0; t < im.frames; t++) {
+	    for (int y = 0; y < im.height; y++) {
+		for (int x = 0; x < im.width; x++) {
+		    result(x, y, t, c) = resultT(x+xPad, y+yPad, t+tPad, 2*c);
                 }
             }
         }
@@ -520,35 +539,34 @@ NewImage FFTPoisson::apply(NewImage dx, NewImage dy, NewImage target, float targ
                "target image must have the same size as the gradient images\n");
     }
 
-    NewImage fftBuff(dx.width, dx.height, dx.frames, 1);
+    NewImage fftBuff(dx.width, dx.height, 1, 1);
 
     //compute two 1D lookup tables for computing the DCT of a 2D Laplacian on the fly
     NewImage ftLapY(1, dx.height, 1, 1);
     NewImage ftLapX(dx.width, 1, 1, 1);
 
     for (int x = 0; x < dx.width; x++) {
-        ftLapX(x, 0)[0] = 2.0f * cos((M_PI * x) / (dx.width - 1));
+        ftLapX(x, 0) = 2.0f * cos((M_PI * x) / (dx.width - 1));
     }
 
     for (int y = 0; y < dx.height; y++) {
-        ftLapY(0, y)[0] = -4.0f + (2.0f * cos((M_PI * y) / (dx.height - 1)));
+        ftLapY(0, y) = -4.0f + (2.0f * cos((M_PI * y) / (dx.height - 1)));
     }
 
     // Create a DCT-I plan, which is its own inverse.
     fftwf_plan fftPlan;
     fftPlan = fftwf_plan_r2r_2d(dx.height, dx.width,
-                                fftBuff(0, 0), fftBuff(0, 0),
+                                &fftBuff(0, 0), &fftBuff(0, 0),
                                 FFTW_REDFT00, FFTW_REDFT00, FFTW_ESTIMATE); //use FFTW_PATIENT when plan can be reused
 
     NewImage out(dx.width, dx.height, dx.frames, dx.channels);
 
-    for (int t = 0; t < dx.frames; t++) {
-        for (int c = 0; c < dx.channels; c++) {
+    for (int c = 0; c < dx.channels; c++) {
+	for (int t = 0; t < dx.frames; t++) {
 
             float dcSum = 0.0f;
 
             // compute h_hat from u, gx, gy (see equation 48 in the paper), as well as the DC term of u's DCT.
-            float *fftPtr = fftBuff(0, 0);
             for (int y = 0; y < dx.height; y++) {
                 for (int x = 0; x < dx.width; x++) {
                     // Compute DC term of u's DCT without computing the whole DCT.
@@ -561,41 +579,38 @@ NewImage FFTPoisson::apply(NewImage dx, NewImage dy, NewImage target, float targ
                     }
 
                     if (target) {
-                        dcSum += dcMult * target(x, y, t)[c];
+                        dcSum += dcMult * target(x, y, t, c);
                     } else {
                         // try to read the dc term out of the double
                         // integral of the gradient fields
                         // instead. Works if the gradients were
                         // computed with a zero boundary condition.
-                        dcSum += 2.0f*((dx.width-x)*dx(x, y, t)[c] + (dy.height-y)*dy(x, y, t)[c]);
+                        dcSum += 2.0f*((dx.width-x)*dx(x, y, t, c) + (dy.height-y)*dy(x, y, t, c));
                     }
 
 
                     if (target) {
-                        *fftPtr = targetStrength * target(x, y, t)[c];
+                        fftBuff(x, y) = targetStrength * target(x, y, t, c);
                     } else {
-                        *fftPtr = 0;
+                        fftBuff(x, y) = 0;
                     }
 
                     // Subtract g^x_x and g^y_y, with boundary factor of -2.0 to account for boundary reflections implicit in the DCT
                     if (x == 0) {
-                        *fftPtr -= (+2.0f * dx(x+1, y, t)[c]);
+                        fftBuff(x, y) -= (+2.0f * dx(x+1, y, t, c));
                     } else if (x == dx.width - 1) {
-                        *fftPtr -= (-2.0f * dx(x, y, t)[c]);
+                        fftBuff(x, y) -= (-2.0f * dx(x, y, t, c));
                     } else {
-                        *fftPtr -= (dx(x+1, y, t)[c] - dx(x, y, t)[c]);
+                        fftBuff(x, y) -= (dx(x+1, y, t, c) - dx(x, y, t, c));
                     }
 
                     if (y == 0) {
-                        *fftPtr -= (+2.0f * dy(x, y+1, t)[c]);
+                        fftBuff(x, y) -= (+2.0f * dy(x, y+1, t, c));
                     } else if (y == dx.height -1) {
-                        *fftPtr -= (-2.0f * dy(x, y, t)[c]);
+                        fftBuff(x, y) -= (-2.0f * dy(x, y, t, c));
                     } else {
-                        *fftPtr -= (dy(x, y+1, t)[c] - dy(x, y, t)[c]);
+                        fftBuff(x, y) -= (dy(x, y+1, t, c) - dy(x, y, t, c));
                     }
-
-
-                    fftPtr++;
                 }
             }
 
@@ -603,26 +618,23 @@ NewImage FFTPoisson::apply(NewImage dx, NewImage dy, NewImage target, float targ
             fftwf_execute(fftPlan);
 
             //compute F_hat using H_hat (see equation 29 in the paper)
-            fftPtr = fftBuff(0, 0);
             for (int y = 0; y < dx.height; y++) {
                 for (int x = 0; x < dx.width; x++) {
-                    float ftLapResponse = ftLapY(0, y)[0] + ftLapX(x, 0)[0];
-                    *fftPtr++ /= (targetStrength - ftLapResponse);
+                    float ftLapResponse = ftLapY(0, y) + ftLapX(x, 0);
+                    fftBuff(x, y) /= (targetStrength - ftLapResponse);
                 }
             }
 
-            fftBuff(0, 0)[0] = dcSum;
+            fftBuff(0, 0) = dcSum;
 
             //transform F_hat to f_hat by taking the inverse DCT of F_hat
             fftwf_execute(fftPlan);
 
             float fftMult = 1.0f / (4.0f * (dx.width-1) * (dx.height-1));
 
-            fftPtr = fftBuff(0, 0);
-
             for (int y = 0; y < dx.height; y++) {
                 for (int x = 0; x < dx.width; x++) {
-                    out(x, y, t)[c] = (*fftPtr++) * fftMult;
+                    out(x, y, t, c) = fftBuff(x, y) * fftMult;
                 }
             }
 

@@ -65,19 +65,19 @@ NewImage Deconvolve::applyShan2008(NewImage B, NewImage K) {
     {
         NewImage filter_x(K.width, 1, 1, 1);
         NewImage filter_y(1, K.height, 1, 1);
-        Offset::apply(filter_x, 1.f / K.width);
-        Offset::apply(filter_y, 1.f / K.height);
+	filter_x += 1.0f/K.width;
+	filter_y += 1.0f/K.height;
         if (K.width % 2 == 0) filter_x = Crop::apply(filter_x, 0, 0, K.width+1, 1);
         if (K.height %2 == 0) filter_y = Crop::apply(filter_y, 0, 0, 1, K.height+1);
         NewImage tmp = Convolve::apply(Convolve::apply(Bgray, filter_x, Convolve::Clamp),
                                        filter_y, Convolve::Clamp);
-        tmp = Multiply::apply(tmp, tmp, Multiply::Elementwise);
+	tmp *= tmp;
         smoothness_map = Bgray.copy();
         smoothness_map = Multiply::apply(smoothness_map, smoothness_map, Multiply::Elementwise);
         smoothness_map = Convolve::apply(Convolve::apply(smoothness_map, filter_x, Convolve::Clamp),
                                          filter_y, Convolve::Clamp);
-        Subtract::apply(smoothness_map, tmp);
-        Scale::apply(smoothness_map, -1.f);
+	smoothness_map -= tmp;
+	smoothness_map *= -1.0f;
 
         Threshold::apply(smoothness_map, -25.0f / (256.f * 256.f));
         smoothness_map = Crop::apply(smoothness_map, -x_padding, -y_padding, 0, B_large.width, B_large.height, 1);
@@ -133,7 +133,7 @@ NewImage Deconvolve::applyShan2008(NewImage B, NewImage K) {
             FDeriv[i](1, 0) = -1;
             FDeriv[i](0, 1) = -1;
             FDeriv[i](1, 1) = 1; break;
-        }
+        }	
         FourierTransform(FDeriv[i]);
         NewImage tmp = FDeriv[i].copy();
         ComplexConjugate::apply(FDeriv[i]); // FDeriv[i] = F(deriv_i)^T
@@ -142,8 +142,10 @@ NewImage Deconvolve::applyShan2008(NewImage B, NewImage K) {
         ComplexMultiply::apply(tmp, FK2, false); // tmp = |F(K)|^2 |F(deriv_i)|^2
         ComplexMultiply::apply(tmq, K_large, false); // tmq = F(K)^T |F(deriv_i)|^2
         ComplexMultiply::apply(tmq, B_large, false); // tmq = F(K)^T |F(deriv_i)|^2 F(I)
-        Add::apply(denominator_base, tmp, w_i);
-        Add::apply(numerator_base, tmq, w_i);
+	tmp *= w_i;
+	tmq *= w_i;
+	denominator_base += tmp;
+	numerator_base += tmq;
     }
 
     NewImage dIdx = Convolve::apply(B_large, Crop::apply(FDeriv[1], -1, 0, 3, 1), Convolve::Wrap);
@@ -525,12 +527,13 @@ NewImage Deconvolve::applyCho2009(NewImage blurred, NewImage kernel) {
         FFT::apply(FDeriv, true, true, false);
         NewImage FDeriv2 = FDeriv.copy();
         ComplexMultiply::apply(FDeriv2, FDeriv, true);
-        if (i == 1 || i == 3)
-            Add::apply(SumGrad, FDeriv2);
-        Scale::apply(FDeriv2, w_i);
-        Add::apply(SumDeriv, FDeriv2);
+        if (i == 1 || i == 3) {
+	    SumGrad += FDeriv2;
+	}
+	FDeriv2 *= w_i;
+	SumDeriv += FDeriv2;
     }
-    Scale::apply(SumGrad, alpha);
+    SumGrad *= alpha;
     // Recall the following:
     // F(L) = F(K)^T F(B) sum_i w_i |F(deriv_i)|^2  divided by
     //          |F(K)|^2 sum_i w_i |F(deriv_i)|^2  + alpha (|F(dx)|^2+|F(dy)|^2)
@@ -539,7 +542,7 @@ NewImage Deconvolve::applyCho2009(NewImage blurred, NewImage kernel) {
     ComplexConjugate::apply(FK);
     ComplexMultiply::apply(FK, SumDeriv, false);
     ComplexMultiply::apply(FK2, SumDeriv, false);
-    Add::apply(FK2, SumGrad);
+    FK2 += SumGrad;
     ComplexDivide::apply(FK, FK2, false); // FK contains the running result.
     for (int t = 0; t < B.channels; t++) {
         for (int y = 0; y < B.height; y++) {
@@ -593,7 +596,7 @@ NewImage Deconvolve::applyLevin2007(NewImage blurred, NewImage kernel, float wei
     ComplexMultiply::apply(fft_im, fft_kernel, true);
     ComplexMultiply::apply(fft_kernel, fft_kernel, true);
 
-    Add::apply(fft_kernel, fft_g);
+    fft_kernel += fft_g;
     ComplexDivide::apply(fft_im, fft_kernel, false);
 
     IFFT::apply(fft_im);

@@ -9,75 +9,10 @@ void Add::help() {
 
 void Add::parse(vector<string> args) {
     assert(args.size() == 0, "-add takes no arguments\n");
-    apply(stack(0), stack(1));
+    stack(0) += stack(1);
     pull(1);
     pop();
 }
-
-void Add::apply(Window a, Window b, float coefficient) {
-    assert(a.width == b.width &&
-           a.height == b.height &&
-           a.frames == b.frames &&
-           (a.channels == b.channels || b.channels == 1),
-           "Cannot add images of different sizes or channel numbers\n");
-
-    if (a.channels != 1 && b.channels == 1) {
-        for (int t = 0; t < a.frames; t++) {
-            for (int y = 0; y < a.height; y++) {
-                for (int c = 0; c < a.channels; c++) {
-                    float *aPtr = a(0, y, t)+c;
-                    float *bPtr = b(0, y, t);
-                    for (int x = 0; x < a.width; x++) {
-                        aPtr[x *a.channels] += bPtr[x] * coefficient;
-                    }
-                }
-            }
-        }
-    } else {
-        for (int t = 0; t < a.frames; t++) {
-            for (int y = 0; y < a.height; y++) {
-                float *aPtr = a(0, y, t);
-                float *bPtr = b(0, y, t);
-                for (int x = 0; x < a.width*a.channels; x++) {
-                    aPtr[x] += bPtr[x] * coefficient;
-                }
-            }
-        }
-    }
-}
-
-void Add::apply(Window a, Window b) {
-    assert(a.width == b.width &&
-           a.height == b.height &&
-           a.frames == b.frames &&
-           (a.channels == b.channels || b.channels == 1),
-           "Cannot add images of different sizes or channel numbers\n");
-
-    if (a.channels != 1 && b.channels == 1) {
-        for (int t = 0; t < a.frames; t++) {
-            for (int y = 0; y < a.height; y++) {
-                for (int c = 0; c < a.channels; c++) {
-                    float *aPtr = a(0, y, t)+c;
-                    float *bPtr = b(0, y, t);
-                    for (int x = 0; x < a.width; x++) {
-                        aPtr[x *a.channels] += bPtr[x];
-                    }
-                }
-            }
-        }
-    } else {
-        for (int t = 0; t < a.frames; t++) {
-            for (int y = 0; y < a.height; y++) {
-                float *aPtr = a(0, y, t);
-                float *bPtr = b(0, y, t);
-                for (int x = 0; x < a.width*a.channels; x++) {
-                    aPtr[x] += bPtr[x];
-                }
-            }
-        }
-    }
-}
-
 
 void Multiply::help() {
     pprintf("-multiply multiplies the top image in the stack by the second image in"
@@ -112,33 +47,31 @@ void Multiply::parse(vector<string> args) {
 
     bool swapped = false;
 
-    Window a = stack(1);
-    Window b = stack(0);
+    NewImage a = stack(1);
+    NewImage b = stack(0);
     if (a.channels < b.channels) {
-        Window tmp = a;
-        a = b;
-        b = tmp;
+	std::swap(a, b);
         swapped = true;
     }
 
     if (m == Elementwise || b.channels == 1) {
-        applyElementwise(a, b);
+	a *= b;
         if (!swapped) pop();
         else {
-          Image im = stack(0);
+          NewImage im = stack(0);
           pop();
           pop();
           push(im);
         }
     } else {
-        Image im = apply(a, b, m);
+        NewImage im = apply(a, b, m);
         pop();
         pop();
         push(im);
     }
 }
 
-Image Multiply::apply(Window a, Window b, Mode m) {
+NewImage Multiply::apply(NewImage a, NewImage b, Mode m) {
     if (a.channels < b.channels) { return apply(b, a, m); }
 
     assert(a.width == b.width &&
@@ -149,94 +82,94 @@ Image Multiply::apply(Window a, Window b, Mode m) {
     assert(a.channels % b.channels == 0,
            "One input must have a number of channels which is a multiple of the other's\n");
 
-    Image out;
+    NewImage out;
 
     // This code is written on the assumption that this op will be
     // memory-bandwidth limited so too much optimization is foolish
 
     if (b.channels == 1) { // scalar-vector case
-        out = Image(a.width, a.height, a.frames, a.channels);
+        out = NewImage(a.width, a.height, a.frames, a.channels);
 
-        for (int t = 0; t < a.frames; t++) {
-            for (int y = 0; y < a.height; y++) {
-                for (int x = 0; x < a.width; x++) {
-                    for (int c = 0; c < a.channels; c++) {
-                        out(x, y, t)[c] = a(x, y, t)[c] * b(x, y, t)[0];
+	for (int c = 0; c < a.channels; c++) {
+	    for (int t = 0; t < a.frames; t++) {
+		for (int y = 0; y < a.height; y++) {
+		    for (int x = 0; x < a.width; x++) {
+			out(x, y, t, c) = a(x, y, t, c) * b(x, y, t, 0);
                     }
                 }
             }
         }
 
     } else if (m == Elementwise) {
-        out = Image(a.width, a.height, a.frames, a.channels);
+        out = NewImage(a.width, a.height, a.frames, a.channels);
         if (a.channels == b.channels) {
-            for (int t = 0; t < a.frames; t++) {
-                for (int y = 0; y < a.height; y++) {
-                    for (int x = 0; x < a.width; x++) {
-                        for (int c = 0; c < a.channels; c++) {
-                            out(x, y, t)[c] = a(x, y, t)[c] * b(x, y, t)[c];
+	    for (int c = 0; c < a.channels; c++) {		
+		for (int t = 0; t < a.frames; t++) {
+		    for (int y = 0; y < a.height; y++) {
+			for (int x = 0; x < a.width; x++) {
+                            out(x, y, t, c) = a(x, y, t, c) * b(x, y, t, c);
                         }
                     }
                 }
             }
         } else {
             int factor = a.channels / b.channels;
-            for (int t = 0; t < a.frames; t++) {
-                for (int y = 0; y < a.height; y++) {
-                    for (int x = 0; x < a.width; x++) {
-                        int oc = 0;
-                        for (int c = 0; c < factor; c++) {
-                            for (int bc = 0; bc < b.channels; bc++) {
-                                out(x, y, t)[oc] = a(x, y, t)[oc] * b(x, y, t)[bc];
-                                oc++;
+	    int oc = 0;
+	    for (int c = 0; c < factor; c++) {
+		for (int bc = 0; bc < b.channels; bc++) {		    
+		    for (int t = 0; t < a.frames; t++) {
+			for (int y = 0; y < a.height; y++) {
+			    for (int x = 0; x < a.width; x++) {
+                                out(x, y, t, oc) = a(x, y, t, oc) * b(x, y, t, bc);
                             }
                         }
                     }
+		    oc++;				
                 }
             }
 
         }
     } else if (m == Inner) {
-        out = Image(a.width, a.height, a.frames, a.channels/b.channels);
+        out = NewImage(a.width, a.height, a.frames, a.channels/b.channels);
         if (a.channels == b.channels) {
-            for (int t = 0; t < a.frames; t++) {
-                for (int y = 0; y < a.height; y++) {
-                    for (int x = 0; x < a.width; x++) {
-                        for (int c = 0; c < a.channels; c++) {
-                            out(x, y, t)[0] += a(x, y, t)[c] * b(x, y, t)[c];
-                        }
+	    for (int c = 0; c < a.channels; c++) {
+		for (int t = 0; t < a.frames; t++) {
+		    for (int y = 0; y < a.height; y++) {
+			for (int x = 0; x < a.width; x++) {
+			    out(x, y, t, 0) += a(x, y, t, c) * b(x, y, t, c);
+			}
                     }
                 }
             }
         } else {
             int factor = a.channels / b.channels;
-            for (int t = 0; t < a.frames; t++) {
-                for (int y = 0; y < a.height; y++) {
-                    for (int x = 0; x < a.width; x++) {
-                        int ac = 0;
-                        for (int oc = 0; oc < factor; oc++) {
-                            for (int bc = 0; bc < b.channels; bc++) {
-                                out(x, y, t)[oc] += a(x, y, t)[ac] * b(x, y, t)[bc];
-                                ac++;
+	    int ac = 0;
+	    for (int oc = 0; oc < factor; oc++) {
+		for (int bc = 0; bc < b.channels; bc++) {
+		    for (int t = 0; t < a.frames; t++) {
+			for (int y = 0; y < a.height; y++) {
+			    for (int x = 0; x < a.width; x++) {
+                                out(x, y, t, oc) += a(x, y, t, ac) * b(x, y, t, bc);
                             }
                         }
                     }
+		    ac++;
                 }
             }
         }
     } else if (m == Outer) {
-        out = Image(a.width, a.height, a.frames, a.channels*b.channels);
-        for (int t = 0; t < a.frames; t++) {
-            for (int y = 0; y < a.height; y++) {
-                for (int x = 0; x < a.width; x++) {
-                    int oc = 0;
-                    for (int ac = 0; ac < a.channels; ac++) {
-                        for (int bc = 0; bc < b.channels; bc++) {
-                            out(x, y, t)[oc] = a(x, y, t)[ac] * b(x, y, t)[bc];
-                            oc++;
+        out = NewImage(a.width, a.height, a.frames, a.channels*b.channels);
+	int oc = 0;
+	for (int ac = 0; ac < a.channels; ac++) {
+	    for (int bc = 0; bc < b.channels; bc++) {
+		for (int t = 0; t < a.frames; t++) {
+		    for (int y = 0; y < a.height; y++) {
+			for (int x = 0; x < a.width; x++) {
+                            out(x, y, t, oc) = a(x, y, t, ac) * b(x, y, t, bc);
                         }
                     }
                 }
+		oc++;
             }
         }
     } else {
@@ -246,42 +179,6 @@ Image Multiply::apply(Window a, Window b, Mode m) {
     return out;
 }
 
-void Multiply::applyElementwise(Window a, Window b) {
-    assert(a.width == b.width &&
-           a.height == b.height &&
-           a.frames == b.frames,
-           "Cannot multiply images of different sizes\n");
-
-    assert(a.channels % b.channels == 0,
-           "One input have a number of channels which is a multiple of the other's\n");
-
-    if (a.channels == b.channels) {
-        for (int t = 0; t < a.frames; t++) {
-            for (int y = 0; y < a.height; y++) {
-                for (int x = 0; x < a.width; x++) {
-                    for (int c = 0; c < a.channels; c++) {
-                        a(x, y, t)[c] *= b(x, y, t)[c];
-                    }
-                }
-            }
-        }
-    } else {
-        int factor = a.channels / b.channels;
-        for (int t = 0; t < a.frames; t++) {
-            for (int y = 0; y < a.height; y++) {
-                for (int x = 0; x < a.width; x++) {
-                    int oc = 0;
-                    for (int c = 0; c < factor; c++) {
-                        for (int bc = 0; bc < b.channels; bc++) {
-                            a(x, y, t)[oc] *= b(x, y, t)[bc];
-                            oc++;
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
 void Subtract::help() {
     printf("\n-subtract subtracts the second image in the stack from the top image in the stack.\n\n"
@@ -291,41 +188,9 @@ void Subtract::help() {
 void Subtract::parse(vector<string> args) {
     assert(args.size() == 0, "-subtract takes no arguments\n");
     apply(stack(0), stack(1));
+    stack(0) -= stack(1);
     pull(1);
     pop();
-}
-
-void Subtract::apply(Window a, Window b) {
-    assert(a.width == b.width &&
-           a.height == b.height &&
-           a.frames == b.frames &&
-           (a.channels == b.channels || b.channels == 1),
-           "Cannot subtract images of different sizes or channel numbers\n");
-
-
-    if (a.channels != 1 && b.channels == 1) {
-        for (int t = 0; t < a.frames; t++) {
-            for (int y = 0; y < a.height; y++) {
-                for (int c = 0; c < a.channels; c++) {
-                    float *aPtr = a(0, y, t)+c;
-                    float *bPtr = b(0, y, t);
-                    for (int x = 0; x < a.width; x++) {
-                        aPtr[x *a.channels] -= bPtr[x];
-                    }
-                }
-            }
-        }
-    } else {
-        for (int t = 0; t < a.frames; t++) {
-            for (int y = 0; y < a.height; y++) {
-                float *aPtr = a(0, y, t);
-                float *bPtr = b(0, y, t);
-                for (int x = 0; x < a.width*a.channels; x++) {
-                    aPtr[x] -= bPtr[x];
-                }
-            }
-        }
-    }
 }
 
 void Divide::help() {
@@ -335,45 +200,10 @@ void Divide::help() {
 
 void Divide::parse(vector<string> args) {
     assert(args.size() == 0, "-divide takes no arguments\n");
-    apply(stack(0), stack(1));
+    stack(0) /= stack(1);
     pull(1);
     pop();
 }
-
-void Divide::apply(Window a, Window b) {
-    assert(a.width == b.width &&
-           a.height == b.height &&
-           a.frames == b.frames &&
-           (a.channels == b.channels || b.channels == 1),
-           "Cannot divide images of different sizes or channel numbers\n");
-
-
-    if (a.channels != 1 && b.channels == 1) {
-        for (int t = 0; t < a.frames; t++) {
-            for (int y = 0; y < a.height; y++) {
-                for (int c = 0; c < a.channels; c++) {
-                    float *aPtr = a(0, y, t)+c;
-                    float *bPtr = b(0, y, t);
-                    for (int x = 0; x < a.width; x++) {
-                        aPtr[x *a.channels] /= bPtr[x];
-                    }
-                }
-            }
-        }
-    } else {
-        for (int t = 0; t < a.frames; t++) {
-            for (int y = 0; y < a.height; y++) {
-                float *aPtr = a(0, y, t);
-                float *bPtr = b(0, y, t);
-                for (int x = 0; x < a.width*a.channels; x++) {
-                    aPtr[x] /= bPtr[x];
-                }
-            }
-        }
-    }
-
-}
-
 
 void Maximum::help() {
     printf("\n-max replaces the top image in the stack with the max of the top two images.\n\n"
@@ -387,20 +217,20 @@ void Maximum::parse(vector<string> args) {
     pop();
 }
 
-void Maximum::apply(Window a, Window b) {
+void Maximum::apply(NewImage a, NewImage b) {
     assert(a.width == b.width &&
            a.height == b.height &&
            a.frames == b.frames &&
            a.channels == b.channels,
            "Cannot compare images of different sizes or channel numbers\n");
 
-    for (int t = 0; t < a.frames; t++) {
-        for (int y = 0; y < a.height; y++) {
-            for (int x = 0; x < a.width; x++) {
-                for (int c = 0; c < a.channels; c++) {
-                    float aVal = a(x, y, t)[c];
-                    float bVal = b(x, y, t)[c];
-                    a(x, y, t)[c] = max(aVal, bVal);
+    for (int c = 0; c < a.channels; c++) {
+	for (int t = 0; t < a.frames; t++) {
+	    for (int y = 0; y < a.height; y++) {
+		for (int x = 0; x < a.width; x++) {
+                    float aVal = a(x, y, t, c);
+                    float bVal = b(x, y, t, c);
+                    a(x, y, t, c) = max(aVal, bVal);
                 }
             }
         }
@@ -420,20 +250,20 @@ void Minimum::parse(vector<string> args) {
     pop();
 }
 
-void Minimum::apply(Window a, Window b) {
+void Minimum::apply(NewImage a, NewImage b) {
     assert(a.width == b.width &&
            a.height == b.height &&
            a.frames == b.frames &&
            a.channels == b.channels,
            "Cannot compare images of different sizes or channel numbers\n");
 
-    for (int t = 0; t < a.frames; t++) {
-        for (int y = 0; y < a.height; y++) {
-            for (int x = 0; x < a.width; x++) {
-                for (int c = 0; c < a.channels; c++) {
-                    float aVal = a(x, y, t)[c];
-                    float bVal = b(x, y, t)[c];
-                    a(x, y, t)[c] = min(aVal, bVal);
+    for (int c = 0; c < a.channels; c++) {
+	for (int t = 0; t < a.frames; t++) {
+	    for (int y = 0; y < a.height; y++) {
+		for (int x = 0; x < a.width; x++) {
+                    float aVal = a(x, y, t, c);
+                    float bVal = b(x, y, t, c);
+                    a(x, y, t, c) = min(aVal, bVal);
                 }
             }
         }
@@ -451,12 +281,12 @@ void Log::parse(vector<string> args) {
     apply(stack(0));
 }
 
-void Log::apply(Window a) {
-    for (int t = 0; t < a.frames; t++) {
-        for (int y = 0; y < a.height; y++) {
-            for (int x = 0; x < a.width; x++) {
-                for (int c = 0; c < a.channels; c++) {
-                    a(x, y, t)[c] = logf(a(x, y, t)[c]);
+void Log::apply(NewImage a) {
+    for (int c = 0; c < a.channels; c++) {
+	for (int t = 0; t < a.frames; t++) {
+	    for (int y = 0; y < a.height; y++) {
+		for (int x = 0; x < a.width; x++) {
+                    a(x, y, t, c) = logf(a(x, y, t, c));
                 }
             }
         }
@@ -475,12 +305,12 @@ void Exp::parse(vector<string> args) {
     else { panic("-exp takes zero or one arguments\n"); }
 }
 
-void Exp::apply(Window a, float base) {
+void Exp::apply(NewImage a, float base) {
     for (int t = 0; t < a.frames; t++) {
         for (int y = 0; y < a.height; y++) {
             for (int x = 0; x < a.width; x++) {
                 for (int c = 0; c < a.channels; c++) {
-                    a(x, y, t)[c] = powf(base, a(x, y, t)[c]);
+                    a(x, y, t, c) = powf(base, a(x, y, t, c));
                 }
             }
         }
@@ -497,12 +327,12 @@ void Abs::parse(vector<string> args) {
     apply(stack(0));
 }
 
-void Abs::apply(Window a) {
-    for (int t = 0; t < a.frames; t++) {
-        for (int y = 0; y < a.height; y++) {
-            for (int x = 0; x < a.width; x++) {
-                for (int c = 0; c < a.channels; c++) {
-                    a(x, y, t)[c] = fabs(a(x, y, t)[c]);
+void Abs::apply(NewImage a) {
+    for (int c = 0; c < a.channels; c++) {
+	for (int t = 0; t < a.frames; t++) {
+	    for (int y = 0; y < a.height; y++) {
+		for (int x = 0; x < a.width; x++) {
+                    a(x, y, t, c) = fabs(a(x, y, t, c));
                 }
             }
         }
@@ -521,36 +351,7 @@ void Offset::parse(vector<string> args) {
         fargs.push_back(readFloat(args[i]));
     }
 
-    apply(stack(0), fargs);
-}
-
-void Offset::apply(Window a, float offset) {
-    for (int t = 0; t < a.frames; t++) {
-        for (int y = 0; y < a.height; y++) {
-            for (int x = 0; x < a.width; x++) {
-                for (int c = 0; c < a.channels; c++) {
-                    a(x, y, t)[c] += offset;
-                }
-            }
-        }
-    }
-}
-
-void Offset::apply(Window a, vector<float> args) {
-    if (args.size() == 1) {
-        apply(a, args[0]);
-        return;
-    }
-    assert(args.size() == (size_t)a.channels, "-offset takes either 1 argument, or 1 argument per channel\n");
-    for (int t = 0; t < a.frames; t++) {
-        for (int y = 0; y < a.height; y++) {
-            for (int x = 0; x < a.width; x++) {
-                for (int c = 0; c < a.channels; c++) {
-                    a(x, y, t)[c] += args[c];
-                }
-            }
-        }
-    }
+    stack(0) += fargs;
 }
 
 void Scale::help() {
@@ -565,37 +366,7 @@ void Scale::parse(vector<string> args) {
         fargs.push_back(readFloat(args[i]));
     }
 
-    apply(stack(0), fargs);
-
-}
-
-void Scale::apply(Window a, float scale) {
-    for (int t = 0; t < a.frames; t++) {
-        for (int y = 0; y < a.height; y++) {
-            for (int x = 0; x < a.width; x++) {
-                for (int c = 0; c < a.channels; c++) {
-                    a(x, y, t)[c] *= scale;
-                }
-            }
-        }
-    }
-}
-
-void Scale::apply(Window a, vector<float> args) {
-    if (args.size() == 1) {
-        apply(a, args[0]);
-        return;
-    }
-    assert(args.size() == (size_t)a.channels, "-scale takes either 1 argument, or 1 argument per channel\n");
-    for (int t = 0; t < a.frames; t++) {
-        for (int y = 0; y < a.height; y++) {
-            for (int x = 0; x < a.width; x++) {
-                for (int c = 0; c < a.channels; c++) {
-                    a(x, y, t)[c] *= args[c];
-                }
-            }
-        }
-    }
+    stack(0) *= fargs;
 }
 
 void Gamma::help() {
@@ -613,39 +384,41 @@ void Gamma::parse(vector<string> args) {
     apply(stack(0), fargs);
 }
 
-void Gamma::apply(Window a, float gamma) {
-    for (int t = 0; t < a.frames; t++) {
-        for (int y = 0; y < a.height; y++) {
-            for (int x = 0; x < a.width; x++) {
-                float *sample = a(x, y, t);
-                for (int c = 0; c < a.channels; c++) {
-                    if (sample[c] > 0) {
-                        sample[c] = powf(sample[c], gamma);
+void Gamma::apply(NewImage a, float gamma) {
+    for (int c = 0; c < a.channels; c++) {	
+	for (int t = 0; t < a.frames; t++) {
+	    for (int y = 0; y < a.height; y++) {
+		for (int x = 0; x < a.width; x++) {
+		    float val = a(x, y, t, c);
+                    if (val > 0) {
+                        val = powf(val, gamma);
                     } else {
-                        sample[c] = -powf(-sample[c], gamma);
+                        val = -powf(-val, gamma);
                     }
+		    a(x, y, t, c) = val;
                 }
             }
         }
     }
 }
 
-void Gamma::apply(Window a, vector<float> args) {
+void Gamma::apply(NewImage a, vector<float> args) {
     if (args.size() == 1) {
         apply(a, args[0]);
         return;
     }
     assert(args.size() == (size_t)a.channels, "-gamma takes either 1 argument, or 1 argument per channel\n");
-    for (int t = 0; t < a.frames; t++) {
-        for (int y = 0; y < a.height; y++) {
-            for (int x = 0; x < a.width; x++) {
-                float *sample = a(x, y, t);
-                for (int c = 0; c < a.channels; c++) {
-                    if (sample[c] > 0) {
-                        sample[c] = powf(sample[c], args[c]);
+    for (int c = 0; c < a.channels; c++) {
+	for (int t = 0; t < a.frames; t++) {
+	    for (int y = 0; y < a.height; y++) {
+		for (int x = 0; x < a.width; x++) {
+		    float val = a(x, y, t, c);
+                    if (val > 0) {
+                        val = powf(val, args[c]);
                     } else {
-                        sample[c] = -powf(-sample[c], args[c]);
+                        val = -powf(-val, args[c]);
                     }
+		    a(x, y, t, c) = val;
                 }
             }
         }
@@ -667,29 +440,29 @@ void Mod::parse(vector<string> args) {
     apply(stack(0), fargs);
 }
 
-void Mod::apply(Window a, float mod) {
-    for (int t = 0; t < a.frames; t++) {
-        for (int y = 0; y < a.height; y++) {
-            for (int x = 0; x < a.width; x++) {
-                for (int c = 0; c < a.channels; c++) {
-                    a(x, y, t)[c] = fmod(a(x, y, t)[c], mod);
+void Mod::apply(NewImage a, float mod) {
+    for (int c = 0; c < a.channels; c++) {		    
+	for (int t = 0; t < a.frames; t++) {
+	    for (int y = 0; y < a.height; y++) {
+		for (int x = 0; x < a.width; x++) {
+                    a(x, y, t, c) = fmod(a(x, y, t, c), mod);
                 }
             }
         }
     }
 }
 
-void Mod::apply(Window a, vector<float> args) {
+void Mod::apply(NewImage a, vector<float> args) {
     if (args.size() == 1) {
         apply(a, args[0]);
         return;
     }
     assert(args.size() == (size_t)a.channels, "-mod takes either 1 argument, or 1 argument per channel\n");
-    for (int t = 0; t < a.frames; t++) {
-        for (int y = 0; y < a.height; y++) {
-            for (int x = 0; x < a.width; x++) {
-                for (int c = 0; c < a.channels; c++) {
-                    a(x, y, t)[c] = fmod(a(x, y, t)[c], args[c]);
+    for (int c = 0; c < a.channels; c++) {
+	for (int t = 0; t < a.frames; t++) {
+	    for (int y = 0; y < a.height; y++) {
+		for (int x = 0; x < a.width; x++) {
+                    a(x, y, t, c) = fmod(a(x, y, t, c), args[c]);
                 }
             }
         }
@@ -713,14 +486,15 @@ void Clamp::parse(vector<string> args) {
     }
 }
 
-void Clamp::apply(Window a, float lower, float upper) {
-    for (int t = 0; t < a.frames; t++) {
-        for (int y = 0; y < a.height; y++) {
-            for (int x = 0; x < a.width; x++) {
-                float *sample = a(x, y, t);
-                for (int c = 0; c < a.channels; c++) {
-                    sample[c] = max(lower, sample[c]);
-                    sample[c] = min(upper, sample[c]);
+void Clamp::apply(NewImage a, float lower, float upper) {
+    for (int c = 0; c < a.channels; c++) {
+	for (int t = 0; t < a.frames; t++) {
+	    for (int y = 0; y < a.height; y++) {
+		for (int x = 0; x < a.width; x++) {
+		    float val = a(x, y, t, c);
+                    val = max(lower, val);
+		    val = min(upper, val);
+		    a(x, y, t, c) = val;
                 }
             }
         }
@@ -743,12 +517,14 @@ void DeNaN::parse(vector<string> args) {
     }
 }
 
-void DeNaN::apply(Window a, float replacement) {
-    for (int t = 0; t < a.frames; t++) {
-        for (int y = 0; y < a.height; y++) {
-            for (int x = 0; x < a.width; x++) {
-                for (int c = 0; c < a.channels; c++) {
-                    if (isnan(a(x, y, t)[c])) { a(x, y, t)[c] = replacement; }
+void DeNaN::apply(NewImage a, float replacement) {
+    for (int c = 0; c < a.channels; c++) {
+	for (int t = 0; t < a.frames; t++) {
+	    for (int y = 0; y < a.height; y++) {
+		for (int x = 0; x < a.width; x++) {
+                    if (isnan(a(x, y, t, c))) { 
+			a(x, y, t, c) = replacement; 
+		    }
                 }
             }
         }
@@ -767,12 +543,12 @@ void Threshold::parse(vector<string> args) {
 }
 
 
-void Threshold::apply(Window a, float threshold) {
-    for (int t = 0; t < a.frames; t++) {
-        for (int y = 0; y < a.height; y++) {
-            for (int x = 0; x < a.width; x++) {
-                for (int c = 0; c < a.channels; c++) {
-                    a(x, y, t)[c] = a(x, y, t)[c] > threshold ? 1.0f : 0.0f;
+void Threshold::apply(NewImage a, float threshold) {
+    for (int c = 0; c < a.channels; c++) {
+	for (int t = 0; t < a.frames; t++) {
+	    for (int y = 0; y < a.height; y++) {
+		for (int x = 0; x < a.width; x++) {
+                    a(x, y, t, c) = a(x, y, t, c) > threshold ? 1.0f : 0.0f;
                 }
             }
         }
@@ -791,28 +567,28 @@ void Normalize::parse(vector<string> args) {
 }
 
 
-void Normalize::apply(Window a) {
-    float minValue = a(0, 0)[0];
-    float maxValue = a(0, 0)[0];
+void Normalize::apply(NewImage a) {
+    float minValue = a(0, 0);
+    float maxValue = a(0, 0);
 
-    for (int t = 0; t < a.frames; t++) {
-        for (int y = 0; y < a.height; y++) {
-            for (int x = 0; x < a.width; x++) {
-                for (int c = 0; c < a.channels; c++) {
-                    minValue = min(a(x, y, t)[c], minValue);
-                    maxValue = max(a(x, y, t)[c], maxValue);
+    for (int c = 0; c < a.channels; c++) {
+	for (int t = 0; t < a.frames; t++) {
+	    for (int y = 0; y < a.height; y++) {
+		for (int x = 0; x < a.width; x++) {		    
+                    minValue = min(a(x, y, t, c), minValue);
+                    maxValue = max(a(x, y, t, c), maxValue);
                 }
             }
         }
-    }
+    }    
 
     float invDelta = 1.0f/(maxValue - minValue);
-    for (int t = 0; t < a.frames; t++) {
-        for (int y = 0; y < a.height; y++) {
-            for (int x = 0; x < a.width; x++) {
-                for (int c = 0; c < a.channels; c++) {
-                    a(x, y, t)[c] -= minValue;
-                    a(x, y, t)[c] *= invDelta;
+    for (int c = 0; c < a.channels; c++) {		    
+	for (int t = 0; t < a.frames; t++) {
+	    for (int y = 0; y < a.height; y++) {
+		for (int x = 0; x < a.width; x++) {
+                    a(x, y, t, c) -= minValue;
+                    a(x, y, t, c) *= invDelta;
                 }
             }
         }
@@ -835,12 +611,12 @@ void Quantize::parse(vector<string> args) {
 
 }
 
-void Quantize::apply(Window a, float increment) {
-    for (int t = 0; t < a.frames; t++) {
-        for (int y = 0; y < a.height; y++) {
-            for (int x = 0; x < a.width; x++) {
-                for (int c = 0; c < a.channels; c++) {
-                    a(x, y, t)[c] -= fmodf(a(x, y, t)[c], increment);
+void Quantize::apply(NewImage a, float increment) {
+    for (int c = 0; c < a.channels; c++) {
+	for (int t = 0; t < a.frames; t++) {
+	    for (int y = 0; y < a.height; y++) {
+		for (int x = 0; x < a.width; x++) {
+                    a(x, y, t, c) -= fmodf(a(x, y, t, c), increment);
                 }
             }
         }

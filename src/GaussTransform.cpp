@@ -270,20 +270,20 @@ Image GaussTransform::apply(Window slicePositions, Window splatPositions, Window
     case GKDTREE: {
         printf("Building...\n");
 
-        Image ref = Image(splatPositions);
-        Scale::apply(ref, invSigma);
+        Image ref = Transpose::apply(splatPositions, 'x', 'c');
+	ref *= invSigma;
 
-        vector<float *> points(ref.width*ref.height*ref.frames);
+        vector<float *> points(ref.channels*ref.height*ref.frames);
         int i = 0;
         for (int t = 0; t < ref.frames; t++) {            
-            for (int x = 0; x < ref.width; x++) {
-                for (int y = 0; y < ref.height; y++) {
-                    points[i++] = ref(x, y, t);
+	    for (int y = 0; y < ref.height; y++) {
+		for (int x = 0; x < ref.channels; x++) {	      
+		    points[i++] = &ref(0, y, t, x);
                 }
             }
         }  
 
-        GKDTree tree(ref.channels, &points[0], points.size(), 2*0.707107);
+        GKDTree tree(ref.width, &points[0], points.size(), 2*0.707107);
 
         tree.finalize();
 
@@ -303,7 +303,7 @@ Image GaussTransform::apply(Window slicePositions, Window splatPositions, Window
         float leafScale = tree.getLeaves();
         leafScale /= SPLAT_ACCURACY;
         leafScale /= ref.frames;
-        leafScale /= ref.width;
+        leafScale /= ref.channels;
         leafScale /= ref.height;
         printf("Multiplying all weights by %f\n", leafScale);
 
