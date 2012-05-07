@@ -320,6 +320,7 @@ public:
 
 };
 
+
 class Image : public Window {
 protected:
     float *memory;
@@ -466,6 +467,7 @@ protected:
 
 
 
+
 class NewImage {
   public:
     NewImage() {
@@ -514,8 +516,29 @@ class NewImage {
 
     NewImage copy() {
         NewImage m(width, height, frames, channels);
-        memcpy(m.baseAddress(), baseAddress(), sizeof(float)*width*height*frames*channels);
+	m.copyFrom(*this);
         return m;
+    }
+
+    void copyFrom(NewImage other) {
+	assert(other.width == width &&
+	       other.height == height &&
+	       other.frames == frames &&
+	       other.channels == channels,
+	       "Can only copy from images with matching dimensions\n");	
+	for (int c = 0; c < channels; c++) {
+	    for (int t = 0; t < frames; t++) {
+		for (int y = 0; y < height; y++) {
+		    for (int x = 0; x < width; x++) {
+			(*this)(x, y, t, c) = other(x, y, t, c);
+		    }
+		}
+	    }
+	}
+    }
+
+    void copyTo(NewImage other) {
+	other.copyFrom(*this);
     }
 
     NewImage region(int x, int y, int t, int c,
