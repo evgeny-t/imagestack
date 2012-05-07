@@ -6,10 +6,10 @@ class LocalLaplacian : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static Image apply(Window im, float alpha, float beta);
+    static NewImage apply(NewImage im, float alpha, float beta);
  private:
-    static Image pyramidDown(Window im);
-    static Image pyramidUp(Window im, int w, int h, int f);
+    static NewImage pyramidDown(NewImage im);
+    static NewImage pyramidUp(NewImage im, int w, int h, int f);
 };
 
 

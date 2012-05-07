@@ -7,17 +7,17 @@
 #include "File.h"
 #include "header.h"
 
-Image LocalLaplacian::pyramidDown(Window im) {
-    Image smaller((im.width+1)/2, (im.height+1)/2, (im.frames+1)/2, im.channels);
+NewImage LocalLaplacian::pyramidDown(NewImage im) {
+    NewImage smaller((im.width+1)/2, (im.height+1)/2, (im.frames+1)/2, im.channels);
 
-    Image blurry(im);
+    NewImage blurry = im.copy();
     FastBlur::apply(blurry, 1, 1, 1);
 
-    for (int t = 0; t < im.frames; t++) {
-        for (int y = 0; y < im.height; y++) {
-            for (int x = 0; x < im.width; x++) {
-                for (int c = 0; c < im.channels; c++) {
-                    smaller(x/2, y/2, t/2)[c] += blurry(x, y, t)[c];
+    for (int c = 0; c < im.channels; c++) {
+	for (int t = 0; t < im.frames; t++) {
+	    for (int y = 0; y < im.height; y++) {
+		for (int x = 0; x < im.width; x++) {
+                    smaller(x/2, y/2, t/2, c) += blurry(x, y, t, c);
                 }
             }
         }
@@ -25,14 +25,14 @@ Image LocalLaplacian::pyramidDown(Window im) {
 
     float scale[4] = {0.125f, 0.25f, 0.5f, 1.0f};
 
-    for (int t = 0; t < smaller.frames; t++) {
-        int tFactor = ((t*2+1) < im.frames) ? 0 : 1;
-        for (int y = 0; y < smaller.height; y++) {
-            int yFactor = ((y*2+1) < im.height) ? tFactor : (tFactor+1);
-            for (int x = 0; x < smaller.width; x++) {
-                int xFactor = ((x*2+1) < im.width) ? (yFactor) : (yFactor+1);
-                for (int c = 0; c < smaller.channels; c++) {
-                    smaller(x, y, t)[c] *= scale[xFactor];
+    for (int c = 0; c < smaller.channels; c++) {
+	for (int t = 0; t < smaller.frames; t++) {
+	    int tFactor = ((t*2+1) < im.frames) ? 0 : 1;
+	    for (int y = 0; y < smaller.height; y++) {
+		int yFactor = ((y*2+1) < im.height) ? tFactor : (tFactor+1);
+		for (int x = 0; x < smaller.width; x++) {
+		    int xFactor = ((x*2+1) < im.width) ? (yFactor) : (yFactor+1);
+                    smaller(x, y, t, c) *= scale[xFactor];
                 }
             }
         }
@@ -41,14 +41,14 @@ Image LocalLaplacian::pyramidDown(Window im) {
     return smaller;
 }
 
-Image LocalLaplacian::pyramidUp(Window im, int w, int h, int f) {
-    Image larger(w, h, f, im.channels);
+NewImage LocalLaplacian::pyramidUp(NewImage im, int w, int h, int f) {
+    NewImage larger(w, h, f, im.channels);
 
-    for (int t = 0; t < f; t++) {
-        for (int y = 0; y < h; y++) {
-            for (int x = 0; x < w; x++) {
-                for (int c = 0; c < im.channels; c++) {
-                    larger(x, y, t)[c] = im(x/2, y/2, t/2)[c];
+    for (int c = 0; c < im.channels; c++) {
+	for (int t = 0; t < f; t++) {
+	    for (int y = 0; y < h; y++) {
+		for (int x = 0; x < w; x++) {
+                    larger(x, y, t, c) = im(x/2, y/2, t/2, c);
                 }
             }
         }
@@ -81,12 +81,12 @@ void LocalLaplacian::help() {
 
 void LocalLaplacian::parse(vector<string> args) {
     assert(args.size() == 2, "-locallaplacian takes two arguments");
-    Image im = stack(0);
+    NewImage im = stack(0);
     pop();
     push(apply(im, readFloat(args[0]), readFloat(args[1]))); 
 }
 
-Image LocalLaplacian::apply(Window im, float alpha, float beta) {
+NewImage LocalLaplacian::apply(NewImage im, float alpha, float beta) {
     const int K = 8, J = 8;
 
     // Compute a discretized set of K intensities that span the values in the image
@@ -101,21 +101,21 @@ Image LocalLaplacian::apply(Window im, float alpha, float beta) {
 
     // Make a set of K processed images
     printf("Computing different processed images\n");
-    Image processed[K];
+    NewImage processed[K];
     for (int i = 0; i < K; i++) {
-        Image p(im);
+	NewImage p = im.copy();
         
         for (int t = 0; t < im.frames; t++) {
             for (int y = 0; y < im.height; y++) {
                 for (int x = 0; x < im.width; x++) {
                     float luminance = 0;
                     for (int c = 0; c < im.channels; c++) {
-                        luminance += p(x, y, t)[c];
+                        luminance += p(x, y, t, c);
                     }
                     luminance /= im.channels;
 
                     // Attract (or repel for negative alpha) the luminance towards the target value
-                    //float newLuminance = alpha * luminance + (1 - alpha) * target[i];
+                    // float newLuminance = alpha * luminance + (1 - alpha) * target[i];
 
                     float v = luminance - target[i];
                     float adjustment = alpha * v * fastexp(sigma*v*v);
@@ -123,7 +123,7 @@ Image LocalLaplacian::apply(Window im, float alpha, float beta) {
                     //printf("At level %d, %f -> %f\n", i, luminance, luminance + adjustment);
 
                     for (int c = 0; c < im.channels; c++) {
-                        p(x, y, t)[c] += adjustment;
+                        p(x, y, t, c) += adjustment;
                     }
                 }
             }
@@ -133,7 +133,7 @@ Image LocalLaplacian::apply(Window im, float alpha, float beta) {
 
     // Compute a J-level laplacian pyramid per processed image
     printf("Computing their laplacian pyramids\n");
-    Image pyramid[K][J];
+    NewImage pyramid[K][J];
     for (int i = 0; i < K; i++) {
         pyramid[i][0] = processed[i];
         for (int j = 1; j < J; j++) {
@@ -141,23 +141,23 @@ Image LocalLaplacian::apply(Window im, float alpha, float beta) {
             int oldH = pyramid[i][j-1].height;
             int oldF = pyramid[i][j-1].frames;
             pyramid[i][j] = pyramidDown(pyramid[i][j-1]);
-            Subtract::apply(pyramid[i][j-1], pyramidUp(pyramid[i][j], oldW, oldH, oldF));
+	    pyramid[i][j-1] -= pyramidUp(pyramid[i][j], oldW, oldH, oldF);
         }
     }
 
     // Now compute a Gaussian and Laplacian pyramid for the input
     printf("Computing Gaussian pyramid for input\n");
-    Image imPyramid[J];
-    Image imLPyramid[J];
-    imPyramid[0] = Image(im);
-    imLPyramid[0] = Image(im);
+    NewImage imPyramid[J];
+    NewImage imLPyramid[J];
+    imPyramid[0] = im;
+    imLPyramid[0] = im.copy();
     for (int j = 1; j < J; j++) {
         int oldW = imPyramid[j-1].width;
         int oldH = imPyramid[j-1].height;
         int oldF = imPyramid[j-1].frames;
         imPyramid[j] = pyramidDown(imPyramid[j-1]);
         imLPyramid[j] = imPyramid[j].copy();
-        Subtract::apply(imLPyramid[j-1], pyramidUp(imPyramid[j], oldW, oldH, oldF));
+	imLPyramid[j-1] -= pyramidUp(imPyramid[j], oldW, oldH, oldF);
     }
 
     // Now construct output laplacian pyramid by looking up the
@@ -181,7 +181,7 @@ Image LocalLaplacian::apply(Window im, float alpha, float beta) {
                 for (int x = 0; x < imPyramid[j].width; x++) {
                     float luminance = 0;
                     for (int c = 0; c < im.channels; c++) {
-                        luminance += imPyramid[j](x, y, t)[c];
+                        luminance += imPyramid[j](x, y, t, c);
                     }
                     luminance /= im.channels;
 
@@ -199,11 +199,11 @@ Image LocalLaplacian::apply(Window im, float alpha, float beta) {
 
                     for (int c = 0; c < im.channels; c++) {
                         float modified = 
-                            alpha * pyramid[K1][j](x, y, t)[c] +
-                            (1 - alpha) * pyramid[K0][j](x, y, t)[c];
+                            alpha * pyramid[K1][j](x, y, t, c) +
+                            (1 - alpha) * pyramid[K0][j](x, y, t, c);
 
-                        imLPyramid[j](x, y, t)[c] = 
-                            (1-scale) * imLPyramid[j](x, y, t)[c] + scale * modified;
+                        imLPyramid[j](x, y, t, c) = 
+                            (1-scale) * imLPyramid[j](x, y, t, c) + scale * modified;
 
                     }
                 }
@@ -213,10 +213,10 @@ Image LocalLaplacian::apply(Window im, float alpha, float beta) {
 
     // Now collapse the output laplacian pyramid
     printf("Collapsing laplacian pyramid down to output image\n");
-    Image output = imLPyramid[J-1];
+    NewImage output = imLPyramid[J-1];
     for (int j = J-2; j >= 0; j--) { 
         output = pyramidUp(output, imLPyramid[j].width, imLPyramid[j].height, imLPyramid[j].frames);
-        Add::apply(output, imLPyramid[j]);
+	output += imLPyramid[j];
     }
 
     return output;

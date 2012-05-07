@@ -187,7 +187,6 @@ void Subtract::help() {
 
 void Subtract::parse(vector<string> args) {
     assert(args.size() == 0, "-subtract takes no arguments\n");
-    apply(stack(0), stack(1));
     stack(0) -= stack(1);
     pull(1);
     pop();

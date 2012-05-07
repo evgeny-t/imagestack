@@ -35,10 +35,12 @@ void KernelEstimation::NormalizeSum(NewImage im) {
     assert(im.channels == 1 && im.frames == 1,
            "The image to be normalized must have one channel and one frame!\n");
     double sum = 0.0;
-    for (int y = 0; y < im.height; y++)
-        for (int x = 0; x < im.width; x++)
+    for (int y = 0; y < im.height; y++) {
+	for (int x = 0; x < im.width; x++) {
             sum += im(x, y);
-    Scale::apply(im, 1.0 / sum);
+	}
+    }
+    im /= sum;
 }
 
 NewImage KernelEstimation::EnlargeKernel(NewImage im, int w, int h) {
@@ -338,12 +340,12 @@ NewImage KernelEstimation::apply(NewImage B, int kernel_size) {
         ComplexMultiply::apply(dxBx, dxPx, true);
         ComplexMultiply::apply(dyBy, dyPy, true);
         ComplexMultiply::apply(dxyBxy, dxyPxy, true);
-        for (int y = 0; y < padded_height; y++)
-            for (int x = 0; x < padded_width; x++)
-                for (int c = 0; c < 2; c++)
-                    CoeffB(x, y, c) = 25.f * (Bx(x, y, c) + By(x, y, c)) + 12.5f * (dxBx(x, y, c) + dyBy(x, y, c))
-                        + 6.25f * (dxyBxy(x, y, c));
-        Scale::apply(CoeffB, 2.0f);
+	for (int c = 0; c < 2; c++)
+	    for (int y = 0; y < padded_height; y++)
+		for (int x = 0; x < padded_width; x++)
+                    CoeffB(x, y, c) = (50.0f * (Bx(x, y, c) + By(x, y, c)) + 
+				       25.0f * (dxBx(x, y, c) + dyBy(x, y, c)) +
+				       12.5f * (dxyBxy(x, y, c)));
         InverseFourierTransform(CoeffB);
     
         // Compute CoeffA
@@ -354,11 +356,10 @@ NewImage KernelEstimation::apply(NewImage B, int kernel_size) {
         ComplexMultiply::apply(dxyPxy, dxyPxy, true);
         for (int y = 0; y < padded_height; y++)
             for (int x = 0; x < padded_width; x++)
-              CoeffA(x, y) = 
-                25.f * (Px(x, y) + Py(x, y)) + 
-                12.5f * (dxPx(x, y) + dyPy(x, y)) +
-                6.25f * (dxyPxy(x, y)) + beta;
-        Scale::apply(CoeffA, 2.0f);
+		CoeffA(x, y) = (50.0f * (Px(x, y) + Py(x, y)) + 
+				25.0f * (dxPx(x, y) + dyPy(x, y)) +
+				12.5f * (dxyPxy(x, y)) + 
+				2.0f * beta);
 
         // Enlarge the kernel
         K = EnlargeKernel(K, padded_width, padded_height);
