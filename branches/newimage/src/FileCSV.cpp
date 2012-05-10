@@ -11,7 +11,7 @@ void help() {
 }
 
 
-Image load(string filename) {
+NewImage load(string filename) {
     // calculate the number of rows and columns in the file
     FILE *f = fopen(filename.c_str(), "r");
 
@@ -34,15 +34,13 @@ Image load(string filename) {
     // go back to the start and start reading data
     fseek(f, 0, SEEK_SET);
 
-    Image out(width, height, 1, 1);
+    NewImage out(width, height, 1, 1);
 
     for (int y = 0; y < height; y++) {
-        float *outPtr = out(0, y, 0);
         for (int x = 0; x < width-1; x++) {
-            assert(fscanf(f, "%f,", outPtr) == 1, "Failed to parse file\n");
-            outPtr++;
+	    assert(fscanf(f, "%f,", &out(x, y)) == 1, "Failed to parse file\n");
         }
-        assert(fscanf(f, "%f", outPtr) == 1, "Failed to parse file\n");
+        assert(fscanf(f, "%f", &out(width-1, y)) == 1, "Failed to parse file\n");
     }
 
     fclose(f);
@@ -50,17 +48,17 @@ Image load(string filename) {
     return out;
 }
 
-void save(Window im, string filename) {
+void save(NewImage im, string filename) {
     FILE *f = fopen(filename.c_str(), "w");
 
-    for (int t = 0; t < im.frames; t++) {
-        for (int y = 0; y < im.height; y++) {
-            float *imPtr = im(0, y, t);
-            for (int x = 0; x < im.width * im.channels-1; x++) {
-                fprintf(f, "%10.10f, ", *imPtr);
-                imPtr++;
-            }
-            fprintf(f, "%10.10f\n", *imPtr);
+    for (int c = 0; c < im.channels; c++) {
+	for (int t = 0; t < im.frames; t++) {
+	    for (int y = 0; y < im.height; y++) {
+		for (int x = 0; x < im.width-1; x++) {
+		    fprintf(f, "%10.10f, ", im(x, y, t, c));
+		}
+		fprintf(f, "%10.10f\n", im(im.width-1, y, t, c));
+	    }
         }
     }
 
