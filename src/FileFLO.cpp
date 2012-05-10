@@ -12,7 +12,7 @@ void help() {
             " 2-band float image for horizontal and vertical flow components.\n");
 }
 
-void save(Window im, string filename) {
+void save(NewImage im, string filename) {
 
     assert(im.channels == 2, "image must have 2 channels", filename.c_str());
 
@@ -31,7 +31,7 @@ void save(Window im, string filename) {
 
 }
 
-Image load(string filename) {
+NewImage load(string filename) {
     FILE *stream = fopen(filename.c_str(), "rb");
     assert(stream, "Could not open file %s\n", filename.c_str());
 
@@ -50,7 +50,7 @@ Image load(string filename) {
     assert(width > 0 && width < 999999, "illegal width %d", width);
     assert(height > 0 && height < 999999, "illegal height %d", height);
 
-    Image out(width, height, 1, 2);
+    NewImage out(width, height, 1, 2);
 
     size_t n = width*height*out.channels;
     assert(fread(out(0, 0, 0), sizeof(float), n, stream) == n,

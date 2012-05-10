@@ -53,7 +53,7 @@ void Load::parse(vector<string> args) {
 }
 
 
-Image Load::apply(string filename) {
+NewImage Load::apply(string filename) {
     if (suffixMatch(filename, ".tmp")) {
         return FileTMP::load(filename);
     } else if (suffixMatch(filename, ".hdr")) {
@@ -85,7 +85,7 @@ Image Load::apply(string filename) {
     panic("Unknown file format %s\n", filename.c_str());
 
     // keep compiler happy
-    return Image();
+    return NewImage();
 }
 
 void LoadFrames::help() {
@@ -101,17 +101,14 @@ void LoadFrames::parse(vector<string> args) {
 }
 
 
-Image LoadFrames::apply(vector<string> args) {
+NewImage LoadFrames::apply(vector<string> args) {
     assert(args.size() > 0, "-loadframes requires at least one file argument.\n");
     int frameSize = 0;
 
-    Image im = Load::apply(args[0]);
+    NewImage im = Load::apply(args[0]);
     assert(im.frames == 1, "-loadframes can only load many single frame images\n");
-    Image result(im.width, im.height, (int)args.size(), im.channels);
-    frameSize = im.width * im.height * im.channels;
-    float *ptr = result(0, 0, 0);
-    memcpy(ptr, im(0, 0, 0), frameSize*sizeof(float));
-    ptr += frameSize;
+    NewImage result(im.width, im.height, (int)args.size(), im.channels);
+    result.frame(0).copyFrom(im);
 
     for (size_t i = 1; i < args.size(); i++) {
         im = Load::apply(args[i]);
@@ -121,9 +118,7 @@ Image LoadFrames::apply(vector<string> args) {
                (im.height == result.height) &&
                (im.channels == result.channels),
                "-loadframes can only load file sequences of matching width, height, and channel count\n");
-        fflush(stdout);
-        memcpy(ptr, im(0, 0, 0), frameSize*sizeof(float));
-        ptr += frameSize;
+	result.frame(i).copyFrom(im);
     }
 
     return result;
@@ -141,31 +136,23 @@ void LoadChannels::parse(vector<string> args) {
 }
 
 
-Image LoadChannels::apply(vector<string> args) {
+NewImage LoadChannels::apply(vector<string> args) {
     assert(args.size() > 0, "-loadchannels requires at least one file argument.\n");
 
-    Image im = Load::apply(args[0]);
+    NewImage im = Load::apply(args[0]);
     assert(im.channels == 1, "-loadchannels can only load many single channel images\n");
-    Image result(im.width, im.height, im.frames, (int)args.size());
-    
-    for (size_t i = 0; i < args.size(); i++) {
-        for (int t = 0; t < im.frames; t++) {
-            for (int y = 0; y < im.height; y++) {
-                for (int x = 0; x < im.width; x++) {
-                    result(x, y, t)[i] = im(x, y, t)[0];
-                }
-            }
-        }
+    NewImage result(im.width, im.height, im.frames, (int)args.size());
+    result.channel(0).copyFrom(im);
 
-        if (i+1 < args.size()) {
-            im = Load::apply(args[i+1]);
-            // check dimensions and channels match
-            assert(im.channels == 1, "-loadframes can only load many single frame images\n");
-            assert((im.width == result.width) &&
-                   (im.height == result.height) &&
-                   (im.frames == result.frames),
-                   "-loadframes can only load file sequences of matching size\n");
-        }
+    for (size_t i = 1; i < args.size(); i++) {
+	im = Load::apply(args[i+1]);
+	// check dimensions and channels match
+	assert(im.channels == 1, "-loadchannels can only load many single frame images\n");
+	assert((im.width == result.width) &&
+	       (im.height == result.height) &&
+	       (im.frames == result.frames),
+	       "-loadchannels can only load file sequences of matching size\n");
+	result.channel(i).copyFrom(im);
     }
 
     return result;
@@ -215,7 +202,7 @@ void Save::parse(vector<string> args) {
 }
 
 
-void Save::apply(Window im, string filename, string arg) {
+void Save::apply(NewImage im, string filename, string arg) {
     if (suffixMatch(filename, ".tmp")) {
         if (arg == "") { arg = "float32"; }
         FileTMP::save(im, filename, arg);
@@ -276,13 +263,12 @@ void SaveFrames::parse(vector<string> args) {
 #endif
 #endif
 
-void SaveFrames::apply(Window im, string pattern, string arg) {
+void SaveFrames::apply(NewImage im, string pattern, string arg) {
     char filename[4096];
 
     for (int t = 0; t < im.frames; t++) {
-        Window frame(im, 0, 0, t, im.width, im.height, 1);
         snprintf(filename, 4096, pattern.c_str(), t);
-        Save::apply(frame, filename, arg);
+        Save::apply(im.frame(t), filename, arg);
     }
 }
 
@@ -301,20 +287,12 @@ void SaveChannels::parse(vector<string> args) {
     else { apply(stack(0), args[0], args[1]); }
 }
 
-void SaveChannels::apply(Window im, string pattern, string arg) {
+void SaveChannels::apply(NewImage im, string pattern, string arg) {
     char filename[4096];
 
-    Image channel(im.width, im.height, im.frames, 1);
     for (int c = 0; c < im.channels; c++) {
-        for (int t = 0; t < im.frames; t++) {
-            for (int y = 0; y < im.height; y++) {
-                for (int x = 0; x < im.width; x++) {
-                    channel(x, y, t)[0] = im(x, y, t)[c];
-                }
-            }
-        }
         snprintf(filename, 4096, pattern.c_str(), c);
-        Save::apply(channel, filename, arg);
+        Save::apply(im.channel(c), filename, arg);
     }
 }
 void LoadBlock::help() {
@@ -380,7 +358,7 @@ void fread_(void *ptr, size_t size, size_t n, FILE *f) {
            "Unexpected end of file\n");
 }
 
-Image LoadBlock::apply(string filename, int xoff, int yoff, int toff, int coff,
+NewImage LoadBlock::apply(string filename, int xoff, int yoff, int toff, int coff,
                        int width, int height, int frames, int channels) {
     // peek in the header
 
@@ -399,7 +377,7 @@ Image LoadBlock::apply(string filename, int xoff, int yoff, int toff, int coff,
     if (header.type != 0) {
         fclose(f);
         panic("-loadblock can only handle tmp files containing floating point data.\n");
-        return Image();
+        return NewImage();
     }
 
     // sanity check the header
@@ -407,10 +385,10 @@ Image LoadBlock::apply(string filename, int xoff, int yoff, int toff, int coff,
         fclose(f);
         panic("According the header of the tmp file, the image has dimensions %ix%ix%ix%i. "
               "Perhaps this is not a tmp file?\n", header.frames, header.width, header.height, header.channels);
-        return Image();
+        return NewImage();
     }
 
-    Image out(width, height, frames, channels);
+    NewImage out(width, height, frames, channels);
 
     off_t frameBytes = header.width*header.height*header.channels*sizeof(float);
     off_t sampleBytes = header.channels*sizeof(float);
@@ -499,7 +477,7 @@ void SaveBlock::parse(vector<string> args) {
     SaveBlock::apply(stack(0), args[0], x, y, t, c);
 }
 
-void SaveBlock::apply(Window im, string filename, int xoff, int yoff, int toff, int coff) {
+void SaveBlock::apply(NewImage im, string filename, int xoff, int yoff, int toff, int coff) {
     // Peek in the header
     struct {
         int frames, width, height, channels, type;
@@ -523,9 +501,10 @@ void SaveBlock::apply(Window im, string filename, int xoff, int yoff, int toff, 
     }
 
     float *imPtr;
-    off_t frameBytes = header.width*header.height*header.channels*sizeof(float);
-    off_t sampleBytes = header.channels*sizeof(float);
-    off_t scanlineBytes = header.width*header.channels*sizeof(float);
+    off_t xStride = sizeof(float);
+    off_t yStride = header.width*xStride;
+    off_t tStride = header.height*yStride;
+    off_t cStride = header.frames*cStride;
     const int headerBytes = 5*sizeof(float);
 
     int xmin = max(xoff, 0);
@@ -537,33 +516,15 @@ void SaveBlock::apply(Window im, string filename, int xoff, int yoff, int toff, 
     int tmin = max(toff, 0);
     int tmax = min(toff+im.frames, header.frames);
 
-    // the contiguous channel case
-    if (coff == 0 && im.channels == header.channels) {
-        for (int t = tmin; t < tmax; t++) {
-            for (int y = ymin; y < ymax; y++) {
-                off_t offset = (t*frameBytes + y*scanlineBytes + xmin*sampleBytes + headerBytes);
-                fseeko(f, offset, SEEK_SET);
-                fwrite(im(xmin-xoff, y-yoff, t-toff), sizeof(float), (xmax-xmin)*im.channels, f);
-            }
-        }
-    } else {
-        // the non-contiguous channel case
-        vector<float> scanline(im.width*header.channels);
-        for (int t = tmin; t < tmax; t++) {
-            for (int y = ymin; y < ymax; y++) {
-                off_t offset = (t*frameBytes + y*scanlineBytes + xmin*sampleBytes + headerBytes);
-                fseeko(f, offset, SEEK_SET);
-                fread_(&scanline[0], sizeof(float), (xmax-xmin)*header.channels, f);
-                imPtr = im(xmin-xoff, y-yoff, t-toff);
-                for (int x = 0; x < xmax-xmin; x++) {
-                    for (int c = cmin; c < cmax; c++) {
-                        scanline[x *header.channels+c] = *imPtr++;
-                    }
-                }
-                fseeko(f, offset, SEEK_SET);
-                fwrite(&scanline[0], sizeof(float), (xmax-xmin)*header.channels, f);
-            }
-        }
+    for (int c = cmin; c < cmax; c++) {
+	for (int t = tmin; t < tmax; t++) {
+	    for (int y = ymin; y < ymax; y++) {
+		off_t offset = c*cStride + t*tStride + y*yStride + xmin*xStride + headerBytes;
+		fseeko(f, offset, SEEK_SET);
+		fwrite(&im(xmin-xoff, y-yoff, t-toff, c-coff), sizeof(float), (xmax-xmin), f);
+	    }
+	}
+
     }
 
     fclose(f);
@@ -612,11 +573,10 @@ void CreateTmp::apply(string filename, int width, int height, int frames, int ch
 
     int header[] = {width, height, frames, channels, 0};
     fwrite(header, sizeof(float), 5, f);
-    vector<float> scanline(width*channels);
-    memset(&scanline[0], 0, width*channels*sizeof(float));
+    vector<float> scanline(width, 0);
 
-    for (int i = 0; i < frames*height; i++) {
-        fwrite(&scanline[0], sizeof(float), width*channels, f);
+    for (int i = 0; i < height*frames*channels; i++) {
+        fwrite(&scanline[0], sizeof(float), width, f);
     }
 
     fclose(f);
@@ -665,25 +625,31 @@ void LoadArray::parse(vector<string> args) {
 }
 
 template<typename T>
-Image LoadArray::apply(string filename, int width, int height, int frames, int channels) {
+NewImage LoadArray::apply(string filename, int width, int height, int frames, int channels) {
     FILE *f = fopen(filename.c_str(), "rb");
 
     int size = width * height * channels * frames;
 
     assert(f, "Could not open file %s", filename.c_str());
 
-    Image im(width, height, frames, channels);
+    NewImage im(width, height, frames, channels);
 
-    T *rawData = new T[size];
-    fread_(rawData, sizeof(T), size, f);
+    vector<T> rawData(size);
+    fread_(&rawData[0], sizeof(T), size, f);
 
-    float *dstPtr = im(0, 0, 0);
-    T *srcPtr = rawData;
-    for (int i = 0; i < size; i++) {
-        *dstPtr++ = (float)(*srcPtr++);
+    int i = 0;
+    for (int c = 0; c < im.channels; c++) {
+	for (int t = 0; t < im.frames; t++) {
+	    for (int y = 0; y < im.height; y++) {
+		for (int x = 0; x < im.width; x++) {
+		    im(x, y, t, c) = (float)rawData[i++];
+		}
+	    }
+	}
+    }
+	im(
     }
 
-    delete[] rawData;
     fclose(f);
 
     return im;
@@ -729,30 +695,27 @@ void SaveArray::parse(vector<string> args) {
 
 
 template<typename T>
-void SaveArray::apply(Window im, string filename) {
+void SaveArray::apply(NewImage im, string filename) {
     FILE *f = fopen(filename.c_str(), "wb");
 
     assert(f, "Could not open file %s\n", filename.c_str());
 
     int size = im.width * im.height * im.channels * im.frames;
 
-    T *rawData = new T[size];
+    vector<T> rawData(size);
 
-    T *dstPtr = rawData;
-
-    for (int t = 0; t < im.frames; t++) {
-        for (int y = 0; y < im.height; y++) {
-            for (int x = 0; x < im.width; x++) {
-                for (int c = 0; c < im.channels; c++) {
-                    *dstPtr++ = (T)(im(x, y, t)[c]);
-                }
+    int i = 0;
+    for (int c = 0; c < im.channels; c++) {
+	for (int t = 0; t < im.frames; t++) {
+	    for (int y = 0; y < im.height; y++) {
+		for (int x = 0; x < im.width; x++) {
+		    rawData[i] = (T)(im(x, y, t, c)); 
+		}
             }
         }
     }
 
-    fwrite(rawData, sizeof(T), size, f);
-
-    delete[] rawData;
+    fwrite(&rawData[0], sizeof(T), size, f);
     fclose(f);
 }
 #include "footer.h"
