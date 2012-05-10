@@ -588,9 +588,9 @@ void Heal::parse(vector<string> args) {
     Window mask = stack(1);
     Window image = stack(0);
 
-    Image inverseMask(mask);
-    Scale::apply(inverseMask, -1);
-    Offset::apply(inverseMask, 1);
+    Image inverseMask = mask.copy();
+    inverseMask *= 1;
+    inverseMask += 1;
 
     if (args.size() > 0) { numIter = readInt(args[0]); }
     if (args.size() > 1) { numIterPM = readInt(args[1]); }
