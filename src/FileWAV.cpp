@@ -17,13 +17,13 @@ namespace FileWAV {
 namespace FileWAV {
 void help() {
     printf(".wav sound files. They are represented as one or two channel images with\n"
-           "height and width of 1, but many frames.\n");
+           "height and frames of 1, but a large width.\n");
 }
 
-void save(Window im, string filename) {
+void save(NewImage im, string filename) {
     FILE *f = fopen(filename.c_str(), "wb");
     assert(f, "Could not open %s\n", filename.c_str());
-    assert(im.width == 1 && im.height == 1,
+    assert(im.frames == 1 && im.height == 1,
            "wav files must have frames, but no width or height\n");
     assert(im.channels == 1 || im.channels == 2,
            "wav files must have one or two channels\n");
@@ -64,10 +64,10 @@ void save(Window im, string filename) {
     short maxVal = (short)0x7fff;
     short minVal = (short)0x8000;
 
-    for (int t = 0; t < im.frames; t++) {
+    for (int x = 0; x < im.width; x++) {
         for (int c = 0; c < im.channels; c++) {
             short sval;
-            float fval = im(0, 0, t)[c];
+            float fval = im(x, 0, 0, c);
             if (fval >= 1) { sval = maxVal; }
             else if (fval <= -1) { sval = minVal; }
             else { sval = (short)(fval * maxVal + 0.499); }
@@ -78,7 +78,7 @@ void save(Window im, string filename) {
     fclose(f);
 }
 
-Image load(string filename) {
+NewImage load(string filename) {
     SDL_AudioSpec wav_spec;
     Uint32 wav_length;
     unsigned char *wav_buffer;
@@ -86,83 +86,77 @@ Image load(string filename) {
            "Could not open %s\n", filename.c_str());
 
 
-    int frames = wav_length / wav_spec.channels;
+    int width = wav_length / wav_spec.channels;
     switch (wav_spec.format) {
     case AUDIO_S8: case AUDIO_U8:
         break;
     default: // 16 bit formats
-        frames /= 2;
+        width /= 2;
         break;
     }
-    Image sound(1, 1, frames, wav_spec.channels);
+    NewImage sound(1, 1, width, wav_spec.channels);
 
     switch (wav_spec.format) {
     case AUDIO_U8: {
         unsigned char *wavPtr = wav_buffer;
-        float *sndPtr = sound(0, 0, 0);
         float mult = 1.0f/128;
-        for (int t = 0; t < sound.frames; t++) {
+        for (int x = 0; x < sound.width; x++) {
             for (int c = 0; c < sound.channels; c++) {
-                *sndPtr++ = (*wavPtr++ - 128) * mult;
+		sound(x, 0, 0, c) = (*wavPtr++ - 128) * mult;
             }
         }
         break;
     }
     case AUDIO_S8: {
         char *wavPtr = (char *)wav_buffer;
-        float *sndPtr = sound(0, 0, 0);
         float mult = 1.0f/128;
-        for (int t = 0; t < sound.frames; t++) {
+        for (int x = 0; x < sound.width; x++) {
             for (int c = 0; c < sound.channels; c++) {
-                *sndPtr++ = *wavPtr++ * mult;
+		sound(x, 0, 0, c) = *wavPtr++ * mult;
             }
         }
         break;
     }
     case AUDIO_S16MSB: {
         short *wavPtr = (short *)wav_buffer;
-        float *sndPtr = sound(0, 0, 0);
         float mult = 1.0f/(1<<15);
-        for (int t = 0; t < sound.frames; t++) {
+        for (int x = 0; x < sound.width; x++) {
             for (int c = 0; c < sound.channels; c++) {
-                *sndPtr++ = ntohs(*wavPtr++) * mult;
+		sound(x, 0, 0, c) = ntohs(*wavPtr++) * mult;
             }
         }
         break;
     }
     case AUDIO_U16MSB: {
         unsigned short *wavPtr = (unsigned short *)wav_buffer;
-        float *sndPtr = sound(0, 0, 0);
         float mult = 1.0f/(1<<15);
-        for (int t = 0; t < sound.frames; t++) {
+        for (int x = 0; x < sound.width; x++) {
             for (int c = 0; c < sound.channels; c++) {
-                *sndPtr++ = (ntohs(*wavPtr++)-(1<<15)) * mult;
+		sound(x, 0, 0, c) = (ntohs(*wavPtr++)-(1<<15)) * mult;
             }
         }
         break;
     }
     case AUDIO_U16LSB: {
         unsigned short *wavPtr = (unsigned short *)wav_buffer;
-        float *sndPtr = sound(0, 0, 0);
         float mult = 1.0f/(1<<15);
-        for (int t = 0; t < sound.frames; t++) {
+        for (int x = 0; x < sound.width; x++) {
             for (int c = 0; c < sound.channels; c++) {
                 short val1 = ntohs(*wavPtr++);
                 short val2 = ((val1 & 255) << 8) | ((val1 >> 8) & 255);
-                *sndPtr++ = (val2 - (1<<15)) * mult;
+		sound(x, 0, 0, c) = (val2 - (1<<15)) * mult;
             }
         }
         break;
     }
     case AUDIO_S16LSB: {
         short *wavPtr = (short *)wav_buffer;
-        float *sndPtr = sound(0, 0, 0);
         float mult = 1.0f/(1<<15);
-        for (int t = 0; t < sound.frames; t++) {
+        for (int x = 0; x < sound.width; x++) {
             for (int c = 0; c < sound.channels; c++) {
                 short val1 = ntohs(*wavPtr++);
                 short val2 = ((val1 & 255) << 8) | ((val1 >> 8) & 255);
-                *sndPtr++ = (val2) * mult;
+                sound(x, 0, 0, c) = (val2) * mult;
             }
         }
         break;
@@ -175,7 +169,7 @@ Image load(string filename) {
 
     // resample to 44100
     if (wav_spec.freq != 44100) {
-        return Resample::apply(sound, 1, 1, (sound.frames * 44100) / wav_spec.freq);
+        return Resample::apply(sound, 1, 1, (sound.width * 44100) / wav_spec.freq);
     } else {
         return sound;
     }

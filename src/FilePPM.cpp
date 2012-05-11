@@ -43,7 +43,7 @@ void help() {
            "have three channels and one frame.\n");
 }
 
-Image load(string filename) {
+NewImage load(string filename) {
     FILE *f = fopen(filename.c_str(), "rb");
     assert(f, "Could not open file %s", filename.c_str());
 
@@ -57,15 +57,15 @@ Image load(string filename) {
     // remove the next whitespace char
     fgetc(f);
 
-    Image im(width, height, 1, 3);
+    NewImage im(width, height, 1, 3);
 
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             for (int c = 0; c < 3; c++) {
                 if (maxval > 255) {
-                    im(x, y)[c] = (float)(((fgetc(f) & 255) << 8) + (fgetc(f) & 255)) / maxval;
+                    im(x, y, c) = (float)(((fgetc(f) & 255) << 8) + (fgetc(f) & 255)) / maxval;
                 } else {
-                    im(x, y)[c] = (float)(fgetc(f)) / maxval;
+                    im(x, y, c) = (float)(fgetc(f)) / maxval;
                 }
             }
         }
@@ -76,7 +76,7 @@ Image load(string filename) {
     return im;
 }
 
-void save(Window im, string filename, int depth) {
+void save(NewImage im, string filename, int depth) {
     FILE *f = fopen(filename.c_str(), "wb");
     assert(f, "Could not open file %s\n", filename.c_str());
     assert(depth == 16 || depth == 8, "bit depth must be 8 or 16\n");
@@ -91,7 +91,7 @@ void save(Window im, string filename, int depth) {
     for (int y = 0; y < im.height; y++) {
         for (int x = 0; x < im.width; x++) {
             for (int c = 0; c < 3; c++) {
-                float val = im(x, y)[c];
+		float val = im(x, y, c);
                 val = clamp(val, 0.0f, 1.0f);
                 val *= maxval;
                 if (maxval < 256) {

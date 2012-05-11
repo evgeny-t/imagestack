@@ -103,7 +103,6 @@ void LoadFrames::parse(vector<string> args) {
 
 NewImage LoadFrames::apply(vector<string> args) {
     assert(args.size() > 0, "-loadframes requires at least one file argument.\n");
-    int frameSize = 0;
 
     NewImage im = Load::apply(args[0]);
     assert(im.frames == 1, "-loadframes can only load many single frame images\n");
@@ -363,15 +362,15 @@ NewImage LoadBlock::apply(string filename, int xoff, int yoff, int toff, int cof
     // peek in the header
 
     struct {
-        int frames, width, height, channels, type;
+        int width, height, frames, channels, type;
     } header;
     FILE *f = fopen(filename.c_str(), "rb");
     assert(f, "Could not open file: %s", filename.c_str());
     fread_(&header, sizeof(int), 5, f);
 
-    if (frames   <= 0) { frames   = header.frames; }
     if (width    <= 0) { width    = header.width; }
     if (height   <= 0) { height   = header.height; }
+    if (frames   <= 0) { frames   = header.frames; }
     if (channels <= 0) { channels = header.channels; }
 
     if (header.type != 0) {
@@ -381,18 +380,19 @@ NewImage LoadBlock::apply(string filename, int xoff, int yoff, int toff, int cof
     }
 
     // sanity check the header
-    if (header.frames < 1 || header.width < 1 || header.height < 1 || header.channels < 1) {
+    if (header.width < 1 || header.height < 1 || header.frames || header.channels < 1) {
         fclose(f);
         panic("According the header of the tmp file, the image has dimensions %ix%ix%ix%i. "
-              "Perhaps this is not a tmp file?\n", header.frames, header.width, header.height, header.channels);
+              "Perhaps this is not a tmp file?\n", header.width, header.height, header.frames, header.channels);
         return NewImage();
     }
 
     NewImage out(width, height, frames, channels);
 
-    off_t frameBytes = header.width*header.height*header.channels*sizeof(float);
-    off_t sampleBytes = header.channels*sizeof(float);
-    off_t scanlineBytes = header.width*header.channels*sizeof(float);
+    off_t xStride = sizeof(float);
+    off_t yStride = header.width*xStride;
+    off_t tStride = header.height*yStride;
+    off_t cStride = header.frames*cStride;
     const off_t headerBytes = 5*sizeof(int);
 
     int xmin = max(xoff, 0);
@@ -404,29 +404,12 @@ NewImage LoadBlock::apply(string filename, int xoff, int yoff, int toff, int cof
     int tmin = max(toff, 0);
     int tmax = min(toff+frames, header.frames);
 
-    // the contiguous channel case
-    if (coff == 0 && channels == header.channels) {
+    for (int c = cmin; c < cmax; c++) {
         for (int t = tmin; t < tmax; t++) {
             for (int y = ymin; y < ymax; y++) {
-                off_t offset = (t*frameBytes + y*scanlineBytes + xmin*sampleBytes + headerBytes);
+		off_t offset = c*cStride + t*tStride + y*yStride + xmin*xStride + headerBytes;
                 fseeko(f, offset, SEEK_SET);
-                fread_(out(xmin-xoff, y-yoff, t-toff), sizeof(float), (xmax-xmin)*channels, f);
-            }
-        }
-    } else {
-        // the non-contiguous channel case
-        vector<float> scanline(width*header.channels);
-        for (int t = tmin; t < tmax; t++) {
-            for (int y = ymin; y < ymax; y++) {
-                off_t offset = (t*frameBytes + y*scanlineBytes + xmin*sampleBytes + headerBytes);
-                fseeko(f, offset, SEEK_SET);
-                fread_(&scanline[0], sizeof(float), (xmax-xmin)*header.channels, f);
-                for (int x = xmin; x < xmax; x++) {
-                    for (int c = cmin; c < cmax; c++) {
-                        out(x-xoff, y-yoff, t-toff)[c-cmin] = 
-                            scanline[x*header.channels+c];
-                    }
-                }
+                fread_(&out(xmin-xoff, y-yoff, t-toff, c-coff), sizeof(float), (xmax-xmin), f);
             }
         }
     }
@@ -480,7 +463,7 @@ void SaveBlock::parse(vector<string> args) {
 void SaveBlock::apply(NewImage im, string filename, int xoff, int yoff, int toff, int coff) {
     // Peek in the header
     struct {
-        int frames, width, height, channels, type;
+        int width, height, frames, channels, type;
     } header;
     FILE *f = fopen(filename.c_str(), "rb+");
     assert(f, "Could not open file: %s", filename.c_str());
@@ -493,14 +476,13 @@ void SaveBlock::apply(NewImage im, string filename, int xoff, int yoff, int toff
     }
 
     // sanity check the header
-    if (header.frames < 1 || header.width < 1 || header.height < 1 || header.channels < 1) {
+    if (header.width < 1 || header.height < 1 || header.frames < 1 || header.channels < 1) {
         fclose(f);
         panic("According the header of the tmp file, the image has dimensions %ix%ix%ix%i. "
-              "Perhaps this is not a tmp file?\n", header.frames, header.width, header.height, header.channels);
+              "Perhaps this is not a tmp file?\n", header.width, header.height, header.frames, header.channels);
         return;
     }
 
-    float *imPtr;
     off_t xStride = sizeof(float);
     off_t yStride = header.width*xStride;
     off_t tStride = header.height*yStride;
@@ -646,8 +628,6 @@ NewImage LoadArray::apply(string filename, int width, int height, int frames, in
 		}
 	    }
 	}
-    }
-	im(
     }
 
     fclose(f);

@@ -343,7 +343,7 @@ int bigdiff(COLOR c1, COLOR c2, double md) {                      /* c1 delta c2
 }
 
 
-void save(Window im, string filename) {
+void save(NewImage im, string filename) {
 
     assert(im.channels == 3, "Can't save HDR image with <> 3 channels.\n");
     assert(im.frames == 1, "Can't save a multi-frame HDR image\n");
@@ -358,14 +358,20 @@ void save(Window im, string filename) {
     fprintf(f,"-Y %d +X %d\n", im.height, im.width);
 
     // Read image
+    vector<float> scanline(im.width*3);
     for (int y = 0; y < im.height; y++) {
-        fwritescan((COLOR *)im(0, y), im.width, f);
+	for (int x = 0; x < im.width; x++) {
+	    scanline[x*3+0] = im(x, y, 0);
+	    scanline[x*3+1] = im(x, y, 1);
+	    scanline[x*3+2] = im(x, y, 2);
+	}
+        fwritescan((COLOR *)&scanline[0], im.width, f);
     }
 
     fclose(f);
 }
 
-Image load(string filename) {
+NewImage load(string filename) {
     FILE *f = fopen(filename.c_str(), "rb");
 
     assert(f, "Could not open file\n");
@@ -380,11 +386,17 @@ Image load(string filename) {
     int height, width;
     assert(2 == fscanf(f, "-Y %d +X %d\n", &height, &width),
            "Could not parse HDR header\n");
-    Image im(width, height, 1, 3);
+    NewImage im(width, height, 1, 3);
 
     // Read image
+    vector<float> scanline(width*3);
     for (int y = 0; y < height; y++) {
-        FileHDR::freadscan((COLOR *)im(0, y), width, f);
+        FileHDR::freadscan((COLOR *)(&scanline[0]), width, f);
+	for (int x = 0; x < width; x++) {
+	    im(x, y, 0) = scanline[x*3+0];
+	    im(x, y, 1) = scanline[x*3+1];
+	    im(x, y, 2) = scanline[x*3+2];
+	}
     }
 
     fclose(f);
