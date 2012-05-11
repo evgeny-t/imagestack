@@ -65,7 +65,7 @@ void GaussTransform::parse(vector<string> args) {
               " number of channels in the second image on the stack arguments\n");
     }
  
-    Image im = apply(stack(0), stack(1), stack(2), sigmas, m);
+    NewImage im = apply(stack(0), stack(1), stack(2), sigmas, m);
     pop();
     push(im);
 }

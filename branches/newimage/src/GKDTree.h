@@ -39,6 +39,7 @@ inline float gCDF(float x) {
 
 class GKDTree {
   public:
+  /*
     static Image filter(Image im, Image ref) {
         Image out(im.width, im.height, im.frames, im.channels);
 
@@ -123,6 +124,7 @@ class GKDTree {
 
         return out;
     }
+  */
 
     // Build a gkdtree using the supplied array of points to control
     // the sampling.  sizeBound specifies the maximum allowable side

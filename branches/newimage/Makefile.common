@@ -27,7 +27,6 @@ IMAGESTACK_OBJECTS = \
 	GaussTransform.o \
 	Geometry.o \
 	HDR.o \
-	Image.o \
 	KernelEstimation.o \
 	LAHBPCG.o \
 	LightField.o \
@@ -38,7 +37,6 @@ IMAGESTACK_OBJECTS = \
 	Network.o \
 	Operation.o \
 	Paint.o \
-	Panorama.o \
 	PatchMatch.o \
 	Parser.o \
         Plugin.o \

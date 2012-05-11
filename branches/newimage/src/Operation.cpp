@@ -25,7 +25,6 @@
 #include "Calculus.h"
 #include "Display.h"
 #include "NetworkOps.h"
-#include "Panorama.h"
 #include "DFT.h"
 #include "Prediction.h"
 #include "Wavelet.h"
@@ -188,10 +187,6 @@ void loadOperations() {
     // network stuff
     operationMap["-send"] = new Send();
     operationMap["-receive"] = new Receive();
-
-    // Panorama stuff
-    operationMap["-loadpanorama"] = new LoadPanorama();
-    operationMap["-panoramabackground"] = new PanoramaBackground();
 
     // prediction stuff
     operationMap["-inpaint"] = new Inpaint();

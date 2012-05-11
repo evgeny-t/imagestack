@@ -18,12 +18,12 @@ void Dimensions::parse(vector<string> args) {
            stack(0).width, stack(0).height, stack(0).frames, stack(0).channels);
 }
 
-Stats::Stats(Window im) : im_(im) {
+Stats::Stats(NewImage im) : im_(im) {
     sum_ = mean_ = variance_ = skew_ = kurtosis_ = 0;
 
     channels = im.channels;
 
-    min_ = max_ = im.data[0];
+    min_ = max_ = im(0, 0);
 
     for (int c = 0; c < im.channels; c++) {
         means.push_back(0);
@@ -31,8 +31,8 @@ Stats::Stats(Window im) : im_(im) {
         variances.push_back(0);
         kurtoses.push_back(0);
         skews.push_back(0);
-        mins.push_back(im.data[c]);
-        maxs.push_back(im.data[c]);
+        mins.push_back(im(0, 0, c));
+        maxs.push_back(im(0, 0, c));
         spatialvariances.push_back(0);
         spatialvariances.push_back(0);
         barycenters.push_back(0);
@@ -55,7 +55,7 @@ void Stats::computeBasicStats() {
         for (int y = 0; y < im_.height; y++) {
             for (int x = 0; x < im_.width; x++) {
                 for (int c = 0; c < im_.channels; c++) {
-                    float val = im_(x, y, t)[c];
+                    float val = im_(x, y, t, c);
                     if (!isfinite(val)) {
                         if (isnan(val)) { nans_++; }
                         else if (val > 0) { posinfs_++; }
@@ -94,13 +94,13 @@ void Stats::computeMoments() {
         for (int y = 0; y < im_.height; y++) {
             for (int x = 0; x < im_.width; x++) {
                 for (int c = 0; c < im_.channels; c++) {
-                    float val = im_(x, y, t)[c];
+                    float val = im_(x, y, t, c);
                     if (!isfinite(val)) { continue; }
                     counts[c]++;
                     count++;
                     float diff = (float)(val - means[c]);
                     for (int c2 = 0; c2 < im_.channels; c2++) {
-                        float val2 = im_(x, y, t)[c2];
+                        float val2 = im_(x, y, t, c2);
                         if (!isfinite(val2)) { continue; }
                         float diff2 = (float)(val2 - means[c2]);
                         covarianceMatrix[c *channels + c2] += diff * diff2;
@@ -159,7 +159,7 @@ void Statistics::parse(vector<string> args) {
     apply(stack(0));
 }
 
-void Statistics::apply(Window im) {
+void Statistics::apply(NewImage im) {
     Stats stats(im);
 
     printf("Frames x Width x Height x Channels: %i %i %i %i\n", im.frames, im.width, im.height, im.channels);
@@ -273,12 +273,12 @@ void Noise::parse(vector<string> args) {
 
 }
 
-void Noise::apply(Window im, float minVal, float maxVal) {
+void Noise::apply(NewImage im, float minVal, float maxVal) {
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
             for (int x = 0; x < im.width; x++) {
                 for (int c = 0; c < im.channels; c++) {
-                    im(x, y, t)[c] += randomFloat(minVal, maxVal);
+                    im(x, y, t, c) += randomFloat(minVal, maxVal);
                 }
             }
         }
@@ -315,19 +315,19 @@ void Histogram::parse(vector<string> args) {
 }
 
 
-Image Histogram::apply(Window im, int buckets, float minVal, float maxVal) {
+NewImage Histogram::apply(NewImage im, int buckets, float minVal, float maxVal) {
 
     float invBucketWidth = buckets / (maxVal - minVal);
 
     float inc = 1.0f / (im.width * im.height * im.frames);
 
-    Image hg(buckets, 1, 1, im.channels);
+    NewImage hg(buckets, 1, 1, im.channels);
 
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
             for (int x = 0; x < im.width; x++) {
                 for (int c = 0; c < im.channels; c++) {
-                    double value = im(x, y, t)[c];
+                    double value = im(x, y, t, c);
                     int bucket;
                     if (isnan((float)value)) {
                         continue;
@@ -338,7 +338,7 @@ Image Histogram::apply(Window im, int buckets, float minVal, float maxVal) {
                         if (bucket >= buckets) { bucket = buckets-1; }
                         if (bucket < 0) { bucket = 0; }
                     }
-                    hg(bucket, 0, 0)[c] += inc;
+                    hg(bucket, 0, 0, c) += inc;
                 }
             }
         }
@@ -370,7 +370,7 @@ void Equalize::parse(vector<string> args) {
     apply(stack(0), lower, upper);
 }
 
-void Equalize::apply(Window im, float lower, float upper) {
+void Equalize::apply(NewImage im, float lower, float upper) {
     Stats stats(im);
 
     // STEP 1) Normalize the image to the 0-1 range
@@ -378,7 +378,7 @@ void Equalize::apply(Window im, float lower, float upper) {
 
     // STEP 2) Calculate a CDF of the image
     int buckets = 4096;
-    Image cdf = Histogram::apply(im, buckets);
+    NewImage cdf = Histogram::apply(im, buckets);
     Integrate::apply(cdf, 'x');
 
     // STEP 3) For each pixel, find out how many things are in the same bucket or smaller, and use that to set the value
@@ -386,7 +386,7 @@ void Equalize::apply(Window im, float lower, float upper) {
         for (int y = 0; y < im.height; y++) {
             for (int x = 0; x < im.width; x++) {
                 for (int c = 0; c < im.channels; c++) {
-                    float alpha = im(x, y, t)[c] * buckets;
+                    float alpha = im(x, y, t, c) * buckets;
                     int bucket = (int)alpha; // which bucket am I in?
                     if (bucket < 0) { bucket = 0; }
                     if (bucket >= buckets) { bucket = buckets-1; }
@@ -394,11 +394,11 @@ void Equalize::apply(Window im, float lower, float upper) {
 
                     // how many pixels are probably less than me?
                     float lesser = 0;
-                    if (bucket > 0) { lesser = cdf(bucket-1, 0)[c]; }
-                    float equal = cdf(bucket, 0)[c] - lesser;
+                    if (bucket > 0) { lesser = cdf(bucket-1, 0, c); }
+                    float equal = cdf(bucket, 0, c) - lesser;
 
                     // use the estimate to set the value
-                    im(x, y, t)[c] = (lesser + alpha * equal) * (upper - lower) + lower;
+                    im(x, y, t, c) = (lesser + alpha * equal) * (upper - lower) + lower;
                 }
             }
         }
@@ -421,27 +421,27 @@ void HistogramMatch::parse(vector<string> args) {
     apply(stack(0), stack(1));
 }
 
-void HistogramMatch::apply(Window im, Window model) {
+void HistogramMatch::apply(NewImage im, NewImage model) {
     assert(im.channels == model.channels, "Images must have the same number of channels\n");
 
     // Compute cdfs of the two images
     Stats s1(im), s2(model);
     int buckets = 4096;
-    Image cdf1 = Histogram::apply(im, buckets, s1.minimum(), s1.maximum());
-    Image cdf2 = Histogram::apply(model, buckets, s2.minimum(), s2.maximum());
+    NewImage cdf1 = Histogram::apply(im, buckets, s1.minimum(), s1.maximum());
+    NewImage cdf2 = Histogram::apply(model, buckets, s2.minimum(), s2.maximum());
     Integrate::apply(cdf1, 'x');
     Integrate::apply(cdf2, 'x');
 
     // Invert cdf2
-    Image inverseCDF2(cdf2.width, 1, 1, cdf2.channels);
+    NewImage inverseCDF2(cdf2.width, 1, 1, cdf2.channels);
     for (int c = 0; c < inverseCDF2.channels; c++) {
         int xi = 0;
         float invWidth = 1.0f / cdf2.width;
         for (int x = 0; x < inverseCDF2.width; x++) {
-            while (cdf2(xi, 0)[c] < x * invWidth && xi < cdf2.width) { xi++; }
-            // cdf2(xi, 0)[c] is now just greater than x / inverseCDF2.width
-            float lower = xi > 0 ? cdf2(xi-1, 0)[c] : 0;
-            float upper = xi < cdf2.width ? cdf2(xi, 0)[c] : lower;
+            while (cdf2(xi, 0, c) < x * invWidth && xi < cdf2.width) { xi++; }
+            // cdf2(xi, 0, c) is now just greater than x / inverseCDF2.width
+            float lower = xi > 0 ? cdf2(xi-1, 0, c) : 0;
+            float upper = xi < cdf2.width ? cdf2(xi, 0, c) : lower;
 
             // where is x*invWidth between lower and upper?
             float alpha = 0;
@@ -449,7 +449,7 @@ void HistogramMatch::apply(Window im, Window model) {
                 alpha = (x*invWidth - lower)/(upper - lower);
             }
 
-            inverseCDF2(x, 0)[c] = xi + alpha;
+            inverseCDF2(x, 0, c) = xi + alpha;
         }
     }
 
@@ -459,7 +459,7 @@ void HistogramMatch::apply(Window im, Window model) {
         for (int y = 0; y < im.height; y++) {
             for (int x = 0; x < im.width; x++) {
                 for (int c = 0; c < im.channels; c++) {
-                    float alpha = (im(x, y, t)[c] - s1.minimum()) * invBucketWidth;
+                    float alpha = (im(x, y, t, c) - s1.minimum()) * invBucketWidth;
                     int bucket = (int)alpha; // which bucket am I in?
                     if (bucket < 0) { bucket = 0; }
                     if (bucket >= buckets) { bucket = buckets-1; }
@@ -467,13 +467,13 @@ void HistogramMatch::apply(Window im, Window model) {
 
                     // how many pixels are probably less than me?
                     float lesser = 0;
-                    if (bucket > 0) { lesser = cdf1(bucket-1, 0)[c]; }
-                    float equal = cdf1(bucket, 0)[c] - lesser;
+                    if (bucket > 0) { lesser = cdf1(bucket-1, 0, c); }
+                    float equal = cdf1(bucket, 0, c) - lesser;
 
                     // use the estimate to get the percentile
                     float percentile = lesser + alpha * equal;
 
-                    //im(x, y, t)[c] = percentile;
+                    //im(x, y, t, c) = percentile;
 
 
                     // look up the percentile in inverseCDF2 in the same way
@@ -484,10 +484,10 @@ void HistogramMatch::apply(Window im, Window model) {
                     alpha -= bucket;
 
                     lesser = 0;
-                    if (bucket > 0) { lesser = inverseCDF2(bucket-1, 0)[c]; }
-                    equal = inverseCDF2(bucket, 0)[c] - lesser;
+                    if (bucket > 0) { lesser = inverseCDF2(bucket-1, 0, c); }
+                    equal = inverseCDF2(bucket, 0, c) - lesser;
 
-                    im(x, y, t)[c] = (lesser + alpha * equal) * (s2.maximum() - s2.minimum()) / buckets + s2.minimum();
+                    im(x, y, t, c) = (lesser + alpha * equal) * (s2.maximum() - s2.minimum()) / buckets + s2.minimum();
 
                 }
             }
@@ -508,11 +508,10 @@ void Shuffle::parse(vector<string> args) {
     apply(stack(0));
 }
 
-void Shuffle::apply(Window im) {
+void Shuffle::apply(NewImage im) {
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
             for (int x = 0; x < im.width; x++) {
-                float *ptr1 = im(x, y, t);
                 // pick a random new location after this one
                 int ot, ox, oy;
                 ot = randomInt(t, im.frames-1);
@@ -527,11 +526,8 @@ void Shuffle::apply(Window im) {
                     ox = randomInt(x+1, im.width-1);
                 }
 
-                float *ptr2 = im(ox, oy, ot);
                 for (int c = 0; c < im.channels; c++) {
-                    float tmp = ptr1[c];
-                    ptr1[c] = ptr2[c];
-                    ptr2[c] = tmp;
+		    swap(im(x, y, t, c), im(ox, oy, ot, c));
                 }
             }
         }
@@ -549,7 +545,7 @@ void KMeans::parse(vector<string> args) {
     apply(stack(0), readInt(args[0]));
 }
 
-void KMeans::apply(Window im, int clusters) {
+void KMeans::apply(NewImage im, int clusters) {
     assert(clusters > 1, "must have at least one cluster\n");
 
     vector< vector<float> > cluster, newCluster;
@@ -562,9 +558,11 @@ void KMeans::apply(Window im, int clusters) {
 
     // initialize the clusters to randomly selected pixels
     for (int i = 0; i < clusters; i++) {
-        float *pixel = im(randomInt(0, im.width-1), randomInt(0, im.height-1), randomInt(0, im.frames-1));
+	int x = randomInt(0, im.width-1);
+	int y = randomInt(0, im.height-1);
+	int t = randomInt(0, im.frames-1);
         for (int c = 0; c < im.channels; c++) {
-            cluster[c][i] = pixel[c] + randomFloat(-0.0001f, 0.0001f);
+            cluster[c][i] = im(x, y, t, c) + randomFloat(-0.0001f, 0.0001f);
         }
     }
 
@@ -580,14 +578,13 @@ void KMeans::apply(Window im, int clusters) {
         for (int t = 0; t < im.frames; t++) {
             for (int y = 0; y < im.height; y++) {
                 for (int x = 0; x < im.width; x++) {
-                    float *pixel = im(x, y, t);
                     // assign this pixel to a cluster
                     int bestCluster = 0;
                     float bestDistance = 1e10;
                     for (int i = 0; i < clusters; i++) {
                         float distance = 0;
                         for (int c = 0; c < im.channels; c++) {
-                            float d = cluster[c][i] - pixel[c];
+                            float d = cluster[c][i] - im(x, y, t, c);
                             distance += d*d;
                         }
                         if (distance < bestDistance) {
@@ -597,7 +594,7 @@ void KMeans::apply(Window im, int clusters) {
                     }
 
                     for (int c = 0; c < im.channels; c++) {
-                        newCluster[c][bestCluster] += pixel[c];
+                        newCluster[c][bestCluster] += im(x, y, t, c);
                     }
                     newClusterMembers[bestCluster]++;
                 }
@@ -607,11 +604,11 @@ void KMeans::apply(Window im, int clusters) {
         // normalize the new clusters (reset any zero ones to random)
         for (int i = 0; i < clusters; i++) {
             if (newClusterMembers[i] == 0) {
-                float *pixel = im(randomInt(0, im.width-1),
-                                  randomInt(0, im.height-1),
-                                  randomInt(0, im.frames-1));
+		int x = randomInt(0, im.width-1);
+		int y = randomInt(0, im.height-1);
+		int t = randomInt(0, im.frames-1);
                 for (int c = 0; c < im.channels; c++) {
-                    newCluster[c][i] = pixel[c] + randomFloat(-0.0001f, 0.0001f);
+                    newCluster[c][i] = im(x, y, t, c) + randomFloat(-0.0001f, 0.0001f);
                 }
             } else {
                 for (int c = 0; c < im.channels; c++) {
@@ -631,14 +628,13 @@ void KMeans::apply(Window im, int clusters) {
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
             for (int x = 0; x < im.width; x++) {
-                float *pixel = im(x, y, t);
                 // assign this pixel to a cluster
                 int bestCluster = 0;
                 float bestDistance = 1e10;
                 for (int i = 0; i < clusters; i++) {
                     float distance = 0;
                     for (int c = 0; c < im.channels; c++) {
-                        float d = cluster[c][i] - pixel[c];
+                        float d = cluster[c][i] - im(x, y, t, c);
                         distance += d*d;
                     }
                     if (distance < bestDistance) {
@@ -648,7 +644,7 @@ void KMeans::apply(Window im, int clusters) {
                 }
 
                 for (int c = 0; c < im.channels; c++) {
-                    pixel[c] = cluster[c][bestCluster];
+                    im(x, y, t, c) = cluster[c][bestCluster];
                 }
             }
         }
@@ -667,44 +663,51 @@ void Sort::parse(vector<string> args) {
     apply(stack(0), readChar(args[0]));
 }
 
-void Sort::apply(Window im, char dimension) {
+void Sort::apply(NewImage im, char dimension) {
     assert(dimension == 'x' || dimension == 'y' || dimension == 't' || dimension == 'c',
            "Dimension must be x, y, t, or c\n");
 
     if (dimension == 'c') {
+	vector<float> tmp(im.channels);
         for (int t = 0; t < im.frames; t++) {
             for (int y = 0; y < im.height; y++) {
                 for (int x = 0; x < im.width; x++) {
-                    ::std::sort(im(x, y, t), im(x, y, t)+im.channels);
+		    for (int c = 0; c < im.channels; c++) {
+			tmp[c] = im(x, y, t, c);
+		    }
+                    ::std::sort(tmp.begin(), tmp.end());
+		    for (int c = 0; c < im.channels; c++) {
+			im(x, y, t, c) = tmp[c];
+		    }
                 }
             }
         }
     } else if (dimension == 'x') {
         vector<float> tmp(im.width);
-        for (int t = 0; t < im.frames; t++) {
-            for (int y = 0; y < im.height; y++) {
-                for (int c = 0; c < im.channels; c++) {
+	for (int c = 0; c < im.channels; c++) {		    
+	    for (int t = 0; t < im.frames; t++) {
+		for (int y = 0; y < im.height; y++) {
                     for (int x = 0; x < im.width; x++) {
-                        tmp[x] = im(x, y, t)[c];
+                        tmp[x] = im(x, y, t, c);
                     }
                     sort(tmp.begin(), tmp.end());
                     for (int x = 0; x < im.width; x++) {
-                        im(x, y, t)[c] = tmp[x];
+                        im(x, y, t, c) = tmp[x];
                     }
                 }
             }
         }
     } else if (dimension == 'y') {
         vector<float> tmp(im.height);
-        for (int t = 0; t < im.frames; t++) {
-            for (int x = 0; x < im.width; x++) {
-                for (int c = 0; c < im.channels; c++) {
+	for (int c = 0; c < im.channels; c++) {	    
+	    for (int t = 0; t < im.frames; t++) {
+		for (int x = 0; x < im.width; x++) {
                     for (int y = 0; y < im.height; y++) {
-                        tmp[y] = im(x, y, t)[c];
+                        tmp[y] = im(x, y, t, c);
                     }
                     sort(tmp.begin(), tmp.end());
                     for (int y = 0; y < im.height; y++) {
-                        im(x, y, t)[c] = tmp[y];
+                        im(x, y, t, c) = tmp[y];
                     }
                 }
             }
@@ -712,15 +715,15 @@ void Sort::apply(Window im, char dimension) {
 
     } else if (dimension == 't') {
         vector<float> tmp(im.frames);
-        for (int y = 0; y < im.height; y++) {
-            for (int x = 0; x < im.width; x++) {
-                for (int c = 0; c < im.channels; c++) {
+	for (int c = 0; c < im.channels; c++) {
+	    for (int y = 0; y < im.height; y++) {
+		for (int x = 0; x < im.width; x++) {
                     for (int t = 0; t < im.frames; t++) {
-                        tmp[t] = im(x, y, t)[c];
+                        tmp[t] = im(x, y, t, c);
                     }
                     sort(tmp.begin(), tmp.end());
                     for (int t = 0; t < im.frames; t++) {
-                        im(x, y, t)[c] = tmp[t];
+                        im(x, y, t, c) = tmp[t];
                     }
                 }
             }
@@ -745,7 +748,7 @@ void DimensionReduction::parse(vector<string> args) {
     apply(stack(0), readInt(args[0]));
 }
 
-void DimensionReduction::apply(Window im, int dimensions) {
+void DimensionReduction::apply(NewImage im, int dimensions) {
     assert(dimensions < im.channels && dimensions > 0,
            "dimensions must be greater than zero and less than the current number of channels\n");
 
@@ -827,13 +830,13 @@ void DimensionReduction::apply(Window im, int dimensions) {
                 for (int d = 0; d < dimensions; d++) {
                     float dot = 0;
                     for (int c = 0; c < im.channels; c++) {
-                        dot += im(x, y, t)[c] * subspace[d * im.channels + c];
+                        dot += im(x, y, t, c) * subspace[d * im.channels + c];
                     }
                     for (int c = 0; c < im.channels; c++) {
                         output[c] += dot * subspace[d * im.channels + c];
                     }
                 }
-                for (int c = 0; c < im.channels; c++) { im(x, y, t)[c] = output[c]; }
+                for (int c = 0; c < im.channels; c++) { im(x, y, t, c) = output[c]; }
             }
         }
     }
@@ -918,7 +921,7 @@ struct LocalMaximaCollision {
     }
 };
 
-vector<LocalMaxima::Maximum> LocalMaxima::apply(Window im, bool tCheck, bool xCheck, bool yCheck, float threshold, float minDistance) {
+vector<LocalMaxima::Maximum> LocalMaxima::apply(NewImage im, bool tCheck, bool xCheck, bool yCheck, float threshold, float minDistance) {
 
     vector<LocalMaxima::Maximum> results;
 
@@ -954,44 +957,44 @@ vector<LocalMaxima::Maximum> LocalMaxima::apply(Window im, bool tCheck, bool xCh
         for (int y = yStart; y<yEnd; y++) {
             for (int x = xStart; x<xEnd; x++) {
                 fx = x; fy = y; ft = t;
-                value  =  im(x, y, t)[0];
+                value  =  im(x, y, t, 0);
                 // eliminate if not a x maximum
-                if (xCheck && (im(x, y, t)[0] <= im(x-1, y, t)[0] ||
-                               im(x, y, t)[0] <= im(x+1, y, t)[0])) {
+                if (xCheck && (im(x, y, t, 0) <= im(x-1, y, t, 0) ||
+                               im(x, y, t, 0) <= im(x+1, y, t, 0))) {
                     continue;
                 } else if (xCheck) {
                     // fine tune x coordinate by taking local centroid
-                    fx += (im(x+1, y, t)[0]-im(x-1, y, t)[0])/(im(x, y, t)[0]+im(x-1, y, t)[0]+im(x+1, y, t)[0]);
+                    fx += (im(x+1, y, t, 0)-im(x-1, y, t, 0))/(im(x, y, t, 0)+im(x-1, y, t, 0)+im(x+1, y, t, 0));
                 }
                 // eliminate if not a y maximum
-                if (yCheck && (im(x, y, t)[0] <= im(x, y-1, t)[0] ||
-                               im(x, y, t)[0] <= im(x, y+1, t)[0])) {
+                if (yCheck && (im(x, y, t, 0) <= im(x, y-1, t, 0) ||
+                               im(x, y, t, 0) <= im(x, y+1, t, 0))) {
                     continue;
                 } else if (yCheck) {
                     // fine tune y coordinate by taking local centroid
-                    fy += (im(x, y+1, t)[0]-im(x, y-1, t)[0])/(im(x, y, t)[0]+im(x, y-1, t)[0]+im(x, y+1, t)[0]);
+                    fy += (im(x, y+1, t, 0)-im(x, y-1, t, 0))/(im(x, y, t, 0)+im(x, y-1, t, 0)+im(x, y+1, t, 0));
                 }
                 // eliminate if not a t maximum
-                if (tCheck && (im(x, y, t)[0] <= im(x, y, t-1)[0] ||
-                               im(x, y, t)[0] <= im(x, y, t+1)[0])) {
+                if (tCheck && (im(x, y, t, 0) <= im(x, y, t-1, 0) ||
+                               im(x, y, t, 0) <= im(x, y, t+1, 0))) {
                     continue;
                 } else if (tCheck) {
                     // fine tune t coordinate by taking local centroid
-                    ft += (im(x, y, t+1)[0]-im(x, y, t-1)[0])/(im(x, y, t)[0]+im(x, y, t-1)[0]+im(x, y, t+1)[0]);
+                    ft += (im(x, y, t+1, 0)-im(x, y, t-1, 0))/(im(x, y, t, 0)+im(x, y, t-1, 0)+im(x, y, t+1, 0));
                 }
                 // eliminate if not high enough
                 float strength = threshold+1;
                 if (xCheck) {
-                    strength = min(strength, value - im(x-1, y, t)[0]);
-                    strength = min(strength, value - im(x+1, y, t)[0]);
+                    strength = min(strength, value - im(x-1, y, t, 0));
+                    strength = min(strength, value - im(x+1, y, t, 0));
                 }
                 if (yCheck) {
-                    strength = min(strength, value - im(x, y+1, t)[0]);
-                    strength = min(strength, value - im(x, y-1, t)[0]);
+                    strength = min(strength, value - im(x, y+1, t, 0));
+                    strength = min(strength, value - im(x, y-1, t, 0));
                 }
                 if (tCheck) {
-                    strength = min(strength, value - im(x, y, t+1)[0]);
-                    strength = min(strength, value - im(x, y, t-1)[0]);
+                    strength = min(strength, value - im(x, y, t+1, 0));
+                    strength = min(strength, value - im(x, y, t-1, 0));
                 }
                 if (strength < threshold) { continue; }
 
@@ -1087,8 +1090,8 @@ vector<LocalMaxima::Maximum> LocalMaxima::apply(Window im, bool tCheck, bool xCh
         if (y >= im.height) y = im.height-1;
         if (t < 0) t = 0;
         if (t >= im.frames) t = im.frames-1;
-        if (accepted[i]) im(x, y, t)[0] = 100;
-        else im(x, y, t)[0] = -100;
+        if (accepted[i]) im(x, y, t, 0) = 100;
+        else im(x, y, t, 0) = -100;
     }
     */
 
@@ -1115,7 +1118,7 @@ void Printf::parse(vector<string> args) {
 
 
 
-void Printf::apply(Window im, string fmt, vector<float> a) {
+void Printf::apply(NewImage im, string fmt, vector<float> a) {
     float args[16];
 
     assert(a.size() < 16, "-printf can't handle that many arguments\n");
@@ -1149,7 +1152,7 @@ void FPrintf::parse(vector<string> args) {
     apply(stack(0), args[0], args[1], fargs);
 }
 
-void FPrintf::apply(Window im, string filename, string fmt, vector<float> a) {
+void FPrintf::apply(NewImage im, string filename, string fmt, vector<float> a) {
     FILE *f = fopen(filename.c_str(), "a");
     assert(f, "Could not open %s\n", filename.c_str());
 
@@ -1183,34 +1186,39 @@ void PCA::help() {
 
 void PCA::parse(vector<string> args) {
     assert(args.size() == 1, "-pca takes one argument\n");
-    Image im = apply(stack(0), readInt(args[0]));
+    NewImage im = apply(stack(0), readInt(args[0]));
     pop();
     push(im);
 }
 
-Image PCA::apply(Window im, int newChannels) {
+NewImage PCA::apply(NewImage im, int newChannels) {
     assert(newChannels <= im.channels, "-pca can only reduce dimensionality, not expand it\n");
 
-    Image out(im.width, im.height, im.frames, newChannels);
+    NewImage out(im.width, im.height, im.frames, newChannels);
 
     Eigenvectors e(im.channels, out.channels);
 
-    float *imPtr = im(0, 0);
+    vector<float> imSample(im.channels), outSample(out.channels);
     for (int iter = 0; iter < min(10000, im.width*im.height*im.frames); iter++) {
         int t = randomInt(0, im.frames-1);
         int x = randomInt(0, im.width-1);
         int y = randomInt(0, im.height-1);
-        e.add(im(x, y, t));
+	for (int c = 0; c < im.channels; c++) {
+	    imSample[c] = im(x, y, t, c);
+	}
+        e.add(&imSample[0]);
     }
 
-    float *outPtr = out(0, 0);
-    imPtr = im(0, 0);
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
             for (int x = 0; x < im.width; x++) {
-                e.apply(imPtr, outPtr);
-                imPtr += im.channels;
-                outPtr += out.channels;
+		for (int c = 0; c < im.channels; c++) {
+		    imSample[c] = im(x, y, t, c);
+		}
+                e.apply(&imSample[0], &outSample[0]);
+		for (int c = 0; c < out.channels; c++) {
+		    out(x, y, t, c) = outSample[c];
+		}
             }
         }
     }
@@ -1234,12 +1242,12 @@ void PatchPCA::help() {
 
 void PatchPCA::parse(vector<string> args) {
     assert(args.size() == 2, "-patchpca takes two arguments\n");
-    Image im = apply(stack(0), readFloat(args[0]), readInt(args[1]));
+    NewImage im = apply(stack(0), readFloat(args[0]), readInt(args[1]));
     push(im);
 }
 
 
-Image PatchPCA::apply(Window im, float sigma, int newChannels) {
+NewImage PatchPCA::apply(NewImage im, float sigma, int newChannels) {
 
     int patchSize = ((int)(sigma*6+1)) | 1;
 
@@ -1263,14 +1271,13 @@ Image PatchPCA::apply(Window im, float sigma, int newChannels) {
         int t = randomInt(0, im.frames-1);
         int x = randomInt(patchSize/2, im.width-1-patchSize/2);
         int y = randomInt(patchSize/2, im.height-1-patchSize/2);
-        float *imPtr = im(x, y, t);
         int j = 0;
         for (int dy = -patchSize/2; dy <= patchSize/2; dy++) {
             for (int dx = -patchSize/2; dx <= patchSize/2; dx++) {
                 for (int c = 0; c < im.channels; c++) {
                     vec[j] = (mask[dx+patchSize/2]*
                               mask[dy+patchSize/2]*
-                              imPtr[dy*im.ystride + dx*im.xstride + c]);
+			      im(x+dx, y+dy, t, c));
                     j++;
                 }
             }
@@ -1280,7 +1287,7 @@ Image PatchPCA::apply(Window im, float sigma, int newChannels) {
 
     e.compute();
 
-    Image filters(patchSize, patchSize, 1, im.channels * newChannels);
+    NewImage filters(patchSize, patchSize, 1, im.channels * newChannels);
 
     for (int i = 0; i < newChannels; i++) {
         e.getEigenvector(i, &vec[0]);
@@ -1288,7 +1295,7 @@ Image PatchPCA::apply(Window im, float sigma, int newChannels) {
         for (int y = 0; y < patchSize; y++) {
             for (int x = 0; x < patchSize; x++) {
                 for (int c = 0; c < im.channels; c++) {
-                    filters(x, y)[i *im.channels+c] = vec[j];
+                    filters(x, y, i*im.channels+c) = vec[j];
                     j++;
                 }
             }
@@ -1313,12 +1320,12 @@ void PatchPCA3D::help() {
 
 void PatchPCA3D::parse(vector<string> args) {
     assert(args.size() == 2, "-patchpca3d takes two arguments\n");
-    Image im = apply(stack(0), readFloat(args[0]), readInt(args[1]));
+    NewImage im = apply(stack(0), readFloat(args[0]), readInt(args[1]));
     push(im);
 }
 
 
-Image PatchPCA3D::apply(Window im, float sigma, int newChannels) {
+NewImage PatchPCA3D::apply(NewImage im, float sigma, int newChannels) {
 
     int patchSize = ((int)(sigma*6+1)) | 1;
 
@@ -1342,7 +1349,6 @@ Image PatchPCA3D::apply(Window im, float sigma, int newChannels) {
         int t = randomInt(patchSize/2, im.frames-1-patchSize/2);
         int x = randomInt(patchSize/2, im.width-1-patchSize/2);
         int y = randomInt(patchSize/2, im.height-1-patchSize/2);
-        float *imPtr = im(x, y, t);
         int j = 0;
         for (int dt = -patchSize/2; dt <= patchSize/2; dt++) {
             for (int dy = -patchSize/2; dy <= patchSize/2; dy++) {
@@ -1351,7 +1357,7 @@ Image PatchPCA3D::apply(Window im, float sigma, int newChannels) {
                         vec[j] = (mask[dx+patchSize/2]*
                                   mask[dy+patchSize/2]*
                                   mask[dt+patchSize/2]*
-                                  imPtr[dt*im.tstride + dy*im.ystride + dx*im.xstride + c]);
+				  im(x+dx, y+dy, t+dy, c));
                         j++;
                     }
                 }
@@ -1362,7 +1368,7 @@ Image PatchPCA3D::apply(Window im, float sigma, int newChannels) {
 
     e.compute();
 
-    Image filters(patchSize, patchSize, patchSize, im.channels * newChannels);
+    NewImage filters(patchSize, patchSize, patchSize, im.channels * newChannels);
 
     for (int i = 0; i < newChannels; i++) {
         e.getEigenvector(i, &vec[0]);
@@ -1370,8 +1376,8 @@ Image PatchPCA3D::apply(Window im, float sigma, int newChannels) {
         for (int t = 0; t < patchSize; t++) {
             for (int y = 0; y < patchSize; y++) {
                 for (int x = 0; x < patchSize; x++) {
-                    for (int c = 0; c < im.channels; c++) {
-                        filters(x, y, t)[i*im.channels+c] = vec[j];
+		    for (int c = 0; c < im.channels; c++) {
+                        filters(x, y, t, i*im.channels+c) = vec[j];
                         j++;
                     }
                 }
