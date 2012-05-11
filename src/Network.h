@@ -42,8 +42,8 @@ public:
     bool recv(char *buffer, int len);
     bool send(const char *buffer, int len);
 
-    Image recvImage();
-    void sendImage(Window im);
+    NewImage recvImage();
+    void sendImage(NewImage im);
 
     friend class TCPServer;
 

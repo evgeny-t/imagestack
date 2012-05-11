@@ -10,7 +10,7 @@ public:
 
 class Stats {
 public:
-    Stats(Window im);
+    Stats(NewImage im);
 
 #define BASIC if (!basicStatsComputed) computeBasicStats();
 #define MOMENT if (!momentsComputed) computeMoments();
@@ -46,7 +46,7 @@ private:
     bool basicStatsComputed;
     void computeMoments();
     bool momentsComputed;
-    Window im_;
+    NewImage im_;
 
     int channels;
     vector<double> sums, means, variances, kurtoses, skews, mins, maxs;
@@ -60,21 +60,21 @@ class Statistics : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static void apply(Window im);
+    static void apply(NewImage im);
 };
 
 class Noise : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static void apply(Window im, float minVal, float maxVal);
+    static void apply(NewImage im, float minVal, float maxVal);
 };
 
 class Histogram : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static Image apply(Window im, int buckets = 256, float minVal = 0, float maxVal = 1);
+    static NewImage apply(NewImage im, int buckets = 256, float minVal = 0, float maxVal = 1);
 };
 
 
@@ -82,7 +82,7 @@ class Equalize : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static void apply(Window im, float lower, float upper);
+    static void apply(NewImage im, float lower, float upper);
 };
 
 
@@ -90,7 +90,7 @@ class HistogramMatch : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static void apply(Window im, Window model);
+    static void apply(NewImage im, NewImage model);
 };
 
 
@@ -98,28 +98,28 @@ class Shuffle : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static void apply(Window im);
+    static void apply(NewImage im);
 };
 
 class KMeans : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static void apply(Window im, int clusters);
+    static void apply(NewImage im, int clusters);
 };
 
 class Sort : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static void apply(Window im, char dimension);
+    static void apply(NewImage im, char dimension);
 };
 
 class DimensionReduction : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static void apply(Window im, int newChannels);
+    static void apply(NewImage im, int newChannels);
 };
 
 class LocalMaxima : public Operation {
@@ -148,42 +148,42 @@ public:
         }
 
     };
-    static vector<Maximum> apply(Window im, bool xCheck, bool yCheck, bool tCheck, float threshold, float minDistance);
+    static vector<Maximum> apply(NewImage im, bool xCheck, bool yCheck, bool tCheck, float threshold, float minDistance);
 };
 
 class Printf : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static void apply(Window im, string fmt, vector<float> args);
+    static void apply(NewImage im, string fmt, vector<float> args);
 };
 
 class FPrintf : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static void apply(Window im, string filename, string fmt, vector<float> args);
+    static void apply(NewImage im, string filename, string fmt, vector<float> args);
 };
 
 class PCA : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static Image apply(Window im, int newChannels);
+    static NewImage apply(NewImage im, int newChannels);
 };
 
 class PatchPCA : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static Image apply(Window im, float sigma, int newChannels);
+    static NewImage apply(NewImage im, float sigma, int newChannels);
 };
 
 class PatchPCA3D : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static Image apply(Window im, float sigma, int newChannels);
+    static NewImage apply(NewImage im, float sigma, int newChannels);
 };
 
 #include "footer.h"

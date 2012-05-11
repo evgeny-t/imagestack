@@ -16,6 +16,7 @@
 class DenseGrid {
 public:
 
+  /*
     static Image filter(Image im, Image ref, float accuracy, size_t *memory) {
         int taps;
         if (accuracy < 0.25) {
@@ -96,6 +97,7 @@ public:
 
         return out;
     }
+  */
 
     DenseGrid(int d_, int vd_, int taps_ = 3) : d(d_), vd(vd_), taps(taps_) {
         scaleFactor = new float[d];

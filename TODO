@@ -15,3 +15,5 @@ write a README for developers
 write a README for users
 
 remove all news and deletes in favor of std::vector
+
+better inpaint

@@ -21,7 +21,7 @@ void Haar::parse(vector<string> args) {
     }
 }
 
-void Haar::apply(Window im, int times) {
+void Haar::apply(NewImage im, int times) {
 
     if (times <= 0) {
         assert(im.width == im.height, "to perform a full haar transorm, the image must be square.\n");
@@ -38,18 +38,16 @@ void Haar::apply(Window im, int times) {
     assert(im.height % factor == 0, "the image height is not a multiple of 2^%i", times);
 
     // transform in x
-    Window win(im, 0, 0, 0, im.width, im.height, im.frames);
+    NewImage win = im.region(0, 0, 0, 0, im.width, im.height, im.frames, im.channels);
     for (int i = 0; i < times; i++) {
-        for (int t = 0; t < win.frames; t++) {
-            for (int y = 0; y < win.height; y++) {
-                for (int x = 0; x < win.width; x+=2) {
-                    float *a = win(x, y, t);
-                    float *b = win(x+1, y, t);
-                    for (int c = 0; c < win.channels; c++) {
-                        float aVal = a[c];
-                        float bVal = b[c];
-                        a[c] = (aVal + bVal)/2;
-                        b[c] = (bVal - aVal);
+	for (int c = 0; c < win.channels; c++) {
+	    for (int t = 0; t < win.frames; t++) {
+		for (int y = 0; y < win.height; y++) {
+		    for (int x = 0; x < win.width; x+=2) {
+			float a = win(x, y, t);
+			float b = win(x+1, y, t);
+                        win(x, y, t, c) = (a+b)/2;
+                        win(x+1, y, t, c) = b-a;
                     }
                 }
             }
@@ -57,22 +55,20 @@ void Haar::apply(Window im, int times) {
         // separate into averages and differences
         Deinterleave::apply(win, 2, 1, 1);
         // repeat on the averages
-        win = Window(win, 0, 0, 0, win.width/2, win.height, win.frames);
+        win = win.region(0, 0, 0, 0, win.width/2, win.height, win.frames, win.channels);
     }
 
     // transform in y
-    win = Window(im, 0, 0, 0, im.width, im.height, im.frames);
+    win = im.region(0, 0, 0, 0, im.width, im.height, im.frames, im.channels);
     for (int i = 0; i < times; i++) {
-        for (int t = 0; t < win.frames; t++) {
-            for (int y = 0; y < win.height; y+=2) {
-                for (int x = 0; x < win.width; x++) {
-                    float *a = win(x, y, t);
-                    float *b = win(x, y+1, t);
-                    for (int c = 0; c < win.channels; c++) {
-                        float aVal = a[c];
-                        float bVal = b[c];
-                        a[c] = (aVal + bVal)/2;
-                        b[c] = (bVal - aVal);
+	for (int c = 0; c < win.channels; c++) {
+	    for (int t = 0; t < win.frames; t++) {
+		for (int y = 0; y < win.height; y+=2) {
+		    for (int x = 0; x < win.width; x++) {
+			float a = win(x, y, t, c);
+			float b = win(x, y+1, t, c);
+			win(x, y, t, c) = (a+b)/2;
+			win(x, y+1, t, c) = b-a;
                     }
                 }
             }
@@ -80,7 +76,7 @@ void Haar::apply(Window im, int times) {
         // separate into averages and differences
         Deinterleave::apply(win, 1, 2, 1);
         // repeat on the averages
-        win = Window(win, 0, 0, 0, win.width, win.height/2, win.frames);
+        win = win.region(0, 0, 0, 0, win.width, win.height/2, win.frames, win.channels);
     }
 }
 
@@ -101,7 +97,7 @@ void InverseHaar::parse(vector<string> args) {
     }
 }
 
-void InverseHaar::apply(Window im, int times) {
+void InverseHaar::apply(NewImage im, int times) {
     if (times <= 0) {
         assert(im.width == im.height, "to perform a full haar transorm, the image must be square.\n");
         times = 0;
@@ -118,48 +114,44 @@ void InverseHaar::apply(Window im, int times) {
 
     // transform in y
     int h = 2*im.height/factor;
-    Window win(im, 0, 0, 0, im.width, h, im.frames);
+    NewImage win = im.region(0, 0, 0, 0, im.width, h, im.frames, im.channels);
     while (1) {
         // combine the averages and differences
         Interleave::apply(win, 1, 2, 1);
 
-        for (int t = 0; t < win.frames; t++) {
-            for (int y = 0; y < win.height; y+=2) {
-                for (int x = 0; x < win.width; x++) {
-                    float *a = win(x, y, t);
-                    float *b = win(x, y+1, t);
-                    for (int c = 0; c < win.channels; c++) {
-                        float avg = a[c];
-                        float diff = b[c];
-                        a[c] = avg - diff/2;
-                        b[c] = avg + diff/2;
-                    }
-                }
-            }
-        }
+	for (int c = 0; c < win.frames; c++) {
+	    for (int t = 0; t < win.frames; t++) {
+		for (int y = 0; y < win.height; y+=2) {
+		    for (int x = 0; x < win.width; x++) {
+			float avg = win(x, y, t, c);
+			float diff = win(x, y+1, t, c);
+			win(x, y, t, c) = avg-diff/2;
+			win(x, y+1, t, c) = avg+diff/2;
+		    }
+		}
+	    }
+	}
         // repeat
         h *= 2;
         if (h > im.height) { break; }
-        win = Window(im, 0, 0, 0, im.width, h, im.frames);
+        win = im.region(0, 0, 0, 0, im.width, h, im.frames, im.channels);
     }
 
     // transform in x
     int w = 2*im.width/factor;
-    win = Window(im, 0, 0, 0, w, im.height, im.frames);
+    win = im.region(0, 0, 0, 0, w, im.height, im.frames, im.channels);
     while (1) {
         // combine the averages and differences
         Interleave::apply(win, 2, 1, 1);
 
-        for (int t = 0; t < win.frames; t++) {
-            for (int y = 0; y < win.height; y++) {
-                for (int x = 0; x < win.width; x+=2) {
-                    float *a = win(x, y, t);
-                    float *b = win(x+1, y, t);
-                    for (int c = 0; c < win.channels; c++) {
-                        float avg = a[c];
-                        float diff = b[c];
-                        a[c] = avg - diff/2;
-                        b[c] = avg + diff/2;
+	for (int c = 0; c < win.channels; c++) {
+	    for (int t = 0; t < win.frames; t++) {
+		for (int y = 0; y < win.height; y++) {
+		    for (int x = 0; x < win.width; x+=2) {
+			float avg = win(x, y, t, c);
+			float diff = win(x+1, y, t, c);
+			win(x, y, t, c) = avg-diff/2;
+			win(x+1, y, t, c) = avg+diff/2;
                     }
                 }
             }
@@ -167,10 +159,8 @@ void InverseHaar::apply(Window im, int times) {
         // repeat
         w *= 2;
         if (w > im.width) { break; }
-        win = Window(im, 0, 0, 0, w, im.height, im.frames);
+        win = im.region(0, 0, 0, 0, w, im.height, im.frames, im.channels);
     }
-
-
 }
 
 
@@ -192,7 +182,7 @@ void Daubechies::parse(vector<string> args) {
     apply(stack(0));
 }
 
-void Daubechies::apply(Window im) {
+void Daubechies::apply(NewImage im) {
 
     int i;
     for (i = 1; i < im.width; i <<= 1) { ; }
@@ -201,45 +191,30 @@ void Daubechies::apply(Window im) {
     assert(i == im.height, "Image height must be a power of two\n");
 
     // transform in x
-    Window win(im, 0, 0, 0, im.width, im.height, im.frames);
+    NewImage win = im;
     while (1) {
-        for (int t = 0; t < win.frames; t++) {
-            for (int y = 0; y < win.height; y++) {
+	for (int c = 0; c < win.channels; c++) {
+	    for (int t = 0; t < win.frames; t++) {
+		for (int y = 0; y < win.height; y++) {
+		    float saved1st = win(0, y, t, c);
+		    float saved2nd = win(1, y, t, c);
 
-                vector<float> saved1st(win.channels);
-                vector<float> saved2nd(win.channels);
-                for (int c = 0; c < win.channels; c++) {
-                    saved1st[c] = win(0, y, t)[c];
-                    saved2nd[c] = win(1, y, t)[c];
-                }
-
-                for (int x = 0; x < win.width-2; x+=2) {
-                    float *a = win(x, y, t);
-                    float *b = win(x+1, y, t);
-                    float *c = win(x+2, y, t);
-                    float *d = win(x+3, y, t);
-                    for (int k = 0; k < win.channels; k++) {
-                        float aVal = a[k];
-                        float bVal = b[k];
-                        float cVal = c[k];
-                        float dVal = d[k];
-                        a[k] = DAUB0 * aVal + DAUB1 * bVal + DAUB2 * cVal + DAUB3 * dVal;
-                        b[k] = DAUB3 * aVal - DAUB2 * bVal + DAUB1 * cVal - DAUB0 * dVal;
-                    }
-                }
-                // special case the last two elements using rotation
-                float *a = win(win.width-2, y, t);
-                float *b = win(win.width-1, y, t);
-                float *c = &saved1st[0];
-                float *d = &saved2nd[0];
-                for (int k = 0; k < win.channels; k++) {
-                    float aVal = a[k];
-                    float bVal = b[k];
-                    float cVal = c[k];
-                    float dVal = d[k];
-                    a[k] = DAUB0 * aVal + DAUB1 * bVal + DAUB2 * cVal + DAUB3 * dVal;
-                    b[k] = DAUB3 * aVal - DAUB2 * bVal + DAUB1 * cVal - DAUB0 * dVal;
-                }
+		    for (int x = 0; x < win.width-2; x+=2) {
+			float a = win(x, y, t, c);
+			float b = win(x+1, y, t, c);
+			float c = win(x+2, y, t, c);
+			float d = win(x+3, y, t, c);
+			win(x, y, t, c) = DAUB0 * a + DAUB1 * b + DAUB2 * c + DAUB3 * d;
+			win(x+1, y, t, c) = DAUB3 * a - DAUB2 * b + DAUB1 * c - DAUB0 * d;
+		    }
+		    // special case the last two elements using rotation
+		    float a = win(win.width-2, y, t, c);
+		    float b = win(win.width-1, y, t, c);
+		    float c = saved1st;
+		    float d = saved2nd;
+		    win(win.width-2, y, t, c) = DAUB0 * a + DAUB1 * b + DAUB2 * c + DAUB3 * d;
+		    win(win.width-1, y, t, c) = DAUB3 * a - DAUB2 * b + DAUB1 * c - DAUB0 * d;
+		}
             }
         }
         // separate into averages and differences
@@ -248,48 +223,32 @@ void Daubechies::apply(Window im) {
         if (win.width == 2) { break; }
 
         // repeat on the averages
-        win = Window(win, 0, 0, 0, win.width/2, win.height, win.frames);
+        win = win.region(0, 0, 0, 0, win.width/2, win.height, win.frames, win.channels);
     }
 
     // transform in y
-    win = Window(im, 0, 0, 0, im.width, im.height, im.frames);
+    win = im.region(0, 0, 0, 0, im.width, im.height, im.frames, im.channels);
     while (1) {
-        for (int t = 0; t < win.frames; t++) {
-            for (int x = 0; x < win.width; x++) {
-
-                vector<float> saved1st(win.channels);
-                vector<float> saved2nd(win.channels);
-                for (int c = 0; c < win.channels; c++) {
-                    saved1st[c] = win(x, 0, t)[c];
-                    saved2nd[c] = win(x, 1, t)[c];
-                }
-
-                for (int y = 0; y < win.height-2; y+=2) {
-                    float *a = win(x, y, t);
-                    float *b = win(x, y+1, t);
-                    float *c = win(x, y+2, t);
-                    float *d = win(x, y+3, t);
-                    for (int k = 0; k < win.channels; k++) {
-                        float aVal = a[k];
-                        float bVal = b[k];
-                        float cVal = c[k];
-                        float dVal = d[k];
-                        a[k] = DAUB0 * aVal + DAUB1 * bVal + DAUB2 * cVal + DAUB3 * dVal;
-                        b[k] = DAUB3 * aVal - DAUB2 * bVal + DAUB1 * cVal - DAUB0 * dVal;
+	for (int c = 0; c < win.channels; c++) {
+	    for (int t = 0; t < win.frames; t++) {
+		for (int x = 0; x < win.width; x++) {
+		    float saved1st = win(x, 0, t, c);
+		    float saved2nd = win(x, 1, t, c);
+		    for (int y = 0; y < win.height-2; y+=2) {
+			float a = win(x, y, t, c);
+			float b = win(x, y+1, t, c);
+			float c = win(x, y+2, t, c);
+			float d = win(x, y+3, t, c);
+                        win(x, y, t, c) = DAUB0 * a + DAUB1 * b + DAUB2 * c + DAUB3 * d;
+                        win(x, y+1, t, c) = DAUB3 * a - DAUB2 * b + DAUB1 * c - DAUB0 * d;
                     }
-                }
-                // special case the last two elements using rotation
-                float *a = win(x, win.height-2, t);
-                float *b = win(x, win.height-1, t);
-                float *c = &saved1st[0];
-                float *d = &saved2nd[0];
-                for (int k = 0; k < win.channels; k++) {
-                    float aVal = a[k];
-                    float bVal = b[k];
-                    float cVal = c[k];
-                    float dVal = d[k];
-                    a[k] = DAUB0 * aVal + DAUB1 * bVal + DAUB2 * cVal + DAUB3 * dVal;
-                    b[k] = DAUB3 * aVal - DAUB2 * bVal + DAUB1 * cVal - DAUB0 * dVal;
+		    // special case the last two elements using rotation
+		    float a = win(x, win.height-2, t, c);
+		    float b = win(x, win.height-1, t, c);
+		    float c = saved1st;
+		    float d = saved2nd;
+                    win(x, win.height-2, t, c) = DAUB0 * a + DAUB1 * b + DAUB2 * c + DAUB3 * d;
+                    win(x, win.height-1, t, c) = DAUB3 * a - DAUB2 * b + DAUB1 * c - DAUB0 * d;
                 }
             }
         }
@@ -299,7 +258,7 @@ void Daubechies::apply(Window im) {
         if (win.height == 2) { break; }
 
         // repeat on the averages
-        win = Window(win, 0, 0, 0, win.width, win.height/2, win.frames);
+        win = win.region(0, 0, 0, 0, win.width, win.height/2, win.frames, win.channels);
     }
 }
 
@@ -315,7 +274,7 @@ void InverseDaubechies::parse(vector<string> args) {
     apply(stack(0));
 }
 
-void InverseDaubechies::apply(Window im) {
+void InverseDaubechies::apply(NewImage im) {
 
     int i;
     for (i = 1; i < im.width; i <<= 1) { ; }
@@ -325,99 +284,72 @@ void InverseDaubechies::apply(Window im) {
 
 
     // transform in x
-    Window win(im, 0, 0, 0, 2, im.height, im.frames);
+    NewImage win = im.region(0, 0, 0, 0, 2, im.height, im.frames, im.channels);
     while (1) {
         // Collect averages and differences
         Interleave::apply(win, 2, 1, 1);
 
-        for (int t = 0; t < win.frames; t++) {
-            for (int y = 0; y < win.height; y++) {
-                vector<float> saved1st(win.channels);
-                vector<float> saved2nd(win.channels);
+	for (int c = 0; c < win.channels; c++) {
+	    for (int t = 0; t < win.frames; t++) {
+		for (int y = 0; y < win.height; y++) {
+		    float saved1st = win(win.width-1, y, t, c);
+		    float saved2nd = win(win.width-2, y, t, c);
 
-                for (int c = 0; c < win.channels; c++) {
-                    saved1st[c] = win(win.width-1, y, t)[c];
-                    saved2nd[c] = win(win.width-2, y, t)[c];
-                }
+		    for (int x = win.width-4; x >= 0; x-=2) {
+			float a = win(x, y, t, c);
+			float b = win(x+1, y, t, c);
+			float c = win(x+2, y, t, c);
+			float d = win(x+3, y, t, c);
+		        win(x+2, y, t, c) = DAUB2 * a + DAUB1 * b + DAUB0 * c + DAUB3 * d;
+			win(x+3, y, t, c) = DAUB3 * a - DAUB0 * b + DAUB1 * c - DAUB2 * d;
+		    }
 
-                for (int x = win.width-4; x >= 0; x-=2) {
-                    float *a = win(x, y, t);
-                    float *b = win(x+1, y, t);
-                    float *c = win(x+2, y, t);
-                    float *d = win(x+3, y, t);
-                    for (int k = 0; k < win.channels; k++) {
-                        float aVal = a[k];
-                        float bVal = b[k];
-                        float cVal = c[k];
-                        float dVal = d[k];
-                        c[k] = DAUB2 * aVal + DAUB1 * bVal + DAUB0 * cVal + DAUB3 * dVal;
-                        d[k] = DAUB3 * aVal - DAUB0 * bVal + DAUB1 * cVal - DAUB2 * dVal;
-                    }
-                }
-                // special case the first two elements using rotation
-                float *a = &saved2nd[0];
-                float *b = &saved1st[0];
-                float *c = win(0, y, t);
-                float *d = win(1, y, t);
-                for (int k = 0; k < win.channels; k++) {
-                    float aVal = a[k];
-                    float bVal = b[k];
-                    float cVal = c[k];
-                    float dVal = d[k];
-                    c[k] = DAUB2 * aVal + DAUB1 * bVal + DAUB0 * cVal + DAUB3 * dVal;
-                    d[k] = DAUB3 * aVal - DAUB0 * bVal + DAUB1 * cVal - DAUB2 * dVal;
+		    
+		    // special case the first two elements using rotation
+		    float a = saved2nd;
+		    float b = saved1st;
+		    float c = win(0, y, t, c);
+		    float d = win(1, y, t, c);
+                    win(0, y, t, c) = DAUB2 * a + DAUB1 * b + DAUB0 * c + DAUB3 * d;
+                    win(1, y, t, c) = DAUB3 * a - DAUB0 * b + DAUB1 * c - DAUB2 * d;
                 }
             }
         }
 
         if (win.width == im.width) { break; }
-
+	
         // repeat on the averages
-        win = Window(im, 0, 0, 0, win.width*2, win.height, win.frames);
+        win = im.region(0, 0, 0, 0, win.width*2, win.height, win.frames, win.channels);
     }
 
     // transform in y
-    win = Window(im, 0, 0, 0, im.width, 2, im.frames);
+    win = im.region(0, 0, 0, 0, im.width, 2, im.frames, im.channels);
     while (1) {
         // Collect averages and differences
         Interleave::apply(win, 1, 2, 1);
 
-        for (int t = 0; t < win.frames; t++) {
-            for (int x = 0; x < win.width; x++) {
-                vector<float> saved1st(win.channels);
-                vector<float> saved2nd(win.channels);
+	for (int c = 0; c < win.channels; c++) {
+	    for (int t = 0; t < win.frames; t++) {
+		for (int x = 0; x < win.width; x++) {
+		    float saved1st = win(x, win.height-1, t, c);
+		    float saved2nd = win(x, win.height-2, t, c);
 
-                for (int c = 0; c < win.channels; c++) {
-                    saved1st[c] = win(x, win.height-1, t)[c];
-                    saved2nd[c] = win(x, win.height-2, t)[c];
-                }
-
-                for (int y = win.height-4; y >= 0; y-=2) {
-                    float *a = win(x, y, t);
-                    float *b = win(x, y+1, t);
-                    float *c = win(x, y+2, t);
-                    float *d = win(x, y+3, t);
-                    for (int k = 0; k < win.channels; k++) {
-                        float aVal = a[k];
-                        float bVal = b[k];
-                        float cVal = c[k];
-                        float dVal = d[k];
-                        c[k] = DAUB2 * aVal + DAUB1 * bVal + DAUB0 * cVal + DAUB3 * dVal;
-                        d[k] = DAUB3 * aVal - DAUB0 * bVal + DAUB1 * cVal - DAUB2 * dVal;
+		    for (int y = win.height-4; y >= 0; y-=2) {
+			float a = win(x, y, t, c);
+			float b = win(x, y+1, t, c);
+			float c = win(x, y+2, t, c);
+			float d = win(x, y+3, t, c);
+                        win(x, y+2, t, c) = DAUB2 * a + DAUB1 * b + DAUB0 * c + DAUB3 * d;
+                        win(x, y+3, t, c) = DAUB3 * a - DAUB0 * b + DAUB1 * c - DAUB2 * d;
                     }
-                }
-                // special case the first two elements using rotation
-                float *a = &saved2nd[0];
-                float *b = &saved1st[0];
-                float *c = win(x, 0, t);
-                float *d = win(x, 1, t);
-                for (int k = 0; k < win.channels; k++) {
-                    float aVal = a[k];
-                    float bVal = b[k];
-                    float cVal = c[k];
-                    float dVal = d[k];
-                    c[k] = DAUB2 * aVal + DAUB1 * bVal + DAUB0 * cVal + DAUB3 * dVal;
-                    d[k] = DAUB3 * aVal - DAUB0 * bVal + DAUB1 * cVal - DAUB2 * dVal;
+
+		    // special case the first two elements using rotation
+		    float a = saved2nd;
+		    float b = saved1st;
+		    float c = win(x, 0, t, c);
+		    float d = win(x, 1, t, c);
+                    win(x, 0, t, c) = DAUB2 * a + DAUB1 * b + DAUB0 * c + DAUB3 * d;
+                    win(x, 1, t, c) = DAUB3 * a - DAUB0 * b + DAUB1 * c - DAUB2 * d;
                 }
             }
         }
@@ -425,7 +357,7 @@ void InverseDaubechies::apply(Window im) {
         if (win.height == im.height) { break; }
 
         // repeat on the averages
-        win = Window(im, 0, 0, 0, win.width, win.height*2, win.frames);
+        win = im.region(0, 0, 0, 0, win.width, win.height*2, win.frames, win.channels);
     }
 }
 

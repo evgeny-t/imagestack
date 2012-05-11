@@ -175,6 +175,7 @@ public:
      *   im : image to be filtered.
      *  ref : reference image whose edges are to be respected.
      */
+  /*
     static Image filter(Image im, Image ref) {
 
 
@@ -217,6 +218,7 @@ public:
 
         return out;
     }
+  */
 
     /* Constructor
      *     d_ : dimensionality of key vectors
