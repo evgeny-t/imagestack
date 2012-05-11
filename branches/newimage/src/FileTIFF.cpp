@@ -34,7 +34,7 @@ void help() {
 
 
 template<typename T>
-void readTiff(Image &im, TIFF *tiff, unsigned int divisor) {
+void readTiff(NewImage im, TIFF *tiff, unsigned int divisor) {
     T *buffer = new T[im.channels * im.width];
 
     float multiplier = 1.0f / divisor;
@@ -44,7 +44,7 @@ void readTiff(Image &im, TIFF *tiff, unsigned int divisor) {
                "Failed reading scanline\n");
         for (int x = 0; x < im.width; x++) {
             for (int c = 0; c < im.channels; c++) {
-                im(x, y)[c] = ((float)buffer[x * im.channels + c]) * multiplier;
+		im(x, y, c) = ((float)buffer[x * im.channels + c]) * multiplier;
             }
         }
     }
@@ -52,7 +52,7 @@ void readTiff(Image &im, TIFF *tiff, unsigned int divisor) {
     delete[] buffer;
 }
 
-Image load(string filename) {
+NewImage load(string filename) {
     TIFF *tiff = TIFFOpen(filename.c_str(), "r");
 
     assert(tiff, "Could not open file %s\n", filename.c_str());
@@ -78,7 +78,7 @@ Image load(string filename) {
         sampleFormat = SAMPLEFORMAT_UINT;
     }
 
-    Image im(w, h, 1, c);
+    NewImage im(w, h, 1, c);
     int bytesPerSample = bitsPerSample / 8;
 
     assert(im.channels *im.width *bytesPerSample == TIFFScanlineSize(tiff),
@@ -119,33 +119,30 @@ Image load(string filename) {
 
 
 template<typename T>
-void writeTiff(Window im, TIFF *tiff, unsigned int multiplier) {
-
+void writeTiff(NewImage im, TIFF *tiff, unsigned int multiplier) {
 
     double minval = (double)std::numeric_limits<T>::min();
     double maxval = (double)std::numeric_limits<T>::max();
 
     bool clamped = false;
 
-    T *buffer = new T[im.width * im.channels];
+    vector<T> buffer(im.width * im.channels);
     for (int y = 0; y < im.height; y++) {
         for (int x = 0; x < im.width; x++) {
             for (int c = 0; c < im.channels; c++) {
-                double out = im(x, y)[c] * multiplier;
+                double out = im(x, y, c) * multiplier;
                 if (out < minval) {clamped = true; out = minval;}
                 if (out > maxval) {clamped = true; out = maxval;}
-                buffer[x *im.channels + c] = (T)(out);
+                buffer[x*im.channels + c] = (T)(out);
             }
         }
-        TIFFWriteScanline(tiff, buffer, y, 1);
+        TIFFWriteScanline(tiff, &buffer[0], y, 1);
     }
-
-    delete[] buffer;
 
     if (clamped) { printf("WARNING: Data exceeded the range [0, 1], so was clamped on writing.\n"); }
 }
 
-void save(Window im, string filename, string type) {
+void save(NewImage im, string filename, string type) {
     // Open 16-bit TIFF file for writing
     TIFF *tiff = TIFFOpen(filename.c_str(), "w");
     assert(tiff, "Could not open file %s\n", filename.c_str());
