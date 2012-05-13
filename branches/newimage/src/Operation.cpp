@@ -43,6 +43,7 @@
 // add your operation to the operations table here
 void loadOperations() {
     operationMap["-help"] = new Help();
+    operationMap["-test"] = new Test();
 
     // program control
     operationMap["-loop"] = new Loop();
@@ -265,7 +266,6 @@ void Help::help() {
             "Operations available are:\n");
 
     OperationMapIterator i;
-
     for (i = operationMap.begin(); i != operationMap.end(); ++i) {
         printf("%s", i->first.c_str());
         printf(" ");
@@ -288,5 +288,39 @@ void Help::parse(vector<string> args) {
         }
     }
 }
+
+void Test::help() {
+    pprintf("-test runs the test suite for the operation given by the first"
+	    " argument. If no argument is given, all operations are tested (which"
+            " may take some time).\n");    
+}
+
+void Test::parse(vector<string> args) {
+    if (args.size() == 0) {
+        OperationMapIterator i;
+        for (i = operationMap.begin(); i != operationMap.end(); ++i) {
+            apply(i->first, i->second);
+        }
+    } else {
+        for (size_t i = 0; i < args.size(); i++) {
+            string opname = '-' + args[i];
+            OperationMapIterator op = operationMap.find(opname);
+            if (op == operationMap.end()) {
+                printf("No such operation \"%s\"\n", args[i].c_str());
+            } else {
+                apply(args[i], op->second);
+            }
+        }
+    }
+}
+
+void Test::apply(string name, Operation *op) {
+    printf("Testing %s\n", name.c_str());
+    if (op->test()) {
+        printf("Passed\n");
+    } else {
+        printf("*** Failed\n\n");
+    }
+};
 
 #include "footer.h"
