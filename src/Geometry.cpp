@@ -29,14 +29,14 @@ void Upsample::parse(vector<string> args) {
         boxWidth = boxHeight = readInt(args[0]);
     }
 
-    NewImage im = apply(stack(0), boxWidth, boxHeight, boxFrames);
+    Image im = apply(stack(0), boxWidth, boxHeight, boxFrames);
     pop();
     push(im);
 }
 
-NewImage Upsample::apply(NewImage im, int boxWidth, int boxHeight, int boxFrames) {
+Image Upsample::apply(Image im, int boxWidth, int boxHeight, int boxFrames) {
 
-    NewImage out(im.width*boxWidth, im.height*boxHeight, im.frames*boxFrames, im.channels);
+    Image out(im.width*boxWidth, im.height*boxHeight, im.frames*boxFrames, im.channels);
 
     for (int c = 0; c < im.channels; c++) {
         for (int t = 0; t < out.frames; t++) {
@@ -79,12 +79,12 @@ void Downsample::parse(vector<string> args) {
         boxWidth = boxHeight = readInt(args[0]);
     }
 
-    NewImage im = apply(stack(0), boxWidth, boxHeight, boxFrames);
+    Image im = apply(stack(0), boxWidth, boxHeight, boxFrames);
     pop();
     push(im);
 }
 
-NewImage Downsample::apply(NewImage im, int boxWidth, int boxHeight, int boxFrames) {
+Image Downsample::apply(Image im, int boxWidth, int boxHeight, int boxFrames) {
 
     if (!((im.width % boxWidth == 0) && (im.height % boxHeight == 0) && (im.frames % boxFrames == 0))) {
         printf("Warning: Image dimensions are not a multiple of the downsample size. Ignoring some pixels.\n");        
@@ -95,7 +95,7 @@ NewImage Downsample::apply(NewImage im, int boxWidth, int boxHeight, int boxFram
     int newFrames = im.frames / boxFrames;
     float scale = 1.0f / (boxWidth * boxHeight * boxFrames);
 
-    NewImage out(newWidth, newHeight, newFrames, im.channels);
+    Image out(newWidth, newHeight, newFrames, im.channels);
 
     for (int c = 0; c < out.channels; c++) {
         for (int t = 0; t < out.frames; t++) {
@@ -129,11 +129,11 @@ void Resample::help() {
 void Resample::parse(vector<string> args) {
 
     if (args.size() == 2) {
-        NewImage im = apply(stack(0), readInt(args[0]), readInt(args[1]));
+        Image im = apply(stack(0), readInt(args[0]), readInt(args[1]));
         pop();
         push(im);
     } else if (args.size() == 3) {
-        NewImage im = apply(stack(0), readInt(args[0]), readInt(args[1]), readInt(args[2]));
+        Image im = apply(stack(0), readInt(args[0]), readInt(args[1]), readInt(args[2]));
         pop();
         push(im);
     } else {
@@ -142,9 +142,9 @@ void Resample::parse(vector<string> args) {
 
 }
 
-NewImage Resample::apply(NewImage im, int width, int height) {
+Image Resample::apply(Image im, int width, int height) {
     if (height != im.height && width != im.width) {
-        NewImage tmp = resampleY(im, height);
+        Image tmp = resampleY(im, height);
         return resampleX(tmp, width);
     } else if (width != im.width) {
         return resampleX(im, width);
@@ -154,9 +154,9 @@ NewImage Resample::apply(NewImage im, int width, int height) {
     return im;
 }
 
-NewImage Resample::apply(NewImage im, int width, int height, int frames) {
+Image Resample::apply(Image im, int width, int height, int frames) {
     if (frames != im.frames) {
-        NewImage tmp = resampleT(im, frames);
+        Image tmp = resampleT(im, frames);
         return apply(tmp, width, height);
     } else {
         return apply(im, width, height);
@@ -197,12 +197,12 @@ void Resample::computeWeights(int oldSize, int newSize, vector<vector<pair<int, 
     }
 }
 
-NewImage Resample::resampleX(NewImage im, int width) {
+Image Resample::resampleX(Image im, int width) {
 
     vector<vector<pair<int, float> > > matrix;
     computeWeights(im.width, width, matrix);
 
-    NewImage out(width, im.height, im.frames, im.channels);
+    Image out(width, im.height, im.frames, im.channels);
 
     for (int c = 0; c < out.channels; c++) {
         for (int t = 0; t < out.frames; t++) {
@@ -221,11 +221,11 @@ NewImage Resample::resampleX(NewImage im, int width) {
     return out;
 }
 
-NewImage Resample::resampleY(NewImage im, int height) {
+Image Resample::resampleY(Image im, int height) {
     vector<vector<pair<int, float> > > matrix;
     computeWeights(im.height, height, matrix);
 
-    NewImage out(im.width, height, im.frames, im.channels);
+    Image out(im.width, height, im.frames, im.channels);
 
     for (int c = 0; c < out.channels; c++) {
         for (int t = 0; t < out.frames; t++) {
@@ -244,11 +244,11 @@ NewImage Resample::resampleY(NewImage im, int height) {
     return out;
 }
 
-NewImage Resample::resampleT(NewImage im, int frames) {
+Image Resample::resampleT(Image im, int frames) {
     vector<vector<pair<int, float> > > matrix;
     computeWeights(im.frames, frames, matrix);
 
-    NewImage out(im.width, im.height, frames, im.channels);
+    Image out(im.width, im.height, frames, im.channels);
 
     for (int c = 0; c < out.channels; c++) {
         for (int t = 0; t < out.frames; t++) {
@@ -286,7 +286,7 @@ void Interleave::parse(vector<string> args) {
     }
 }
 
-void Interleave::apply(NewImage im, int rx, int ry, int rt) {
+void Interleave::apply(Image im, int rx, int ry, int rt) {
     assert(rt >= 1 && rx >= 1 && ry >= 1, "arguments to interleave must be strictly positive integers\n");
 
     // interleave in t
@@ -376,7 +376,7 @@ void Deinterleave::parse(vector<string> args) {
     }
 }
 
-void Deinterleave::apply(NewImage im, int rx, int ry, int rt) {
+void Deinterleave::apply(Image im, int rx, int ry, int rt) {
     assert(rt >= 1 && rx >= 1 && ry >= 1, "arguments to deinterleave must be strictly positive integers\n");
 
     // interleave in t
@@ -460,13 +460,13 @@ void Rotate::help() {
 
 void Rotate::parse(vector<string> args) {
     assert(args.size() == 1, "-rotate takes one argument\n");
-    NewImage im = apply(stack(0), readFloat(args[0]));
+    Image im = apply(stack(0), readFloat(args[0]));
     pop();
     push(im);
 }
 
 
-NewImage Rotate::apply(NewImage im, float degrees) {
+Image Rotate::apply(Image im, float degrees) {
 
     // figure out the rotation matrix
     float radians = degrees * M_PI / 180;
@@ -481,7 +481,7 @@ NewImage Rotate::apply(NewImage im, float degrees) {
     float xorigin = (im.width-1) * 0.5;
     float yorigin = (im.height-1) * 0.5;
 
-    NewImage out(im.width, im.height, im.frames, im.channels);
+    Image out(im.width, im.height, im.frames, im.channels);
 
     vector<float> sample(im.channels);
 
@@ -519,14 +519,14 @@ void AffineWarp::parse(vector<string> args) {
     assert(args.size() == 6, "-affinewarp takes six arguments\n");
     vector<double> matrix(6);
     for (int i = 0; i < 6; i++) { matrix[i] = readFloat(args[i]); }
-    NewImage im = apply(stack(0), matrix);
+    Image im = apply(stack(0), matrix);
     pop();
     push(im);
 }
 
-NewImage AffineWarp::apply(NewImage im, vector<double> matrix) {
+Image AffineWarp::apply(Image im, vector<double> matrix) {
 
-    NewImage out(im.width, im.height, im.frames, im.channels);
+    Image out(im.width, im.height, im.frames, im.channels);
 
     vector<float> sample(im.channels);
     for (int t = 0; t < im.frames; t++) {
@@ -569,7 +569,7 @@ void Crop::help() {
 
 void Crop::parse(vector<string> args) {
 
-    NewImage im;
+    Image im;
 
     if (args.size() == 0) {
         im = apply(stack(0));
@@ -593,7 +593,7 @@ void Crop::parse(vector<string> args) {
     push(im);
 }
 
-NewImage Crop::apply(NewImage im) {
+Image Crop::apply(Image im) {
     int minX, maxX, minY, maxY, minT, maxT;
 
     // calculate minX
@@ -678,16 +678,16 @@ maxTdone:
 
 }
 
-NewImage Crop::apply(NewImage im, int minX, int minY, int width, int height) {
+Image Crop::apply(Image im, int minX, int minY, int width, int height) {
     return apply(im,
                  minX, minY, 0,
                  width, height, im.frames);
 }
 
 
-NewImage Crop::apply(NewImage im, int minX, int minY, int minT,
+Image Crop::apply(Image im, int minX, int minY, int minT,
                   int width, int height, int frames) {
-    NewImage out(width, height, frames, im.channels);
+    Image out(width, height, frames, im.channels);
 
     for (int c = 0; c < im.channels; c++) {
         for (int t = max(0, -minT); t < min(frames, im.frames - minT); t++) {
@@ -714,7 +714,7 @@ void Flip::parse(vector<string> args) {
     apply(stack(0), dimension);
 }
 
-void Flip::apply(NewImage im, char dimension) {
+void Flip::apply(Image im, char dimension) {
     if (dimension == 't') {
         for (int c = 0; c < im.channels; c++) {
             for (int t = 0; t < im.frames/2; t++) {
@@ -760,14 +760,14 @@ void Adjoin::help() {
 void Adjoin::parse(vector<string> args) {
     assert(args.size() == 1, "-adjoin takes exactly one argument\n");
     char dimension = readChar(args[0]);
-    NewImage im = apply(stack(1), stack(0), dimension);
+    Image im = apply(stack(1), stack(0), dimension);
     pop();
     pop();
     push(im);
 }
 
 
-NewImage Adjoin::apply(NewImage a, NewImage b, char dimension) {
+Image Adjoin::apply(Image a, Image b, char dimension) {
     int newFrames = a.frames, newWidth = a.width, newHeight = a.height, newChannels = a.channels;
     int tOff = 0, xOff = 0, yOff = 0, cOff = 0;
 
@@ -803,7 +803,7 @@ NewImage Adjoin::apply(NewImage a, NewImage b, char dimension) {
         panic("-adjoin only understands dimensions 'x', 'y', and 't'\n");
     }
 
-    NewImage out(newWidth, newHeight, newFrames, newChannels);
+    Image out(newWidth, newHeight, newFrames, newChannels);
     // paste in the first image
     for (int c = 0; c < a.channels; c++) {
         for (int t = 0; t < a.frames; t++) {
@@ -838,26 +838,26 @@ void Transpose::help() {
 void Transpose::parse(vector<string> args) {
     assert(args.size() == 0 || args.size() == 2, "-transpose takes either zero or two arguments\n");
     if (args.size() == 0) {
-        NewImage im = apply(stack(0), 'x', 'y');
+        Image im = apply(stack(0), 'x', 'y');
         pop();
         push(im);
     } else {
         char arg1 = readChar(args[0]);
         char arg2 = readChar(args[1]);
-        NewImage im = apply(stack(0), arg1, arg2);
+        Image im = apply(stack(0), arg1, arg2);
         pop();
         push(im);
     }
 }
 
 
-NewImage Transpose::apply(NewImage im, char arg1, char arg2) {
+Image Transpose::apply(Image im, char arg1, char arg2) {
 
     char dim1 = min(arg1, arg2);
     char dim2 = max(arg1, arg2);
 
     if (dim1 == 'c' && dim2 == 'y') {
-        NewImage out(im.width, im.channels, im.frames, im.height);
+        Image out(im.width, im.channels, im.frames, im.height);
         for (int c = 0; c < im.channels; c++) {                        
             for (int t = 0; t < im.frames; t++) {
                 for (int y = 0; y < im.height; y++) {
@@ -869,7 +869,7 @@ NewImage Transpose::apply(NewImage im, char arg1, char arg2) {
         }
         return out;
     } else if (dim1 == 'c' && dim2 == 't') {
-        NewImage out(im.width, im.height, im.channels, im.frames);
+        Image out(im.width, im.height, im.channels, im.frames);
         for (int c = 0; c < im.channels; c++) {
             for (int t = 0; t < im.frames; t++) {
                 for (int y = 0; y < im.height; y++) {
@@ -881,7 +881,7 @@ NewImage Transpose::apply(NewImage im, char arg1, char arg2) {
         }
         return out;
     } else if (dim1 == 'c' && dim2 == 'x') {
-        NewImage out(im.channels, im.height, im.frames, im.width);
+        Image out(im.channels, im.height, im.frames, im.width);
         for (int c = 0; c < im.channels; c++) {                        
             for (int t = 0; t < im.frames; t++) {
                 for (int y = 0; y < im.height; y++) {
@@ -894,7 +894,7 @@ NewImage Transpose::apply(NewImage im, char arg1, char arg2) {
         return out;
     } else if (dim1 == 'x' && dim2 == 'y') {
 
-        NewImage out(im.height, im.width, im.frames, im.channels);
+        Image out(im.height, im.width, im.frames, im.channels);
         for (int c = 0; c < im.channels; c++) {                        
             for (int t = 0; t < im.frames; t++) {
                 for (int y = 0; y < im.height; y++) {
@@ -907,7 +907,7 @@ NewImage Transpose::apply(NewImage im, char arg1, char arg2) {
         return out;
 
     } else if (dim1 == 't' && dim2 == 'x') {
-        NewImage out(im.frames, im.height, im.width, im.channels);
+        Image out(im.frames, im.height, im.width, im.channels);
         for (int c = 0; c < im.channels; c++) {
             for (int t = 0; t < im.frames; t++) {
                 for (int y = 0; y < im.height; y++) {
@@ -919,7 +919,7 @@ NewImage Transpose::apply(NewImage im, char arg1, char arg2) {
         }
         return out;
     } else if (dim1 == 't' && dim2 == 'y') {
-        NewImage out(im.width, im.frames, im.height, im.channels);
+        Image out(im.width, im.frames, im.height, im.channels);
         for (int c = 0; c < im.channels; c++) {
             for (int t = 0; t < im.frames; t++) {
                 for (int y = 0; y < im.height; y++) {
@@ -935,7 +935,7 @@ NewImage Transpose::apply(NewImage im, char arg1, char arg2) {
     }
 
     // keep compiler happy
-    return NewImage();
+    return Image();
 
 }
 
@@ -952,11 +952,11 @@ void Translate::help() {
 
 void Translate::parse(vector<string> args) {
     if (args.size() == 2) {
-        NewImage im = apply(stack(0), readFloat(args[0]), readFloat(args[1]), 0);
+        Image im = apply(stack(0), readFloat(args[0]), readFloat(args[1]), 0);
         pop();
         push(im);
     } else if (args.size() == 3) {
-        NewImage im = apply(stack(0), readFloat(args[0]), readFloat(args[1]), readFloat(args[2]));
+        Image im = apply(stack(0), readFloat(args[0]), readFloat(args[1]), readFloat(args[2]));
         pop();
         push(im);
     } else {
@@ -964,9 +964,9 @@ void Translate::parse(vector<string> args) {
     }
 }
 
-NewImage Translate::apply(NewImage im, float xoff, float yoff, float toff) {
-    NewImage current = im;
-    NewImage out;
+Image Translate::apply(Image im, float xoff, float yoff, float toff) {
+    Image current = im;
+    Image out;
 
     // First do any non-integer translations
     if (xoff != floorf(xoff)) {
@@ -991,7 +991,7 @@ NewImage Translate::apply(NewImage im, float xoff, float yoff, float toff) {
     return Crop::apply(current, -xoff, -yoff, -toff, im.width, im.height, im.frames);
 }
 
-NewImage Translate::applyX(NewImage im, float xoff) {
+Image Translate::applyX(Image im, float xoff) {
     int ix = floorf(xoff);
     float fx = xoff - ix;
     // compute a 6-tap lanczos kernel
@@ -1003,7 +1003,7 @@ NewImage Translate::applyX(NewImage im, float xoff) {
     kernel[4] = lanczos_3(1 + fx);
     kernel[5] = lanczos_3(2 + fx);
 
-    NewImage out(im.width, im.height, im.frames, im.channels);
+    Image out(im.width, im.height, im.frames, im.channels);
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
             for (int x = 0; x < im.width; x++) {
@@ -1022,7 +1022,7 @@ NewImage Translate::applyX(NewImage im, float xoff) {
     return out;
 }
 
-NewImage Translate::applyY(NewImage im, float yoff) {
+Image Translate::applyY(Image im, float yoff) {
     int iy = floorf(yoff);
     float fy = yoff - iy;
     // compute a 6-tap lanczos kernel
@@ -1034,7 +1034,7 @@ NewImage Translate::applyY(NewImage im, float yoff) {
     kernel[4] = lanczos_3(1 + fy);
     kernel[5] = lanczos_3(2 + fy);
 
-    NewImage out(im.width, im.height, im.frames, im.channels);
+    Image out(im.width, im.height, im.frames, im.channels);
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
             for (int ky = -3; ky < 3; ky++) {
@@ -1053,7 +1053,7 @@ NewImage Translate::applyY(NewImage im, float yoff) {
     return out;
 }
 
-NewImage Translate::applyT(NewImage im, float toff) {
+Image Translate::applyT(Image im, float toff) {
     int it = floorf(toff);
     float ft = toff - it;
     // compute a 6-tap lanczos kernel
@@ -1065,7 +1065,7 @@ NewImage Translate::applyT(NewImage im, float toff) {
     kernel[4] = lanczos_3(1 + ft);
     kernel[5] = lanczos_3(2 + ft);
 
-    NewImage out(im.width, im.height, im.frames, im.channels);
+    Image out(im.width, im.height, im.frames, im.channels);
     for (int t = 0; t < im.frames; t++) {
         for (int kt = -3; kt < 3; kt++) {
             int imt = t - it + kt;
@@ -1142,7 +1142,7 @@ void Paste::parse(vector<string> args) {
 }
 
 
-void Paste::apply(NewImage into, NewImage from,
+void Paste::apply(Image into, Image from,
                   int xdst, int ydst,
                   int xsrc, int ysrc,
                   int width, int height) {
@@ -1152,7 +1152,7 @@ void Paste::apply(NewImage into, NewImage from,
           width, height, from.frames);
 }
 
-void Paste::apply(NewImage into, NewImage from,
+void Paste::apply(Image into, Image from,
                   int xdst, int ydst, int tdst) {
     apply(into, from,
           xdst, ydst, tdst,
@@ -1160,7 +1160,7 @@ void Paste::apply(NewImage into, NewImage from,
           from.width, from.height, from.frames);
 }
 
-void Paste::apply(NewImage into, NewImage from,
+void Paste::apply(Image into, Image from,
                   int xdst, int ydst, int tdst,
                   int xsrc, int ysrc, int tsrc,
                   int width, int height, int frames) {
@@ -1211,14 +1211,14 @@ void Tile::parse(vector<string> args) {
     } else {
         panic("-tile takes two or three arguments\n");
     }
-    NewImage im = apply(stack(0), xRepeat, yRepeat, tRepeat);
+    Image im = apply(stack(0), xRepeat, yRepeat, tRepeat);
     pop();
     push(im);
 }
 
-NewImage Tile::apply(NewImage im, int xRepeat, int yRepeat, int tRepeat) {
+Image Tile::apply(Image im, int xRepeat, int yRepeat, int tRepeat) {
 
-    NewImage out(im.width * xRepeat, im.height * yRepeat, im.frames * tRepeat, im.channels);
+    Image out(im.width * xRepeat, im.height * yRepeat, im.frames * tRepeat, im.channels);
 
     for (int c = 0; c < im.channels; c++) {                    
         for (int t = 0; t < im.frames * tRepeat; t++) {
@@ -1248,14 +1248,14 @@ void Subsample::help() {
 
 void Subsample::parse(vector<string> args) {
     if (args.size() == 2) {
-        NewImage im = apply(stack(0), readInt(args[0]), readInt(args[1]));
+        Image im = apply(stack(0), readInt(args[0]), readInt(args[1]));
         pop(); push(im);
     } else if (args.size() == 4) {
-        NewImage im = apply(stack(0), readInt(args[0]), readInt(args[1]),
+        Image im = apply(stack(0), readInt(args[0]), readInt(args[1]),
                          readInt(args[2]), readInt(args[3]));
         pop(); push(im);
     } else if (args.size() == 6) {
-        NewImage im = apply(stack(0), readInt(args[0]), readInt(args[1]), readInt(args[2]),
+        Image im = apply(stack(0), readInt(args[0]), readInt(args[1]), readInt(args[2]),
                          readInt(args[3]), readInt(args[4]), readInt(args[5]));
         pop(); push(im);
     } else {
@@ -1263,16 +1263,16 @@ void Subsample::parse(vector<string> args) {
     }
 }
 
-NewImage Subsample::apply(NewImage im, int boxFrames, int offsetT) {
+Image Subsample::apply(Image im, int boxFrames, int offsetT) {
     return apply(im, 1, 1, boxFrames, 0, 0, offsetT);
 }
 
-NewImage Subsample::apply(NewImage im, int boxWidth, int boxHeight,
+Image Subsample::apply(Image im, int boxWidth, int boxHeight,
                        int offsetX, int offsetY) {
     return apply(im, boxWidth, boxHeight, 1, offsetX, offsetY, 0);
 }
 
-NewImage Subsample::apply(NewImage im, int boxWidth, int boxHeight, int boxFrames,
+Image Subsample::apply(Image im, int boxWidth, int boxHeight, int boxFrames,
                        int offsetX, int offsetY, int offsetT) {
 
     int newFrames = 0, newWidth = 0, newHeight = 0;
@@ -1280,7 +1280,7 @@ NewImage Subsample::apply(NewImage im, int boxWidth, int boxHeight, int boxFrame
     for (int x = offsetX; x < im.width;  x += boxWidth) { newWidth++; }
     for (int y = offsetY; y < im.height; y += boxHeight) { newHeight++; }
 
-    NewImage out(newWidth, newHeight, newFrames, im.channels);
+    Image out(newWidth, newHeight, newFrames, im.channels);
 
     for (int c = 0; c < im.channels; c++) {
         int outT = 0;
@@ -1313,18 +1313,18 @@ void TileFrames::help() {
 void TileFrames::parse(vector<string> args) {
     assert(args.size() == 2, "-tileframes takes two arguments\n");
 
-    NewImage im = apply(stack(0), readInt(args[0]), readInt(args[1]));
+    Image im = apply(stack(0), readInt(args[0]), readInt(args[1]));
     pop();
     push(im);
 }
 
-NewImage TileFrames::apply(NewImage im, int xTiles, int yTiles) {
+Image TileFrames::apply(Image im, int xTiles, int yTiles) {
 
     int newWidth = im.width * xTiles;
     int newHeight = im.height * yTiles;
     int newFrames = (int)(ceil((float)im.frames / (xTiles * yTiles)));
 
-    NewImage out(newWidth, newHeight, newFrames, im.channels);
+    Image out(newWidth, newHeight, newFrames, im.channels);
 
     for (int c = 0; c < im.channels; c++) {
         for (int t = 0; t < newFrames; t++) {
@@ -1359,12 +1359,12 @@ void FrameTiles::help() {
 void FrameTiles::parse(vector<string> args) {
     assert(args.size() == 2, "-frametiles takes two arguments\n");
 
-    NewImage im = apply(stack(0), readInt(args[0]), readInt(args[1]));
+    Image im = apply(stack(0), readInt(args[0]), readInt(args[1]));
     pop();
     push(im);
 }
 
-NewImage FrameTiles::apply(NewImage im, int xTiles, int yTiles) {
+Image FrameTiles::apply(Image im, int xTiles, int yTiles) {
 
     assert(im.width % xTiles == 0 &&
            im.height % yTiles == 0,
@@ -1374,7 +1374,7 @@ NewImage FrameTiles::apply(NewImage im, int xTiles, int yTiles) {
     int newHeight = im.height / yTiles;
     int newFrames = im.frames * xTiles * yTiles;
 
-    NewImage out(newWidth, newHeight, newFrames, im.channels);
+    Image out(newWidth, newHeight, newFrames, im.channels);
 
     for (int c = 0; c < im.channels; c++) {                            
         for (int t = 0; t < im.frames; t++) {
@@ -1409,15 +1409,15 @@ void Warp::help() {
 
 void Warp::parse(vector<string> args) {
     assert(args.size() == 0, "warp takes no arguments\n");
-    NewImage im = apply(stack(0), stack(1));
+    Image im = apply(stack(0), stack(1));
     pop();
     pop();
     push(im);
 }
 
-NewImage Warp::apply(NewImage coords, NewImage source) {
+Image Warp::apply(Image coords, Image source) {
 
-    NewImage out(coords.width, coords.height, coords.frames, source.channels);
+    Image out(coords.width, coords.height, coords.frames, source.channels);
     
     vector<float> sample(out.channels);
     if (coords.channels == 3) {
@@ -1462,7 +1462,7 @@ void Reshape::help() {
 
 void Reshape::parse(vector<string> args) {
     assert(args.size() == 4, "-reshape takes four arguments\n");
-    NewImage im = apply(stack(0),
+    Image im = apply(stack(0),
                      readInt(args[0]), readInt(args[1]),
                      readInt(args[2]), readInt(args[3]));
     pop();
@@ -1470,11 +1470,11 @@ void Reshape::parse(vector<string> args) {
 
 }
 
-NewImage Reshape::apply(NewImage im, int x, int y, int t, int c) {
+Image Reshape::apply(Image im, int x, int y, int t, int c) {
     assert(t * x * y * c == im.frames * im.width * im.height * im.channels,
            "New shape uses a different amount of memory that the old shape.\n");
     assert(im.dense(), "Input image is not densely packed in memory");
-    NewImage out = im.copy();
+    Image out = im.copy();
     
     out.frames = t;
     out.width = x;

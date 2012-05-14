@@ -8,16 +8,16 @@ void Sinugram::help() {
 
 void Sinugram::parse(vector<string> args) {
     assert(args.size() == 1, "-sinugram takes one argument");
-    NewImage im = apply(stack(0), readInt(args[0]));
+    Image im = apply(stack(0), readInt(args[0]));
     pop();
     push(im);
 }
 
-NewImage Sinugram::apply(NewImage im, int directions) {
+Image Sinugram::apply(Image im, int directions) {
     int outWidth = (int)(ceil(sqrtf(im.width * im.width + im.height * im.height)));
 
-    NewImage out(outWidth, directions, im.frames, im.channels);
-    NewImage weight(outWidth, directions, im.frames, 1);
+    Image out(outWidth, directions, im.frames, im.channels);
+    Image weight(outWidth, directions, im.frames, 1);
 
     for (int t = 0; t < out.frames; t++) {
         for (int d = 0; d < directions; d++) {

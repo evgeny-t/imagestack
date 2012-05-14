@@ -15,12 +15,12 @@ void Inpaint::help() {
 
 void Inpaint::parse(vector<string> args) {
     assert(args.size() == 0, "-inpaint takes no arguments\n");
-    NewImage im = apply(stack(0), stack(1));
+    Image im = apply(stack(0), stack(1));
     pop();
     push(im);
 }
 
-NewImage Inpaint::apply(NewImage im, NewImage mask) {
+Image Inpaint::apply(Image im, Image mask) {
     assert(im.width == mask.width &&
            im.height == mask.height &&
            im.frames == mask.frames,
@@ -28,7 +28,7 @@ NewImage Inpaint::apply(NewImage im, NewImage mask) {
     assert(mask.channels == 1,
            "mask must have one channel\n");
 
-    NewImage out(im.width, im.height, im.frames, im.channels);
+    Image out(im.width, im.height, im.frames, im.channels);
 
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {

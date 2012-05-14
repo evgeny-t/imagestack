@@ -46,11 +46,11 @@ using ::std::swap;
 #include "header.h"
 
 // Below are the data structures and functions available to operations:
-class NewImage;
+class Image;
 
 // Deal with the stack of images that gives this program its name
-NewImage &stack(size_t index);
-void push(NewImage);
+Image &stack(size_t index);
+void push(Image);
 void pop();
 void dup();
 void pull(size_t);

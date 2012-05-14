@@ -20,12 +20,12 @@ void ColorMatrix::parse(vector<string> args) {
         matrix[i] = readFloat(args[i]);
     }
 
-    NewImage im = apply(stack(0), matrix);
+    Image im = apply(stack(0), matrix);
     pop();
     push(im);
 }
 
-NewImage ColorMatrix::apply(NewImage im, vector<float> matrix) {
+Image ColorMatrix::apply(Image im, vector<float> matrix) {
     assert(matrix.size() % im.channels == 0,
            "-colormatrix requires a number of arguments that is a multiple of the number of\n"
            "channels of the current image\n");
@@ -33,7 +33,7 @@ NewImage ColorMatrix::apply(NewImage im, vector<float> matrix) {
     int inChannels = im.channels;
     int outChannels = (int)matrix.size() / inChannels;
 
-    NewImage out(im.width, im.height, im.frames, outChannels);
+    Image out(im.width, im.height, im.frames, outChannels);
 
     for (int i = 0; i < out.channels; i++) {
         for (int t = 0; t < im.frames; t++) {
@@ -64,12 +64,12 @@ void ColorConvert::help() {
 
 void ColorConvert::parse(vector<string> args) {
     assert(args.size() == 2, "-colorconvert requires two arguments\n");
-    NewImage im = apply(stack(0), args[0], args[1]);
+    Image im = apply(stack(0), args[0], args[1]);
     pop();
     push(im);
 }
 
-NewImage ColorConvert::apply(NewImage im, string from, string to) {
+Image ColorConvert::apply(Image im, string from, string to) {
     // check for the trivial case
     assert(from != to, "color conversion from %s to %s is pointless\n", from.c_str(), to.c_str());
 
@@ -94,7 +94,7 @@ NewImage ColorConvert::apply(NewImage im, string from, string to) {
         return xyz2argb(im);
     } else if (from != "rgb" && to != "rgb") {
         // conversions that go through rgb
-        NewImage halfway = apply(im, from, "rgb");
+        Image halfway = apply(im, from, "rgb");
         return apply(halfway, "rgb", to);
     } else if (from == "rgb") { // from rgb
         if (to == "hsv" || to == "hsl" || to == "hsb") {
@@ -137,17 +137,17 @@ NewImage ColorConvert::apply(NewImage im, string from, string to) {
     }
 
     // keep the compiler happy
-    return NewImage();
+    return Image();
 
 }
 
 //conversions to and from lab inspired by CImg (http://cimg.sourceforge.net/)
-NewImage ColorConvert::xyz2lab(NewImage im) {
+Image ColorConvert::xyz2lab(Image im) {
 #define labf(x)  ((x)>=0.008856?(powf(x,1/3.0)):(7.787*(x)+16.0/116.0))
 
     assert(im.channels == 3, "Image does not have 3 channels\n");
 
-    NewImage out(im.width, im.height, im.frames, im.channels);
+    Image out(im.width, im.height, im.frames, im.channels);
 
     //left in this form to allow for changes/fine-tuning
     float Xn = 1.0f/(0.412453 + 0.357580 + 0.180423);
@@ -174,9 +174,9 @@ NewImage ColorConvert::xyz2lab(NewImage im) {
 
 }
 
-NewImage ColorConvert::lab2xyz(NewImage im) {
+Image ColorConvert::lab2xyz(Image im) {
     assert(im.channels == 3, "Image does not have 3 channels\n");
-    NewImage out(im.width, im.height, im.frames, im.channels);
+    Image out(im.width, im.height, im.frames, im.channels);
 
     float s = 6.0/29;
 
@@ -221,24 +221,24 @@ NewImage ColorConvert::lab2xyz(NewImage im) {
     return out;
 }
 
-NewImage ColorConvert::rgb2lab(NewImage im) {
+Image ColorConvert::rgb2lab(Image im) {
     assert(im.channels == 3, "Image does not have 3 channels\n");
 
     return xyz2lab(rgb2xyz(im));
 }
 
-NewImage ColorConvert::lab2rgb(NewImage im) {
+Image ColorConvert::lab2rgb(Image im) {
     assert(im.channels == 3, "Image does not have 3 channels\n");
     return xyz2rgb(lab2xyz(im));
 }
 
 
-NewImage ColorConvert::rgb2hsv(NewImage im) {
+Image ColorConvert::rgb2hsv(Image im) {
     assert(im.channels == 3, "Image does not have 3 channels\n");
 
     float mult = 1.0f / 6;
 
-    NewImage out(im.width, im.height, im.frames, im.channels);
+    Image out(im.width, im.height, im.frames, im.channels);
 
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
@@ -278,10 +278,10 @@ NewImage ColorConvert::rgb2hsv(NewImage im) {
     return out;
 }
 
-NewImage ColorConvert::hsv2rgb(NewImage im) {
+Image ColorConvert::hsv2rgb(Image im) {
     assert(im.channels == 3, "Image does not have 3 channels\n");
 
-    NewImage out(im.width, im.height, im.frames, im.channels);
+    Image out(im.width, im.height, im.frames, im.channels);
 
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
@@ -343,10 +343,10 @@ NewImage ColorConvert::hsv2rgb(NewImage im) {
     return out;
 }
 
-NewImage ColorConvert::rgb2y(NewImage im) {
+Image ColorConvert::rgb2y(Image im) {
     assert(im.channels == 3, "Image does not have 3 channels\n");
 
-    NewImage out(im.width, im.height, im.frames, 1);
+    Image out(im.width, im.height, im.frames, 1);
 
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
@@ -362,10 +362,10 @@ NewImage ColorConvert::rgb2y(NewImage im) {
 
 }
 
-NewImage ColorConvert::y2rgb(NewImage im) {
+Image ColorConvert::y2rgb(Image im) {
     assert(im.channels == 1, "Image does not have one channel\n");
 
-    NewImage out(im.width, im.height, im.frames, 3);
+    Image out(im.width, im.height, im.frames, 3);
 
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
@@ -378,9 +378,9 @@ NewImage ColorConvert::y2rgb(NewImage im) {
     return out;
 }
 
-NewImage ColorConvert::rgb2yuv(NewImage im) {
+Image ColorConvert::rgb2yuv(Image im) {
     assert(im.channels == 3, "Image does not have 3 channels\n");
-    NewImage out(im.width, im.height, im.frames, 3);
+    Image out(im.width, im.height, im.frames, 3);
 
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
@@ -399,10 +399,10 @@ NewImage ColorConvert::rgb2yuv(NewImage im) {
 
 }
 
-NewImage ColorConvert::yuv2rgb(NewImage im) {
+Image ColorConvert::yuv2rgb(Image im) {
     assert(im.channels == 3, "Image does not have 3 channels\n");
 
-    NewImage out(im.width, im.height, im.frames, 3);
+    Image out(im.width, im.height, im.frames, 3);
 
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
@@ -420,10 +420,10 @@ NewImage ColorConvert::yuv2rgb(NewImage im) {
     return out;
 }
 
-NewImage ColorConvert::rgb2xyz(NewImage im) {
+Image ColorConvert::rgb2xyz(Image im) {
     assert(im.channels == 3, "Image does not have 3 channels\n");
 
-    NewImage out(im.width, im.height, im.frames, 3);
+    Image out(im.width, im.height, im.frames, 3);
 
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
@@ -452,10 +452,10 @@ NewImage ColorConvert::rgb2xyz(NewImage im) {
     return out;
 }
 
-NewImage ColorConvert::xyz2rgb(NewImage im) {
+Image ColorConvert::xyz2rgb(Image im) {
     assert(im.channels == 3, "Image does not have 3 channels\n");
 
-    NewImage out(im.width, im.height, im.frames, 3);
+    Image out(im.width, im.height, im.frames, 3);
 
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
@@ -483,7 +483,7 @@ NewImage ColorConvert::xyz2rgb(NewImage im) {
     return out;
 }
 
-NewImage ColorConvert::uyvy2yuv(NewImage im) {
+Image ColorConvert::uyvy2yuv(Image im) {
     assert(im.channels == 2,
            "uyvy images should be stored as a two channel image where the second"
            " channel represents luminance (y), and the first channel alternates"
@@ -491,7 +491,7 @@ NewImage ColorConvert::uyvy2yuv(NewImage im) {
     assert((im.width & 1) == 0,
            "uyvy images must have an even width\n");
 
-    NewImage out(im.width, im.height, im.frames, 3);
+    Image out(im.width, im.height, im.frames, 3);
     for (int t = 0; t < out.frames; t++) {
         for (int y = 0; y < out.height; y++) {
             for (int x = 0; x < out.width; x+=2) {
@@ -508,7 +508,7 @@ NewImage ColorConvert::uyvy2yuv(NewImage im) {
     return out;
 }
 
-NewImage ColorConvert::yuyv2yuv(NewImage im) {
+Image ColorConvert::yuyv2yuv(Image im) {
     assert(im.channels == 2,
            "yuyv images should be stored as a two channel image where the first"
            " channel represents luminance (y), and the second channel alternates"
@@ -516,7 +516,7 @@ NewImage ColorConvert::yuyv2yuv(NewImage im) {
     assert((im.width & 1) == 0,
            "uyvy images must have an even width\n");
 
-    NewImage out(im.width, im.height, im.frames, 3);
+    Image out(im.width, im.height, im.frames, 3);
     for (int t = 0; t < out.frames; t++) {
         for (int y = 0; y < out.height; y++) {
             for (int x = 0; x < out.width; x+=2) {
@@ -533,18 +533,18 @@ NewImage ColorConvert::yuyv2yuv(NewImage im) {
     return out;
 }
 
-NewImage ColorConvert::uyvy2rgb(NewImage im) {
+Image ColorConvert::uyvy2rgb(Image im) {
     return yuv2rgb(uyvy2yuv(im));
 }
 
-NewImage ColorConvert::yuyv2rgb(NewImage im) {
+Image ColorConvert::yuyv2rgb(Image im) {
     return yuv2rgb(yuyv2yuv(im));
 }
 
-NewImage ColorConvert::argb2xyz(NewImage im) {
+Image ColorConvert::argb2xyz(Image im) {
     assert(im.channels == 3, "Image does not have 3 channels\n");
 
-    NewImage out(im.width, im.height, im.frames, 3);
+    Image out(im.width, im.height, im.frames, 3);
 
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
@@ -568,10 +568,10 @@ NewImage ColorConvert::argb2xyz(NewImage im) {
     return out;
 }
 
-NewImage ColorConvert::xyz2argb(NewImage im) {
+Image ColorConvert::xyz2argb(Image im) {
     assert(im.channels == 3, "Image does not have 3 channels\n");
 
-    NewImage out(im.width, im.height, im.frames, 3);
+    Image out(im.width, im.height, im.frames, 3);
 
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
@@ -595,11 +595,11 @@ NewImage ColorConvert::xyz2argb(NewImage im) {
     return out;
 }
 
-NewImage ColorConvert::argb2rgb(NewImage im) {
+Image ColorConvert::argb2rgb(Image im) {
     return xyz2rgb(argb2xyz(im));
 }
 
-NewImage ColorConvert::rgb2argb(NewImage im) {
+Image ColorConvert::rgb2argb(Image im) {
     return xyz2argb(rgb2xyz(im));
 }
 
@@ -628,16 +628,16 @@ void Demosaic::parse(vector<string> args) {
     } else {
         panic("-demosaic takes zero, two, or three arguments");
     }
-    NewImage im = apply(stack(0), xoff, yoff, awb);
+    Image im = apply(stack(0), xoff, yoff, awb);
     pop();
     push(im);
 }
 
-NewImage Demosaic::apply(NewImage im, int xoff, int yoff, bool awb) {
+Image Demosaic::apply(Image im, int xoff, int yoff, bool awb) {
 
     assert(im.channels == 1, "Mosaiced images should have a single channel\n");
 
-    NewImage out(im.width, im.height, im.frames, 3);
+    Image out(im.width, im.height, im.frames, 3);
 
     // This algorithm is adaptive color plane interpolation (ACPI)
     // by Runs Hamilton and Adams

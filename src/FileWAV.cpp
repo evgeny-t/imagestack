@@ -20,7 +20,7 @@ void help() {
            "height and frames of 1, but a large width.\n");
 }
 
-void save(NewImage im, string filename) {
+void save(Image im, string filename) {
     FILE *f = fopen(filename.c_str(), "wb");
     assert(f, "Could not open %s\n", filename.c_str());
     assert(im.frames == 1 && im.height == 1,
@@ -78,7 +78,7 @@ void save(NewImage im, string filename) {
     fclose(f);
 }
 
-NewImage load(string filename) {
+Image load(string filename) {
     SDL_AudioSpec wav_spec;
     Uint32 wav_length;
     unsigned char *wav_buffer;
@@ -94,7 +94,7 @@ NewImage load(string filename) {
         width /= 2;
         break;
     }
-    NewImage sound(1, 1, width, wav_spec.channels);
+    Image sound(1, 1, width, wav_spec.channels);
 
     switch (wav_spec.format) {
     case AUDIO_U8: {

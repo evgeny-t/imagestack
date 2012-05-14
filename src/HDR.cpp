@@ -28,7 +28,7 @@ void AssembleHDR::parse(vector<string> args) {
            (int)args.size() >= stack(0).frames,
            "-assemblehdr takes zero arguments or an exposure value for each frame in the volume (plus an optional gamma adjustment) \n");
     if (args.size() == 0) {
-        NewImage im = apply(stack(0));
+        Image im = apply(stack(0));
         pop();
         push(im);
     } else {
@@ -40,7 +40,7 @@ void AssembleHDR::parse(vector<string> args) {
         for (unsigned int e = 0; e < static_cast<unsigned int>(stack(0).frames); e++) {
             exposures[e]=readFloat(args[e]);
         }
-        NewImage im = apply(stack(0), exposures, gamma);
+        Image im = apply(stack(0), exposures, gamma);
         pop();
         push(im);
     }
@@ -56,7 +56,7 @@ struct gammaInfo {
     float B[256];
 };
 
-NewImage AssembleHDR::apply(NewImage frames, vector<float> &exposures, string gamma) {
+Image AssembleHDR::apply(Image frames, vector<float> &exposures, string gamma) {
     assert(frames.frames == (int)exposures.size(), 
 	   "AssembleHDR::applyKnownExposures - mismatched exposure and frame counts");
     // Figure out gamma conversion
@@ -100,8 +100,8 @@ NewImage AssembleHDR::apply(NewImage frames, vector<float> &exposures, string ga
     }
 
 
-    NewImage out(frames.width, frames.height, 1, frames.channels);
-    NewImage weight(frames.width, frames.height, 1, 1);
+    Image out(frames.width, frames.height, 1, frames.channels);
+    Image weight(frames.width, frames.height, 1, 1);
 
     float maxExpVal = exposures[0];
     float minExpVal = exposures[0];
@@ -164,12 +164,12 @@ NewImage AssembleHDR::apply(NewImage frames, vector<float> &exposures, string ga
     return out;
 }
 
-NewImage AssembleHDR::apply(NewImage frames) {
+Image AssembleHDR::apply(Image frames) {
 
     vector<float> ratios(frames.frames-1);
 
-    NewImage out(frames.width, frames.height, 1, frames.channels);
-    NewImage weight(frames.width, frames.height, 1, 1);
+    Image out(frames.width, frames.height, 1, frames.channels);
+    Image weight(frames.width, frames.height, 1, 1);
 
     // Find max and min exposure frames
 

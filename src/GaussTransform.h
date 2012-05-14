@@ -9,7 +9,7 @@ public:
 
     void help();
     void parse(vector<string> args);
-    static NewImage apply(NewImage slicePositions, NewImage splatPositions, NewImage values,
+    static Image apply(Image slicePositions, Image splatPositions, Image values,
                        vector<float> sigmas, Method m = AUTO);
 };
 
@@ -18,7 +18,7 @@ class JointBilateral : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static void apply(NewImage image, NewImage reference,
+    static void apply(Image image, Image reference,
                       float filterWidth, float filterHeight, float filterFrames, float colorSigma,
                       GaussTransform::Method m = GaussTransform::AUTO);
 };
@@ -27,7 +27,7 @@ class Bilateral : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static void apply(NewImage image, float filterWidth, float filterHeight,
+    static void apply(Image image, float filterWidth, float filterHeight,
                       float filterFrames, float colorSigma,
                       GaussTransform::Method m = GaussTransform::AUTO);
 };
@@ -37,14 +37,14 @@ class BilateralSharpen : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static NewImage apply(NewImage im, float spatialSigma, float colorSigma, float sharpness);
+    static Image apply(Image im, float spatialSigma, float colorSigma, float sharpness);
 };
 
 class ChromaBlur : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static NewImage apply(NewImage im, float spatialSigma, float colorSigma);
+    static Image apply(Image im, float spatialSigma, float colorSigma);
 };
 
 
@@ -53,7 +53,7 @@ class NLMeans : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static void apply(NewImage image, float patchSize, int dimensions,
+    static void apply(Image image, float patchSize, int dimensions,
                       float spatialSigma, float patchSigma,
                       GaussTransform::Method m = GaussTransform::AUTO);
 };
@@ -62,7 +62,7 @@ class NLMeans3D : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static void apply(NewImage image, float patchSize, int dimensions,
+    static void apply(Image image, float patchSize, int dimensions,
                       float spatialSigma, float patchSigma,
                       GaussTransform::Method m = GaussTransform::AUTO);
 };

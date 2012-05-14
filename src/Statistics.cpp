@@ -18,7 +18,7 @@ void Dimensions::parse(vector<string> args) {
            stack(0).width, stack(0).height, stack(0).frames, stack(0).channels);
 }
 
-Stats::Stats(NewImage im) : im_(im) {
+Stats::Stats(Image im) : im_(im) {
     sum_ = mean_ = variance_ = skew_ = kurtosis_ = 0;
 
     channels = im.channels;
@@ -159,7 +159,7 @@ void Statistics::parse(vector<string> args) {
     apply(stack(0));
 }
 
-void Statistics::apply(NewImage im) {
+void Statistics::apply(Image im) {
     Stats stats(im);
 
     printf("Frames x Width x Height x Channels: %i %i %i %i\n", im.frames, im.width, im.height, im.channels);
@@ -273,7 +273,7 @@ void Noise::parse(vector<string> args) {
 
 }
 
-void Noise::apply(NewImage im, float minVal, float maxVal) {
+void Noise::apply(Image im, float minVal, float maxVal) {
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
             for (int x = 0; x < im.width; x++) {
@@ -315,13 +315,13 @@ void Histogram::parse(vector<string> args) {
 }
 
 
-NewImage Histogram::apply(NewImage im, int buckets, float minVal, float maxVal) {
+Image Histogram::apply(Image im, int buckets, float minVal, float maxVal) {
 
     float invBucketWidth = buckets / (maxVal - minVal);
 
     float inc = 1.0f / (im.width * im.height * im.frames);
 
-    NewImage hg(buckets, 1, 1, im.channels);
+    Image hg(buckets, 1, 1, im.channels);
 
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
@@ -370,7 +370,7 @@ void Equalize::parse(vector<string> args) {
     apply(stack(0), lower, upper);
 }
 
-void Equalize::apply(NewImage im, float lower, float upper) {
+void Equalize::apply(Image im, float lower, float upper) {
     Stats stats(im);
 
     // STEP 1) Normalize the image to the 0-1 range
@@ -378,7 +378,7 @@ void Equalize::apply(NewImage im, float lower, float upper) {
 
     // STEP 2) Calculate a CDF of the image
     int buckets = 4096;
-    NewImage cdf = Histogram::apply(im, buckets);
+    Image cdf = Histogram::apply(im, buckets);
     Integrate::apply(cdf, 'x');
 
     // STEP 3) For each pixel, find out how many things are in the same bucket or smaller, and use that to set the value
@@ -421,19 +421,19 @@ void HistogramMatch::parse(vector<string> args) {
     apply(stack(0), stack(1));
 }
 
-void HistogramMatch::apply(NewImage im, NewImage model) {
+void HistogramMatch::apply(Image im, Image model) {
     assert(im.channels == model.channels, "Images must have the same number of channels\n");
 
     // Compute cdfs of the two images
     Stats s1(im), s2(model);
     int buckets = 4096;
-    NewImage cdf1 = Histogram::apply(im, buckets, s1.minimum(), s1.maximum());
-    NewImage cdf2 = Histogram::apply(model, buckets, s2.minimum(), s2.maximum());
+    Image cdf1 = Histogram::apply(im, buckets, s1.minimum(), s1.maximum());
+    Image cdf2 = Histogram::apply(model, buckets, s2.minimum(), s2.maximum());
     Integrate::apply(cdf1, 'x');
     Integrate::apply(cdf2, 'x');
 
     // Invert cdf2
-    NewImage inverseCDF2(cdf2.width, 1, 1, cdf2.channels);
+    Image inverseCDF2(cdf2.width, 1, 1, cdf2.channels);
     for (int c = 0; c < inverseCDF2.channels; c++) {
         int xi = 0;
         float invWidth = 1.0f / cdf2.width;
@@ -508,7 +508,7 @@ void Shuffle::parse(vector<string> args) {
     apply(stack(0));
 }
 
-void Shuffle::apply(NewImage im) {
+void Shuffle::apply(Image im) {
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
             for (int x = 0; x < im.width; x++) {
@@ -545,7 +545,7 @@ void KMeans::parse(vector<string> args) {
     apply(stack(0), readInt(args[0]));
 }
 
-void KMeans::apply(NewImage im, int clusters) {
+void KMeans::apply(Image im, int clusters) {
     assert(clusters > 1, "must have at least one cluster\n");
 
     vector< vector<float> > cluster, newCluster;
@@ -663,7 +663,7 @@ void Sort::parse(vector<string> args) {
     apply(stack(0), readChar(args[0]));
 }
 
-void Sort::apply(NewImage im, char dimension) {
+void Sort::apply(Image im, char dimension) {
     assert(dimension == 'x' || dimension == 'y' || dimension == 't' || dimension == 'c',
            "Dimension must be x, y, t, or c\n");
 
@@ -748,7 +748,7 @@ void DimensionReduction::parse(vector<string> args) {
     apply(stack(0), readInt(args[0]));
 }
 
-void DimensionReduction::apply(NewImage im, int dimensions) {
+void DimensionReduction::apply(Image im, int dimensions) {
     assert(dimensions < im.channels && dimensions > 0,
            "dimensions must be greater than zero and less than the current number of channels\n");
 
@@ -921,7 +921,7 @@ struct LocalMaximaCollision {
     }
 };
 
-vector<LocalMaxima::Maximum> LocalMaxima::apply(NewImage im, bool tCheck, bool xCheck, bool yCheck, float threshold, float minDistance) {
+vector<LocalMaxima::Maximum> LocalMaxima::apply(Image im, bool tCheck, bool xCheck, bool yCheck, float threshold, float minDistance) {
 
     vector<LocalMaxima::Maximum> results;
 
@@ -1118,7 +1118,7 @@ void Printf::parse(vector<string> args) {
 
 
 
-void Printf::apply(NewImage im, string fmt, vector<float> a) {
+void Printf::apply(Image im, string fmt, vector<float> a) {
     float args[16];
 
     assert(a.size() < 16, "-printf can't handle that many arguments\n");
@@ -1152,7 +1152,7 @@ void FPrintf::parse(vector<string> args) {
     apply(stack(0), args[0], args[1], fargs);
 }
 
-void FPrintf::apply(NewImage im, string filename, string fmt, vector<float> a) {
+void FPrintf::apply(Image im, string filename, string fmt, vector<float> a) {
     FILE *f = fopen(filename.c_str(), "a");
     assert(f, "Could not open %s\n", filename.c_str());
 
@@ -1186,15 +1186,15 @@ void PCA::help() {
 
 void PCA::parse(vector<string> args) {
     assert(args.size() == 1, "-pca takes one argument\n");
-    NewImage im = apply(stack(0), readInt(args[0]));
+    Image im = apply(stack(0), readInt(args[0]));
     pop();
     push(im);
 }
 
-NewImage PCA::apply(NewImage im, int newChannels) {
+Image PCA::apply(Image im, int newChannels) {
     assert(newChannels <= im.channels, "-pca can only reduce dimensionality, not expand it\n");
 
-    NewImage out(im.width, im.height, im.frames, newChannels);
+    Image out(im.width, im.height, im.frames, newChannels);
 
     Eigenvectors e(im.channels, out.channels);
 
@@ -1242,12 +1242,12 @@ void PatchPCA::help() {
 
 void PatchPCA::parse(vector<string> args) {
     assert(args.size() == 2, "-patchpca takes two arguments\n");
-    NewImage im = apply(stack(0), readFloat(args[0]), readInt(args[1]));
+    Image im = apply(stack(0), readFloat(args[0]), readInt(args[1]));
     push(im);
 }
 
 
-NewImage PatchPCA::apply(NewImage im, float sigma, int newChannels) {
+Image PatchPCA::apply(Image im, float sigma, int newChannels) {
 
     int patchSize = ((int)(sigma*6+1)) | 1;
 
@@ -1287,7 +1287,7 @@ NewImage PatchPCA::apply(NewImage im, float sigma, int newChannels) {
 
     e.compute();
 
-    NewImage filters(patchSize, patchSize, 1, im.channels * newChannels);
+    Image filters(patchSize, patchSize, 1, im.channels * newChannels);
 
     for (int i = 0; i < newChannels; i++) {
         e.getEigenvector(i, &vec[0]);
@@ -1320,12 +1320,12 @@ void PatchPCA3D::help() {
 
 void PatchPCA3D::parse(vector<string> args) {
     assert(args.size() == 2, "-patchpca3d takes two arguments\n");
-    NewImage im = apply(stack(0), readFloat(args[0]), readInt(args[1]));
+    Image im = apply(stack(0), readFloat(args[0]), readInt(args[1]));
     push(im);
 }
 
 
-NewImage PatchPCA3D::apply(NewImage im, float sigma, int newChannels) {
+Image PatchPCA3D::apply(Image im, float sigma, int newChannels) {
 
     int patchSize = ((int)(sigma*6+1)) | 1;
 
@@ -1368,7 +1368,7 @@ NewImage PatchPCA3D::apply(NewImage im, float sigma, int newChannels) {
 
     e.compute();
 
-    NewImage filters(patchSize, patchSize, patchSize, im.channels * newChannels);
+    Image filters(patchSize, patchSize, patchSize, im.channels * newChannels);
 
     for (int i = 0; i < newChannels; i++) {
         e.getEigenvector(i, &vec[0]);

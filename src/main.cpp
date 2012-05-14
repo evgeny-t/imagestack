@@ -7,13 +7,13 @@
 #endif
 #include "header.h"
 
-vector<NewImage> stack_;
-NewImage &stack(size_t idx) {
+vector<Image> stack_;
+Image &stack(size_t idx) {
     assert(idx < stack_.size(), "Stack underflow\n");
     return stack_[stack_.size() - 1 - idx];
 }
 
-void push(NewImage im) {
+void push(Image im) {
     stack_.push_back(im);
 }
 
@@ -136,7 +136,7 @@ float readFloat(string arg) {
     bool needToPop = false;
     Expression e(arg, false);
     if (stack_.size() == 0) {
-        push(NewImage(1, 1, 1, 1));
+        push(Image(1, 1, 1, 1));
         needToPop = true;
     }
     Expression::State s(stack(0));

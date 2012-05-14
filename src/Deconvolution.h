@@ -7,11 +7,11 @@ class Deconvolve : public Operation {
   public:
     void help();
     void parse(vector<string> args);
-    static NewImage applyCho2009(NewImage im, NewImage kernel);
-    static NewImage applyShan2008(NewImage im, NewImage kernel);
-    static NewImage applyLevin2007(NewImage im, NewImage kernel, float weight);
+    static Image applyCho2009(Image im, Image kernel);
+    static Image applyShan2008(Image im, Image kernel);
+    static Image applyLevin2007(Image im, Image kernel, float weight);
   private:
-    static NewImage applyPadding(NewImage im);
+    static Image applyPadding(Image im);
 };
 
 #include "footer.h"

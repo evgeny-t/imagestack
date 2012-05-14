@@ -25,7 +25,7 @@ public:
     int  height() {return height_;}
     bool fullscreen() {return fullscreen_;}
 
-    void setImage(NewImage im);
+    void setImage(Image im);
 
     void setOffset(int tOffset, int xOffset, int yOffset);
     int  xOffset() {return xOffset_;}
@@ -58,7 +58,7 @@ private:
     SDL_Thread *thread;
     SDL_mutex *mutex;
     int mouseX_, mouseY_;
-    NewImage image_;
+    Image image_;
     int stop_;
 };
 

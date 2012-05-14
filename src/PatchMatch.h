@@ -6,11 +6,11 @@ class PatchMatch : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static NewImage apply(NewImage source, NewImage target, int iterations, int patchSize);
-    static NewImage apply(NewImage source, NewImage target, NewImage mask, int iterations, int patchSize);
+    static Image apply(Image source, Image target, int iterations, int patchSize);
+    static Image apply(Image source, Image target, Image mask, int iterations, int patchSize);
 
 private:
-    static float distance(NewImage source, NewImage target, NewImage mask,
+    static float distance(Image source, Image target, Image mask,
                           int st, int sx, int sy,
                           int tt, int tx, int ty,
                           int patchSize, float prevDist);
@@ -23,8 +23,8 @@ class BidirectionalSimilarity : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static void apply(NewImage source, NewImage target,
-                      NewImage sourceMask, NewImage targetMask,
+    static void apply(Image source, Image target,
+                      Image sourceMask, Image targetMask,
                       float alpha, int numIter, int numIterPM = 5);
 
 };

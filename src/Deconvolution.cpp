@@ -30,8 +30,8 @@ void Deconvolve::help() {
 
 void Deconvolve::parse(vector<string> args) {
     assert(args.size() >= 1, "-deconvolve takes at least one argument\n");
-    NewImage kernel = stack(0);
-    NewImage im = stack(1);
+    Image kernel = stack(0);
+    Image im = stack(1);
     if (args[0] == "cho") {
         assert(args.size() == 1, "-deconvolve cho takes no extra arguments\n");
         push(applyCho2009(im, kernel));
@@ -46,7 +46,7 @@ void Deconvolve::parse(vector<string> args) {
     }
 }
 
-NewImage Deconvolve::applyShan2008(NewImage B, NewImage K) {
+Image Deconvolve::applyShan2008(Image B, Image K) {
     assert(K.channels == 1 && K.frames == 1 && B.frames == 1,
            "The kernel must be single-channel, and both the kernel and blurred\n"
            "image must be single-framed.\n");
@@ -54,22 +54,22 @@ NewImage Deconvolve::applyShan2008(NewImage B, NewImage K) {
            "The kernel dimensions must be odd.\n");
 
     // Prepare constants and images.
-    NewImage Bgray = (B.channels == 3) ? ColorConvert::apply(B, "rgb", "y") : B;
-    NewImage B_large = applyPadding(Bgray);
-    NewImage K_large = KernelEstimation::EnlargeKernel(K, B_large.width, B_large.height);
-    NewImage smoothness_map;
+    Image Bgray = (B.channels == 3) ? ColorConvert::apply(B, "rgb", "y") : B;
+    Image B_large = applyPadding(Bgray);
+    Image K_large = KernelEstimation::EnlargeKernel(K, B_large.width, B_large.height);
+    Image smoothness_map;
     const int x_padding = (B_large.width - B.width) / 2;
     const int y_padding = (B_large.height - B.height) / 2;
 
     // Compute the smoothness map.
     {
-        NewImage filter_x(K.width, 1, 1, 1);
-        NewImage filter_y(1, K.height, 1, 1);
+        Image filter_x(K.width, 1, 1, 1);
+        Image filter_y(1, K.height, 1, 1);
 	filter_x += 1.0f/K.width;
 	filter_y += 1.0f/K.height;
         if (K.width % 2 == 0) filter_x = Crop::apply(filter_x, 0, 0, K.width+1, 1);
         if (K.height %2 == 0) filter_y = Crop::apply(filter_y, 0, 0, 1, K.height+1);
-        NewImage tmp = Convolve::apply(Convolve::apply(Bgray, filter_x, Convolve::Clamp),
+        Image tmp = Convolve::apply(Convolve::apply(Bgray, filter_x, Convolve::Clamp),
                                        filter_y, Convolve::Clamp);
 	tmp *= tmp;
         smoothness_map = Bgray.copy();
@@ -85,7 +85,7 @@ NewImage Deconvolve::applyShan2008(NewImage B, NewImage K) {
 
     // Prepare Fourier domain stuff.
     FourierTransform(K_large); // K_large = F(K).
-    NewImage FK2 = K_large.copy(); // FK2 = F(K).
+    Image FK2 = K_large.copy(); // FK2 = F(K).
     ComplexConjugate::apply(K_large); // K_large = F(K)^T.
     ComplexMultiply::apply(FK2, K_large, false); // FK2 = |F(K)|^2.
     B_large = RealComplex::apply(B_large);
@@ -98,13 +98,13 @@ NewImage Deconvolve::applyShan2008(NewImage B, NewImage K) {
     //   + lambda_1 | non-linear prior on Psi_x, Psi_y |
     float lambda_1 = 0.1f, lambda_2 = 15.f;
 
-    NewImage numerator_base(B_large.width, B_large.height, 1, 2);
-    NewImage denominator_base(B_large.width, B_large.height, 1, 2);
+    Image numerator_base(B_large.width, B_large.height, 1, 2);
+    Image denominator_base(B_large.width, B_large.height, 1, 2);
 
-    NewImage FDeriv[6];
+    Image FDeriv[6];
     for (int i = 0; i <= 5; i++) {
         float w_i;
-        FDeriv[i] = NewImage(B_large.width, B_large.height, 1, 2);
+        FDeriv[i] = Image(B_large.width, B_large.height, 1, 2);
         switch (i) {
         case 0: // Original
             w_i = 50.f;
@@ -135,10 +135,10 @@ NewImage Deconvolve::applyShan2008(NewImage B, NewImage K) {
             FDeriv[i](1, 1) = 1; break;
         }	
         FourierTransform(FDeriv[i]);
-        NewImage tmp = FDeriv[i].copy();
+        Image tmp = FDeriv[i].copy();
         ComplexConjugate::apply(FDeriv[i]); // FDeriv[i] = F(deriv_i)^T
         ComplexMultiply::apply(tmp, FDeriv[i], false); // tmp = |F(deriv_i)|^2
-        NewImage tmq = tmp.copy();
+        Image tmq = tmp.copy();
         ComplexMultiply::apply(tmp, FK2, false); // tmp = |F(K)|^2 |F(deriv_i)|^2
         ComplexMultiply::apply(tmq, K_large, false); // tmq = F(K)^T |F(deriv_i)|^2
         ComplexMultiply::apply(tmq, B_large, false); // tmq = F(K)^T |F(deriv_i)|^2 F(I)
@@ -148,11 +148,11 @@ NewImage Deconvolve::applyShan2008(NewImage B, NewImage K) {
 	numerator_base += tmq;
     }
 
-    NewImage dIdx = Convolve::apply(B_large, Crop::apply(FDeriv[1], -1, 0, 3, 1), Convolve::Wrap);
-    NewImage dIdy = Convolve::apply(B_large, Crop::apply(FDeriv[3], 0, -1, 1, 3), Convolve::Wrap);
-    NewImage L, FPsi_x, FPsi_y;
-    NewImage Psi_x(B_large.width, B_large.height, 1, 2);
-    NewImage Psi_y(B_large.width, B_large.height, 1, 2);
+    Image dIdx = Convolve::apply(B_large, Crop::apply(FDeriv[1], -1, 0, 3, 1), Convolve::Wrap);
+    Image dIdy = Convolve::apply(B_large, Crop::apply(FDeriv[3], 0, -1, 1, 3), Convolve::Wrap);
+    Image L, FPsi_x, FPsi_y;
+    Image Psi_x(B_large.width, B_large.height, 1, 2);
+    Image Psi_y(B_large.width, B_large.height, 1, 2);
     float gamma = 2.0f;
     const int MAX_ITERATION = 2;
 
@@ -178,8 +178,8 @@ NewImage Deconvolve::applyShan2008(NewImage B, NewImage K) {
         //   + lambda_1 (non-linear prior on Psi_x)' = 0.
         float ans_x, ans_y, tmp, fscore, tmpscore;
         bool fscore_valid;
-        NewImage dLdx = Convolve::apply(L, Crop::apply(FDeriv[1], -1, 0, 3, 1), Convolve::Wrap);
-        NewImage dLdy = Convolve::apply(L, Crop::apply(FDeriv[3], 0, -1, 1, 3), Convolve::Wrap);
+        Image dLdx = Convolve::apply(L, Crop::apply(FDeriv[1], -1, 0, 3, 1), Convolve::Wrap);
+        Image dLdy = Convolve::apply(L, Crop::apply(FDeriv[3], 0, -1, 1, 3), Convolve::Wrap);
         for (int y = 0; y < B_large.height; y++) {
             for (int x = 0; x < B_large.width; x++) {
                 fscore_valid = false;
@@ -329,8 +329,8 @@ NewImage Deconvolve::applyShan2008(NewImage B, NewImage K) {
         //   N = sum w_i F(K)^T |F(deriv_i)|^2 F(I) + gamma (F(deriv_x)^T F(Psi_x) +  ... )
         //   D = sum w_i |F(K)|^2 |F(deriv_i)|^2  + gamma |F(deriv_x)|^2 + |F(deriv_y)|^2
         // Note that the first term of N and D are independent of L or Psi or gamma.
-        NewImage denominator = denominator_base.copy();
-        NewImage numerator = numerator_base.copy();
+        Image denominator = denominator_base.copy();
+        Image numerator = numerator_base.copy();
         // Append the variable terms.
         for (int y = 0; y < B_large.height; y++)
             for (int x = 0; x < B_large.width; x++) {
@@ -368,7 +368,7 @@ NewImage Deconvolve::applyShan2008(NewImage B, NewImage K) {
  * A poor man's version of "Reducing Boundary Artifacts in Image Deconvolution" (ICCP 2008)
  * by Liu and Jia.
  */
-NewImage Deconvolve::applyPadding(NewImage B) {
+Image Deconvolve::applyPadding(Image B) {
     // Calculate the margin size.
     int alpha = 1; 
     if (B.width / 3 < alpha) alpha = B.width / 3;
@@ -380,7 +380,7 @@ NewImage Deconvolve::applyPadding(NewImage B) {
 
     // Prepare the enlarged canvas.
     vector<float> prev(B.channels);
-    NewImage ret = Crop::apply(B, -x_padding, -y_padding, 0,
+    Image ret = Crop::apply(B, -x_padding, -y_padding, 0,
                             B.width+x_padding*2, B.height+y_padding*2, B.frames);
     for (int t = 0; t < B.frames; t++) {
         // Populate the top 'A' region.
@@ -462,7 +462,7 @@ NewImage Deconvolve::applyPadding(NewImage B) {
     return ret;
 }
   
-NewImage Deconvolve::applyCho2009(NewImage blurred, NewImage kernel) {
+Image Deconvolve::applyCho2009(Image blurred, Image kernel) {
     assert(kernel.width % 2 == 1 && kernel.height % 2 ==1,
            "The kernel dimensions must be odd.\n");
     assert(kernel.channels == 1 && kernel.frames == 1 && blurred.frames == 1,
@@ -480,21 +480,21 @@ NewImage Deconvolve::applyCho2009(NewImage blurred, NewImage kernel) {
     // F(L) = F(K)^T F(B) sum_i w_i |F(deriv_i)|^2  divided by
     //          |F(K)|^2 sum_i w_i |F(deriv_i)|^2  + alpha (|F(dx)|^2+|F(dy)|^2)
 
-    NewImage B  = applyPadding(blurred);
+    Image B  = applyPadding(blurred);
     //FileTMP::save(B, std::string("padded.tmp"), "float");
 
     float alpha = 1.f; // TODO
-    NewImage FK = KernelEstimation::EnlargeKernel(kernel, B.width, B.height);
-    NewImage FB = RealComplex::apply(Transpose::apply(B, 'c', 't'));
+    Image FK = KernelEstimation::EnlargeKernel(kernel, B.width, B.height);
+    Image FB = RealComplex::apply(Transpose::apply(B, 'c', 't'));
     FFT::apply(FK, true, true, false);
     FFT::apply(FB, true, true, false);
-    NewImage FK2 = FK.copy();
+    Image FK2 = FK.copy();
     ComplexMultiply::apply(FK2, FK, true);
-    NewImage SumDeriv(B.width, B.height, 1, 2);
-    NewImage SumGrad(B.width, B.height, 1, 2);
+    Image SumDeriv(B.width, B.height, 1, 2);
+    Image SumGrad(B.width, B.height, 1, 2);
     for (int i = 0; i <= 5; i++) {
         float w_i;
-        NewImage FDeriv(B.width, B.height, 1, 2);
+        Image FDeriv(B.width, B.height, 1, 2);
         switch (i) {
         case 0: // Original
             w_i = 50.f;
@@ -525,7 +525,7 @@ NewImage Deconvolve::applyCho2009(NewImage blurred, NewImage kernel) {
             FDeriv(1, 1) = 1; break;
         }
         FFT::apply(FDeriv, true, true, false);
-        NewImage FDeriv2 = FDeriv.copy();
+        Image FDeriv2 = FDeriv.copy();
         ComplexMultiply::apply(FDeriv2, FDeriv, true);
         if (i == 1 || i == 3) {
 	    SumGrad += FDeriv2;
@@ -560,7 +560,7 @@ NewImage Deconvolve::applyCho2009(NewImage blurred, NewImage kernel) {
                        x_padding, y_padding, 0, blurred.width, blurred.height, blurred.frames);  
 }
 
-NewImage Deconvolve::applyLevin2007(NewImage blurred, NewImage kernel, float weight) {
+Image Deconvolve::applyLevin2007(Image blurred, Image kernel, float weight) {
     assert(kernel.width % 2 == 1 && kernel.height % 2 ==1,
            "The kernel dimensions must be odd.\n");
     assert(kernel.channels == 1 && kernel.frames == 1 && blurred.frames == 1,
@@ -568,7 +568,7 @@ NewImage Deconvolve::applyLevin2007(NewImage blurred, NewImage kernel, float wei
            "image must be single-framed.\n");
 
     // sum of second derivatives filter
-    NewImage fft_g(blurred.width, blurred.height, 1, 2);
+    Image fft_g(blurred.width, blurred.height, 1, 2);
     fft_g(0, 0) = weight;
     fft_g(blurred.width-1, 0) = -weight*0.25;
     fft_g(0, blurred.height-1) = -weight*0.25;
@@ -576,10 +576,10 @@ NewImage Deconvolve::applyLevin2007(NewImage blurred, NewImage kernel, float wei
     fft_g(0, 1) = -weight*0.25;
     FFT::apply(fft_g);
 
-    NewImage fft_im = RealComplex::apply(blurred);
+    Image fft_im = RealComplex::apply(blurred);
     FFT::apply(fft_im);
 
-    NewImage fft_kernel(blurred.width, blurred.height, 1, 2);
+    Image fft_kernel(blurred.width, blurred.height, 1, 2);
     for (int y = 0; y < kernel.height; y++) {
         int fy = y - kernel.height/2;
         if (fy < 0) { fy += fft_kernel.height; }

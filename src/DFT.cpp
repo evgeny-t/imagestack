@@ -46,7 +46,7 @@ void DCT::parse(vector<string> args) {
     apply(stack(0), x, y, t);
 }
 
-void DCT::apply(NewImage im, bool transformX, bool transformY, bool transformT) {
+void DCT::apply(Image im, bool transformX, bool transformY, bool transformT) {
     if (im.width == 1) { transformX = false; }
     if (im.height == 1) { transformY = false; }
     if (im.frames == 1) { transformT = false; }
@@ -139,7 +139,7 @@ void FFT::parse(vector<string> args) {
     apply(stack(0), x, y, t);
 }
 
-void FFT::apply(NewImage im, bool transformX, bool transformY, bool transformT, bool inverse) {
+void FFT::apply(Image im, bool transformX, bool transformY, bool transformT, bool inverse) {
     assert(im.channels % 2 == 0, "-fft requires an image with an even number of channels\n");
 
     if (im.width == 1) { transformX = false; }
@@ -238,7 +238,7 @@ void IFFT::parse(vector<string> args) {
 }
 
 
-void IFFT::apply(NewImage im, bool x, bool y, bool t) {
+void IFFT::apply(Image im, bool x, bool y, bool t) {
     FFT::apply(im, x, y, t, true);
 }
 
@@ -283,12 +283,12 @@ void FFTConvolve::parse(vector<string> args) {
         m = Multiply::Outer;
     }
 
-    NewImage im = apply(stack(0), stack(1), b, m);
+    Image im = apply(stack(0), stack(1), b, m);
     pop();
     push(im);
 }
 
-NewImage FFTConvolve::apply(NewImage im, NewImage filter, Convolve::BoundaryCondition b, Multiply::Mode m) {
+Image FFTConvolve::apply(Image im, Image filter, Convolve::BoundaryCondition b, Multiply::Mode m) {
 
     int resultChannels = 0;
 
@@ -314,10 +314,10 @@ NewImage FFTConvolve::apply(NewImage im, NewImage filter, Convolve::BoundaryCond
     // inefficient because we construct and transform the filter
     // twice, but it makes the code much simpler
     if (b == Convolve::Homogeneous) {
-        NewImage result = apply(im, filter, Convolve::Zero, m);
-        NewImage weight(im.width, im.height, im.frames, im.channels);
+        Image result = apply(im, filter, Convolve::Zero, m);
+        Image weight(im.width, im.height, im.frames, im.channels);
 	weight = 1.0f;
-        NewImage resultW = apply(weight, filter, Convolve::Zero, m);
+        Image resultW = apply(weight, filter, Convolve::Zero, m);
 	result /= resultW;
         return result;
     }
@@ -335,10 +335,10 @@ NewImage FFTConvolve::apply(NewImage im, NewImage filter, Convolve::BoundaryCond
         xPad = yPad = tPad = 0;
     }
 
-    NewImage imT;
-    NewImage weightT;
+    Image imT;
+    Image weightT;
 
-    imT = NewImage(im.width+xPad*2, im.height+yPad*2, im.frames+tPad*2, im.channels*2);
+    imT = Image(im.width+xPad*2, im.height+yPad*2, im.frames+tPad*2, im.channels*2);
 
     //printf("1\n"); fflush(stdout);
     // 1) Make the padded complex image
@@ -373,7 +373,7 @@ NewImage FFTConvolve::apply(NewImage im, NewImage filter, Convolve::BoundaryCond
 
     //printf("3\n"); fflush(stdout);
     // 3) Make a padded complex filter of the same size
-    NewImage filterT(imT.width, imT.height, imT.frames, filter.channels*2);
+    Image filterT(imT.width, imT.height, imT.frames, filter.channels*2);
     for (int c = 0; c < filter.channels; c++) {
         for (int t = 0; t < filter.frames; t++) {
             int ft = t - filter.frames/2;
@@ -396,7 +396,7 @@ NewImage FFTConvolve::apply(NewImage im, NewImage filter, Convolve::BoundaryCond
 
     //printf("5\n"); fflush(stdout);
     // 5) Multiply the two into a padded complex transformed result
-    NewImage resultT(imT.width, imT.height, imT.frames, resultChannels*2);
+    Image resultT(imT.width, imT.height, imT.frames, resultChannels*2);
 
     for (int t = 0; t < resultT.frames; t++) {
         for (int y = 0; y < resultT.height; y++) {
@@ -471,7 +471,7 @@ NewImage FFTConvolve::apply(NewImage im, NewImage filter, Convolve::BoundaryCond
 
     //printf("7\n"); fflush(stdout);
     // 7) Remove the padding, and convert back to real numbers
-    NewImage result(im.width, im.height, im.frames, resultChannels);
+    Image result(im.width, im.height, im.frames, resultChannels);
     for (int c = 0; c < resultChannels; c++) {
 	for (int t = 0; t < im.frames; t++) {
 	    for (int y = 0; y < im.height; y++) {
@@ -499,10 +499,10 @@ void FFTPoisson::help() {
 
 
 void FFTPoisson::parse(vector<string> args) {
-    NewImage im;
+    Image im;
 
     if (args.size() == 0) {
-        im = apply(stack(1), stack(0), NewImage(), 0);
+        im = apply(stack(1), stack(0), Image(), 0);
     } else if (args.size() == 1) {
         im = apply(stack(1), stack(0), stack(2), readFloat(args[0]));
     } else {
@@ -524,7 +524,7 @@ void FFTPoisson::parse(vector<string> args) {
 // conditions expected on the gradient images (ImageStack uses zero
 // boundary conditions on gradient images).
 
-NewImage FFTPoisson::apply(NewImage dx, NewImage dy, NewImage target, float targetStrength) {
+Image FFTPoisson::apply(Image dx, Image dy, Image target, float targetStrength) {
 
     assert(dx.width == dy.width &&
            dx.height == dy.height &&
@@ -539,11 +539,11 @@ NewImage FFTPoisson::apply(NewImage dx, NewImage dy, NewImage target, float targ
                "target image must have the same size as the gradient images\n");
     }
 
-    NewImage fftBuff(dx.width, dx.height, 1, 1);
+    Image fftBuff(dx.width, dx.height, 1, 1);
 
     //compute two 1D lookup tables for computing the DCT of a 2D Laplacian on the fly
-    NewImage ftLapY(1, dx.height, 1, 1);
-    NewImage ftLapX(dx.width, 1, 1, 1);
+    Image ftLapY(1, dx.height, 1, 1);
+    Image ftLapX(dx.width, 1, 1, 1);
 
     for (int x = 0; x < dx.width; x++) {
         ftLapX(x, 0) = 2.0f * cos((M_PI * x) / (dx.width - 1));
@@ -559,7 +559,7 @@ NewImage FFTPoisson::apply(NewImage dx, NewImage dy, NewImage target, float targ
                                 &fftBuff(0, 0), &fftBuff(0, 0),
                                 FFTW_REDFT00, FFTW_REDFT00, FFTW_ESTIMATE); //use FFTW_PATIENT when plan can be reused
 
-    NewImage out(dx.width, dx.height, dx.frames, dx.channels);
+    Image out(dx.width, dx.height, dx.frames, dx.channels);
 
     for (int c = 0; c < dx.channels; c++) {
 	for (int t = 0; t < dx.frames; t++) {

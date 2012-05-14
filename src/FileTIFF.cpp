@@ -34,7 +34,7 @@ void help() {
 
 
 template<typename T>
-void readTiff(NewImage im, TIFF *tiff, unsigned int divisor) {
+void readTiff(Image im, TIFF *tiff, unsigned int divisor) {
     T *buffer = new T[im.channels * im.width];
 
     float multiplier = 1.0f / divisor;
@@ -52,7 +52,7 @@ void readTiff(NewImage im, TIFF *tiff, unsigned int divisor) {
     delete[] buffer;
 }
 
-NewImage load(string filename) {
+Image load(string filename) {
     TIFF *tiff = TIFFOpen(filename.c_str(), "r");
 
     assert(tiff, "Could not open file %s\n", filename.c_str());
@@ -78,7 +78,7 @@ NewImage load(string filename) {
         sampleFormat = SAMPLEFORMAT_UINT;
     }
 
-    NewImage im(w, h, 1, c);
+    Image im(w, h, 1, c);
     int bytesPerSample = bitsPerSample / 8;
 
     assert(im.channels *im.width *bytesPerSample == TIFFScanlineSize(tiff),
@@ -119,7 +119,7 @@ NewImage load(string filename) {
 
 
 template<typename T>
-void writeTiff(NewImage im, TIFF *tiff, unsigned int multiplier) {
+void writeTiff(Image im, TIFF *tiff, unsigned int multiplier) {
 
     double minval = (double)std::numeric_limits<T>::min();
     double maxval = (double)std::numeric_limits<T>::max();
@@ -142,7 +142,7 @@ void writeTiff(NewImage im, TIFF *tiff, unsigned int multiplier) {
     if (clamped) { printf("WARNING: Data exceeded the range [0, 1], so was clamped on writing.\n"); }
 }
 
-void save(NewImage im, string filename, string type) {
+void save(Image im, string filename, string type) {
     // Open 16-bit TIFF file for writing
     TIFF *tiff = TIFFOpen(filename.c_str(), "w");
     assert(tiff, "Could not open file %s\n", filename.c_str());

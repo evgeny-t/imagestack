@@ -1,10 +1,20 @@
 #include "main.h"
 #include "Arithmetic.h"
 #include "header.h"
+#include "Statistics.h"
 
 void Add::help() {
     printf("\n-add adds the second image in the stack to the top image in the stack.\n\n"
            "Usage: ImageStack -load a.tga -load b.tga -add -save out.tga.\n");
+}
+
+bool Add::test() {
+    Image a(101, 128, 4, 3), b(101, 128, 4, 3);
+    Noise::apply(a, -100, 13);
+    Noise::apply(b, 17, 82);
+    float before = a(10, 10, 2, 2);
+    a += b;
+    return a(10, 10, 2, 2) == (before + b(10, 10, 2, 2));
 }
 
 void Add::parse(vector<string> args) {
@@ -47,8 +57,8 @@ void Multiply::parse(vector<string> args) {
 
     bool swapped = false;
 
-    NewImage a = stack(1);
-    NewImage b = stack(0);
+    Image a = stack(1);
+    Image b = stack(0);
     if (a.channels < b.channels) {
 	std::swap(a, b);
         swapped = true;
@@ -58,20 +68,59 @@ void Multiply::parse(vector<string> args) {
 	a *= b;
         if (!swapped) pop();
         else {
-          NewImage im = stack(0);
+          Image im = stack(0);
           pop();
           pop();
           push(im);
         }
     } else {
-        NewImage im = apply(a, b, m);
+        Image im = apply(a, b, m);
         pop();
         pop();
         push(im);
     }
 }
 
-NewImage Multiply::apply(NewImage a, NewImage b, Mode m) {
+bool Multiply::test() {
+    Image a(101, 128, 1, 3), b(101, 128, 1, 3);
+    Image matrix(101, 128, 1, 9);
+    Noise::apply(a, -100, 13);
+    Noise::apply(b, 17, 82);
+    Noise::apply(matrix, -1, 1);
+
+    printf("Testing outer product\n");
+    Image c_outer = apply(a, b, Outer);
+    if (c_outer(10, 10, 0, 7) != 
+	a(10, 10, 0, 2) * b(10, 10, 0, 1)) return false;
+
+    printf("Testing inner product\n");
+    Image c_inner = apply(a, b, Inner);
+    float result = c_inner(10, 10, 0, 0);
+    float correct = (a(10, 10, 0, 0) * b(10, 10, 0, 0) + 
+		     a(10, 10, 0, 1) * b(10, 10, 0, 1) + 
+		     a(10, 10, 0, 2) * b(10, 10, 0, 2));
+
+    if (fabs(correct - result) > 0.001) return false;
+
+    printf("Testing elementwise product\n");
+    Image c_elementwise = apply(a, b, Elementwise);
+    if (c_elementwise(10, 10, 0, 1) != a(10, 10, 0, 1) * b(10, 10, 0, 1)) return false;
+
+    printf("Testing matrix product\n");
+    Image c_matrix = apply(matrix, a, Inner);
+    if (c_matrix(10, 10, 0, 1) != 
+	(matrix(10, 10, 0, 3) * a(10, 10, 0, 0) +
+	 matrix(10, 10, 0, 4) * a(10, 10, 0, 1) + 
+	 matrix(10, 10, 0, 5) * a(10, 10, 0, 2))) return false;
+
+    printf("Testing scalar product\n");
+    Image c_scalar = apply(a, b.channel(0), Outer);
+    if (c_scalar(10, 10, 0, 1) != a(10, 10, 0, 1) * b(10, 10, 0, 0)) return false;
+
+    return true;
+}
+
+Image Multiply::apply(const Image a, const Image b, Mode m) {
     if (a.channels < b.channels) { return apply(b, a, m); }
 
     assert(a.width == b.width &&
@@ -82,13 +131,13 @@ NewImage Multiply::apply(NewImage a, NewImage b, Mode m) {
     assert(a.channels % b.channels == 0,
            "One input must have a number of channels which is a multiple of the other's\n");
 
-    NewImage out;
+    Image out;
 
     // This code is written on the assumption that this op will be
     // memory-bandwidth limited so too much optimization is foolish
 
     if (b.channels == 1) { // scalar-vector case
-        out = NewImage(a.width, a.height, a.frames, a.channels);
+        out = Image(a.width, a.height, a.frames, a.channels);
 
 	for (int c = 0; c < a.channels; c++) {
 	    for (int t = 0; t < a.frames; t++) {
@@ -101,7 +150,7 @@ NewImage Multiply::apply(NewImage a, NewImage b, Mode m) {
         }
 
     } else if (m == Elementwise) {
-        out = NewImage(a.width, a.height, a.frames, a.channels);
+        out = Image(a.width, a.height, a.frames, a.channels);
         if (a.channels == b.channels) {
 	    for (int c = 0; c < a.channels; c++) {		
 		for (int t = 0; t < a.frames; t++) {
@@ -130,7 +179,7 @@ NewImage Multiply::apply(NewImage a, NewImage b, Mode m) {
 
         }
     } else if (m == Inner) {
-        out = NewImage(a.width, a.height, a.frames, a.channels/b.channels);
+        out = Image(a.width, a.height, a.frames, a.channels/b.channels);
         if (a.channels == b.channels) {
 	    for (int c = 0; c < a.channels; c++) {
 		for (int t = 0; t < a.frames; t++) {
@@ -158,7 +207,7 @@ NewImage Multiply::apply(NewImage a, NewImage b, Mode m) {
             }
         }
     } else if (m == Outer) {
-        out = NewImage(a.width, a.height, a.frames, a.channels*b.channels);
+        out = Image(a.width, a.height, a.frames, a.channels*b.channels);
 	int oc = 0;
 	for (int ac = 0; ac < a.channels; ac++) {
 	    for (int bc = 0; bc < b.channels; bc++) {
@@ -185,6 +234,15 @@ void Subtract::help() {
            "Usage: ImageStack -load a.tga -load b.tga -subtract -save out.tga.\n");
 }
 
+bool Subtract::test() {
+    Image a(101, 128, 4, 3), b(101, 128, 4, 3);
+    Noise::apply(a, -100, 13);
+    Noise::apply(b, 17, 82);
+    float before = a(10, 10, 2, 2);
+    a -= b;
+    return a(10, 10, 2, 2) == (before - b(10, 10, 2, 2));
+}
+
 void Subtract::parse(vector<string> args) {
     assert(args.size() == 0, "-subtract takes no arguments\n");
     stack(0) -= stack(1);
@@ -195,6 +253,15 @@ void Subtract::parse(vector<string> args) {
 void Divide::help() {
     printf("\n-divide divides the top image in the stack by the second image in the stack.\n\n"
            "Usage: ImageStack -load a.tga -load b.tga -divide -save out.tga.\n");
+}
+
+bool Divide::test() {
+    Image a(101, 128, 4, 3), b(101, 128, 4, 1);
+    Noise::apply(a, -100, 13);
+    Noise::apply(b, 17, 82);
+    float before = a(10, 10, 2, 2);
+    a /= b;
+    return a(10, 10, 2, 2) == (before / b(10, 10, 2, 0));    
 }
 
 void Divide::parse(vector<string> args) {
@@ -209,6 +276,17 @@ void Maximum::help() {
            "Usage: ImageStack -load a.tga -load b.tga -max -save out.tga.\n");
 }
 
+bool Maximum::test() {
+    Image a(101, 128, 4, 3), b(101, 128, 4, 3);    
+    Noise::apply(a, -100, 130);
+    Noise::apply(b, 17, 82);
+    float before = a(10, 10, 2, 2);
+    Maximum::apply(a, b);
+    float after = a(10, 10, 2, 2);
+    float correct = max(before, b(10, 10, 2, 2));
+    return after == correct;
+}
+
 void Maximum::parse(vector<string> args) {
     assert(args.size() == 0, "-max takes no arguments\n");
     apply(stack(0), stack(1));
@@ -216,7 +294,7 @@ void Maximum::parse(vector<string> args) {
     pop();
 }
 
-void Maximum::apply(NewImage a, NewImage b) {
+void Maximum::apply(Image a, const Image b) {
     assert(a.width == b.width &&
            a.height == b.height &&
            a.frames == b.frames &&
@@ -242,6 +320,15 @@ void Minimum::help() {
            "Usage: ImageStack -load a.tga -load b.tga -min -save out.tga.\n");
 }
 
+bool Minimum::test() {
+    Image a(101, 128, 4, 3), b(101, 128, 4, 3);    
+    Noise::apply(a, -100, 130);
+    Noise::apply(b, 17, 82);
+    float before = a(10, 10, 2, 2);
+    Minimum::apply(a, b);
+    return a(10, 10, 2, 2) == (min(before, b(10, 10, 2, 2)));
+}
+
 void Minimum::parse(vector<string> args) {
     assert(args.size() == 0, "-min takes no arguments\n");
     apply(stack(0), stack(1));
@@ -249,7 +336,7 @@ void Minimum::parse(vector<string> args) {
     pop();
 }
 
-void Minimum::apply(NewImage a, NewImage b) {
+void Minimum::apply(Image a, const Image b) {
     assert(a.width == b.width &&
            a.height == b.height &&
            a.frames == b.frames &&
@@ -275,12 +362,25 @@ void Log::help() {
            "Usage: ImageStack -load a.tga -log -load b.tga -log -add -exp -save product.tga.\n");
 }
 
+bool Log::test() {
+    Image a(101, 128, 4, 3), b(101, 128, 4, 3);    
+    Noise::apply(a, 100, 130);
+    Noise::apply(b, 17, 82);        
+    float correct = a(10, 10, 2, 2) * b(10, 10, 2, 2);
+    Log::apply(a);
+    Log::apply(b);
+    a += b;
+    Exp::apply(a);
+    float delta = a(10, 10, 2, 2) - correct;
+    return fabs(delta) < 0.01;
+}
+
 void Log::parse(vector<string> args) {
     assert(args.size() == 0, "-log takes no arguments\n");
     apply(stack(0));
 }
 
-void Log::apply(NewImage a) {
+void Log::apply(Image a) {
     for (int c = 0; c < a.channels; c++) {
 	for (int t = 0; t < a.frames; t++) {
 	    for (int y = 0; y < a.height; y++) {
@@ -304,7 +404,7 @@ void Exp::parse(vector<string> args) {
     else { panic("-exp takes zero or one arguments\n"); }
 }
 
-void Exp::apply(NewImage a, float base) {
+void Exp::apply(Image a, float base) {
     for (int t = 0; t < a.frames; t++) {
         for (int y = 0; y < a.height; y++) {
             for (int x = 0; x < a.width; x++) {
@@ -316,9 +416,22 @@ void Exp::apply(NewImage a, float base) {
     }
 }
 
+bool Exp::test() {
+    // Already tested in log
+    return true;
+}
+
 void Abs::help() {
     printf("\n-abs takes the absolute value of the current image.\n\n"
            "Usage: ImageStack -load a.tga -load b.tga -subtract -abs -save diff.tga\n\n");
+}
+
+bool Abs::test() {
+    Image a(101, 128, 4, 3);
+    Noise::apply(a, -10, -1);        
+    float before = a(10, 2, 1, 2);
+    Abs::apply(a);
+    return a(10, 2, 1, 2) == -before;
 }
 
 void Abs::parse(vector<string> args) {
@@ -326,7 +439,7 @@ void Abs::parse(vector<string> args) {
     apply(stack(0));
 }
 
-void Abs::apply(NewImage a) {
+void Abs::apply(Image a) {
     for (int c = 0; c < a.channels; c++) {
 	for (int t = 0; t < a.frames; t++) {
 	    for (int y = 0; y < a.height; y++) {
@@ -344,6 +457,22 @@ void Offset::help() {
            "Usage: ImageStack -load a.tga -offset 0.5 34 2 -save b.tga\n\n");
 }
 
+bool Offset::test() {
+    Image a(101, 128, 4, 3);
+    vector<float> offset(3);
+    offset[0] = 1;
+    offset[1] = 2;
+    offset[2] = 3;
+    Noise::apply(a, -1, 1);
+    float before = a(10, 2, 1, 2);
+    a += offset;
+    if (a(10, 2, 1, 2) != before + offset[2]) return false;
+    before = a(10, 2, 1, 2);
+    a += 17.0f;
+    if (a(10, 2, 1, 2) != before + 17.0f) return false;    
+    return true;
+}
+
 void Offset::parse(vector<string> args) {
     vector<float> fargs;
     for (size_t i = 0; i < args.size(); i++) {
@@ -357,6 +486,22 @@ void Scale::help() {
     printf("\n-scale scales the current image. It can either be called with a single\n"
            "argument, or with one argument per image channel.\n"
            "Usage: ImageStack -load a.tga -scale 0.5 34 2 -save b.tga\n\n");
+}
+
+bool Scale::test() {
+    Image a(101, 128, 4, 3);
+    vector<float> offset(3);
+    offset[0] = 1;
+    offset[1] = 2;
+    offset[2] = 3;
+    Noise::apply(a, -1, 1);
+    float before = a(10, 2, 1, 2);
+    a *= offset;
+    if (a(10, 2, 1, 2) != before * offset[2]) return false;
+    before = a(10, 2, 1, 2);
+    a *= 17.0f;
+    if (a(10, 2, 1, 2) != before * 17.0f) return false;    
+    return true;
 }
 
 void Scale::parse(vector<string> args) {
@@ -374,6 +519,24 @@ void Gamma::help() {
            "Usage: ImageStack -load a.tga -gamma 0.5 34 2 -save b.tga\n\n");
 }
 
+bool Gamma::test() {
+    Image a(101, 128, 4, 3);
+    vector<float> vec(3);
+    vec[0] = 1;
+    vec[1] = 2;
+    vec[2] = 3;
+    Noise::apply(a, 1, 10);
+    vector<float> before(3);
+    before[0] = a(10, 2, 1, 0);
+    before[1] = a(10, 2, 1, 1);
+    before[2] = a(10, 2, 1, 2);
+    Gamma::apply(a, vec);
+    if (a(10, 2, 1, 0) != powf(before[0], 1)) return false;
+    if (a(10, 2, 1, 1) != powf(before[1], 2)) return false;
+    if (a(10, 2, 1, 2) != powf(before[2], 3)) return false;
+    return true;
+}
+
 void Gamma::parse(vector<string> args) {
     vector<float> fargs;
     for (size_t i = 0; i < args.size(); i++) {
@@ -383,7 +546,7 @@ void Gamma::parse(vector<string> args) {
     apply(stack(0), fargs);
 }
 
-void Gamma::apply(NewImage a, float gamma) {
+void Gamma::apply(Image a, float gamma) {
     for (int c = 0; c < a.channels; c++) {	
 	for (int t = 0; t < a.frames; t++) {
 	    for (int y = 0; y < a.height; y++) {
@@ -401,26 +564,11 @@ void Gamma::apply(NewImage a, float gamma) {
     }
 }
 
-void Gamma::apply(NewImage a, vector<float> args) {
-    if (args.size() == 1) {
-        apply(a, args[0]);
-        return;
-    }
-    assert(args.size() == (size_t)a.channels, "-gamma takes either 1 argument, or 1 argument per channel\n");
+void Gamma::apply(Image a, vector<float> args) {
+    assert(args.size() == (size_t)a.channels, 
+	   "-gamma takes either 1 argument, or 1 argument per channel\n");
     for (int c = 0; c < a.channels; c++) {
-	for (int t = 0; t < a.frames; t++) {
-	    for (int y = 0; y < a.height; y++) {
-		for (int x = 0; x < a.width; x++) {
-		    float val = a(x, y, t, c);
-                    if (val > 0) {
-                        val = powf(val, args[c]);
-                    } else {
-                        val = -powf(-val, args[c]);
-                    }
-		    a(x, y, t, c) = val;
-                }
-            }
-        }
+	apply(a.channel(c), args[c]);
     }
 }
 
@@ -428,6 +576,17 @@ void Mod::help() {
     printf("\n-mod takes the floating point modulus of the current image. It can either be\n"
            "called with a single argument, or with one argument per image channel.\n"
            "Usage: ImageStack -load a.tga -mod 0.5 34 2 -save b.tga\n\n");
+}
+
+bool Mod::test() {
+    Image a(101, 128, 4, 3);
+    Noise::apply(a, -10, 10);    
+    float before = a(10, 2, 1, 2);
+    apply(a, 0.5);    
+    float after = a(10, 2, 1, 2);
+    while (before > 0.5) before -= 0.5;
+    while (before < 0) before += 0.5;
+    return before == after;    
 }
 
 void Mod::parse(vector<string> args) {
@@ -439,32 +598,24 @@ void Mod::parse(vector<string> args) {
     apply(stack(0), fargs);
 }
 
-void Mod::apply(NewImage a, float mod) {
+void Mod::apply(Image a, float mod) {
     for (int c = 0; c < a.channels; c++) {		    
 	for (int t = 0; t < a.frames; t++) {
 	    for (int y = 0; y < a.height; y++) {
 		for (int x = 0; x < a.width; x++) {
-                    a(x, y, t, c) = fmod(a(x, y, t, c), mod);
+		    float val = fmod(a(x, y, t, c), mod);
+		    if (val < 0) val += mod;
+                    a(x, y, t, c) = val;
                 }
             }
         }
     }
 }
 
-void Mod::apply(NewImage a, vector<float> args) {
-    if (args.size() == 1) {
-        apply(a, args[0]);
-        return;
-    }
+void Mod::apply(Image a, vector<float> args) {
     assert(args.size() == (size_t)a.channels, "-mod takes either 1 argument, or 1 argument per channel\n");
     for (int c = 0; c < a.channels; c++) {
-	for (int t = 0; t < a.frames; t++) {
-	    for (int y = 0; y < a.height; y++) {
-		for (int x = 0; x < a.width; x++) {
-                    a(x, y, t, c) = fmod(a(x, y, t, c), args[c]);
-                }
-            }
-        }
+	apply(a.channel(c), args[c]);
     }
 }
 
@@ -473,6 +624,17 @@ void Clamp::help() {
            "by saturating values outside that range. If given no arguments it defaults\n"
            "to clamping between zero and one.\n\n"
            "Usage: ImageStack -load a.exr -clamp 0 1 -save a.tga\n\n");
+}
+
+bool Clamp::test() {
+    Image a(101, 128, 4, 3);
+    Noise::apply(a, -1, 1);    
+    float before = a(10, 2, 1, 2);
+    Clamp::apply(a, -0.5, 0.5);
+    float after = a(10, 2, 1, 2);
+    if (before < -0.5) return after == -0.5;
+    if (before > 0.5) return after == 0.5;
+    return before == after;
 }
 
 void Clamp::parse(vector<string> args) {
@@ -485,7 +647,7 @@ void Clamp::parse(vector<string> args) {
     }
 }
 
-void Clamp::apply(NewImage a, float lower, float upper) {
+void Clamp::apply(Image a, float lower, float upper) {
     for (int c = 0; c < a.channels; c++) {
 	for (int t = 0; t < a.frames; t++) {
 	    for (int y = 0; y < a.height; y++) {
@@ -506,6 +668,21 @@ void DeNaN::help() {
            "Usage: ImageStack -load in.jpg -eval \"1/val\" -denan -save out.jpg\n\n");
 }
 
+bool DeNaN::test() {
+    Image a(101, 128, 4, 3);
+    Image b(101, 128, 4, 3);
+    Noise::apply(a, -1, 1);
+    Noise::apply(b, -1, 1);
+    Threshold::apply(b, 0);
+    a *= b;
+    a /= b;
+    float before = a(10, 2, 1, 2);
+    apply(a, 17.0f);
+    float after = a(10, 2, 1, 2);
+    if (b(10, 2, 1, 2)) return before == after;
+    else return after == 17.0f;
+}
+
 void DeNaN::parse(vector<string> args) {
     if (args.size() == 0) {
         apply(stack(0), 0);
@@ -516,12 +693,13 @@ void DeNaN::parse(vector<string> args) {
     }
 }
 
-void DeNaN::apply(NewImage a, float replacement) {
+void DeNaN::apply(Image a, float replacement) {
     for (int c = 0; c < a.channels; c++) {
 	for (int t = 0; t < a.frames; t++) {
 	    for (int y = 0; y < a.height; y++) {
 		for (int x = 0; x < a.width; x++) {
-                    if (isnan(a(x, y, t, c))) { 
+		    float val = a(x, y, t, c);
+		    if (isnan(val)) {
 			a(x, y, t, c) = replacement; 
 		    }
                 }
@@ -536,13 +714,18 @@ void Threshold::help() {
            "Usage: ImageStack -load a.exr -threshold 0.5 -save monochrome.tga\n\n");
 }
 
+bool Threshold::test() {
+    // Tested by DeNaN
+    return true;
+}
+
 void Threshold::parse(vector<string> args) {
     assert(args.size() == 1, "-threshold takes exactly one argument\n");
     apply(stack(0), readFloat(args[0]));
 }
 
 
-void Threshold::apply(NewImage a, float threshold) {
+void Threshold::apply(Image a, float threshold) {
     for (int c = 0; c < a.channels; c++) {
 	for (int t = 0; t < a.frames; t++) {
 	    for (int y = 0; y < a.height; y++) {
@@ -560,13 +743,26 @@ void Normalize::help() {
            "Usage: ImageStack -load a.exr -normalize -save a.tga\n\n");
 }
 
+bool Normalize::test() {
+    Image a(101, 128, 4, 3);
+    Noise::apply(a, -3, 1);
+    a(0, 0, 0, 0) = 1;
+    a(0, 0, 0, 1) = -3;
+    float before = a(20, 10, 2, 2);
+    apply(a);
+    float after = a(20, 10, 2, 2);
+    before -= -3.0f;
+    before *= 0.25f;
+    return after == before;    
+}
+
 void Normalize::parse(vector<string> args) {
     assert(args.size() == 0, "-normalize takes no arguments\n");
     apply(stack(0));
 }
 
 
-void Normalize::apply(NewImage a) {
+void Normalize::apply(Image a) {
     float minValue = a(0, 0);
     float maxValue = a(0, 0);
 
@@ -602,6 +798,20 @@ void Quantize::help() {
            "Usage: ImageStack -load test.jpg -quantize 1/128 -save test2.jpg\n\n");
 }
 
+bool Quantize::test() {
+    Image a(101, 128, 4, 3);
+    Noise::apply(a, -1, 1);    
+    float before = a(2, 14, 3, 1);
+    apply(a, 0.5f);
+    float after = a(2, 14, 3, 1);    
+    if (before >= 1) return after == 1.0f;
+    if (before >= 0.5) return after == 0.5f;
+    if (before >= 0.0) return after == 0.0f;
+    if (before >= -0.5) return after == -0.5f;
+    if (before >= -1.0) return after == -1.0f;
+    return false;
+}
+
 void Quantize::parse(vector<string> args) {
     assert(args.size() <= 1, "-quantize takes zero or one arguments\n");
 
@@ -610,12 +820,14 @@ void Quantize::parse(vector<string> args) {
 
 }
 
-void Quantize::apply(NewImage a, float increment) {
+void Quantize::apply(Image a, float increment) {
     for (int c = 0; c < a.channels; c++) {
 	for (int t = 0; t < a.frames; t++) {
 	    for (int y = 0; y < a.height; y++) {
 		for (int x = 0; x < a.width; x++) {
-                    a(x, y, t, c) -= fmodf(a(x, y, t, c), increment);
+		    float val = fmodf(a(x, y, t, c), increment);
+		    if (val < 0) val += increment;
+                    a(x, y, t, c) -= val;
                 }
             }
         }

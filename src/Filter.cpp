@@ -32,13 +32,13 @@ void GaussianBlur::parse(vector<string> args) {
         panic("-gaussianblur takes one, two, or three arguments\n");
     }
 
-    NewImage im = apply(stack(0), width, height, frames);
+    Image im = apply(stack(0), width, height, frames);
     pop();
     push(im);
 }
 
-NewImage GaussianBlur::apply(NewImage im, float filterWidth, float filterHeight, float filterFrames) {
-    NewImage out(im);
+Image GaussianBlur::apply(Image im, float filterWidth, float filterHeight, float filterFrames) {
+    Image out(im);
 
     if (filterWidth != 0) {
         // make the width filter
@@ -47,7 +47,7 @@ NewImage GaussianBlur::apply(NewImage im, float filterWidth, float filterHeight,
         // wouldn't have called this function.
         if (size == 1) { size = 3; }
         int radius = size / 2;
-        NewImage filter(size, 1, 1, 1);
+        Image filter(size, 1, 1, 1);
         float sum = 0;
         for (int i = 0; i < size; i++) {
             float diff = (i-radius)/filterWidth;
@@ -70,7 +70,7 @@ NewImage GaussianBlur::apply(NewImage im, float filterWidth, float filterHeight,
         // wouldn't have called this function.
         if (size == 1) { size = 3; }
         int radius = size / 2;
-        NewImage filter(1, size, 1, 1);
+        Image filter(1, size, 1, 1);
         float sum = 0;
         for (int i = 0; i < size; i++) {
             float diff = (i-radius)/filterHeight;
@@ -93,7 +93,7 @@ NewImage GaussianBlur::apply(NewImage im, float filterWidth, float filterHeight,
         // wouldn't have called this function.
         if (size == 1) { size = 3; }
         int radius = size / 2;
-        NewImage filter(1, 1, size, 1);
+        Image filter(1, 1, size, 1);
         float sum = 0;
         for (int i = 0; i < size; i++) {
             float diff = (i-radius)/filterFrames;
@@ -149,7 +149,7 @@ void FastBlur::parse(vector<string> args) {
     apply(stack(0), width, height, frames);
 }
 
-void FastBlur::apply(NewImage im, float filterWidth, float filterHeight, float filterFrames, bool addMargin) {
+void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filterFrames, bool addMargin) {
     assert(filterFrames >= 0 &&
            filterWidth >= 0 &&
            filterHeight >= 0,
@@ -167,21 +167,21 @@ void FastBlur::apply(NewImage im, float filterWidth, float filterHeight, float f
     // blur is very narrow, also revert to the naive method, as IIR
     // won't work.
     if (filterFrames > 0 && (im.frames < 16 || filterFrames < 0.5)) {
-        NewImage blurry = GaussianBlur::apply(im, filterFrames, 0, 0);
+        Image blurry = GaussianBlur::apply(im, filterFrames, 0, 0);
         FastBlur::apply(blurry, filterWidth, filterHeight, 0);
         Paste::apply(im, blurry, 0, 0, 0);
         return;
     }
 
     if (filterWidth > 0 && (im.width < 16 || filterWidth < 0.5)) {
-        NewImage blurry = GaussianBlur::apply(im, 0, filterWidth, 0);
+        Image blurry = GaussianBlur::apply(im, 0, filterWidth, 0);
         FastBlur::apply(blurry, 0, filterHeight, filterFrames);
         Paste::apply(im, blurry, 0, 0, 0);
         return;
     }
 
     if (filterHeight > 0 && (im.height < 16 || filterHeight < 0.5)) {
-        NewImage blurry = GaussianBlur::apply(im, 0, 0, filterHeight);
+        Image blurry = GaussianBlur::apply(im, 0, 0, filterHeight);
         FastBlur::apply(blurry, filterWidth, 0, filterFrames);
         Paste::apply(im, blurry, 0, 0, 0);
         return;
@@ -199,7 +199,7 @@ void FastBlur::apply(NewImage im, float filterWidth, float filterHeight, float f
         int marginX = (int)(filterWidth);
         int marginY = (int)(filterHeight);
 
-        NewImage bigger(im.width+2*marginX, im.height+2*marginY, im.frames+2*marginT, im.channels+1);
+        Image bigger(im.width+2*marginX, im.height+2*marginY, im.frames+2*marginT, im.channels+1);
         for (int t = 0; t < im.frames; t++) {
             for (int y = 0; y < im.height; y++) {
                 for (int x = 0; x < im.width; x++) {
@@ -257,7 +257,7 @@ void FastBlur::apply(NewImage im, float filterWidth, float filterHeight, float f
     }
 }
 
-void FastBlur::blurX(NewImage im, float sigma, int ts) {
+void FastBlur::blurX(Image im, float sigma, int ts) {
     if (sigma == 0) { return; }
 
     // blur in the x-direction
@@ -311,7 +311,7 @@ void FastBlur::blurX(NewImage im, float sigma, int ts) {
     }
 }
 
-void FastBlur::blurY(NewImage im, float sigma, int ts) {
+void FastBlur::blurY(Image im, float sigma, int ts) {
     if (sigma == 0) { return; }
 
     float c0, c1, c2, c3;
@@ -369,7 +369,7 @@ void FastBlur::blurY(NewImage im, float sigma, int ts) {
     }
 }
 
-void FastBlur::blurT(NewImage im, float sigma, int ts) {
+void FastBlur::blurT(Image im, float sigma, int ts) {
     if (sigma == 0) { return; }
 
     float c0, c1, c2, c3;
@@ -484,7 +484,7 @@ void RectFilter::parse(vector<string> args) {
     apply(stack(0), width, height, frames, iterations);
 }
 
-void RectFilter::apply(NewImage im, int filterWidth, int filterHeight, int filterFrames, int iterations) {
+void RectFilter::apply(Image im, int filterWidth, int filterHeight, int filterFrames, int iterations) {
     assert(filterFrames & filterWidth & filterHeight & 1, "filter shape must be odd\n");
     assert(iterations >= 1, "iterations must be at least one\n");
 
@@ -493,7 +493,7 @@ void RectFilter::apply(NewImage im, int filterWidth, int filterHeight, int filte
     if (filterHeight != 1) { blurY(im, filterHeight, iterations); }
 }
 
-void RectFilter::blurXCompletely(NewImage im) {
+void RectFilter::blurXCompletely(Image im) {
     for (int c = 0; c < im.channels; c++) {
         for (int t = 0; t < im.frames; t++) {
             for (int y = 0; y < im.height; y++) {
@@ -512,7 +512,7 @@ void RectFilter::blurXCompletely(NewImage im) {
 }
 
 
-void RectFilter::blurX(NewImage im, int width, int iterations) {
+void RectFilter::blurX(Image im, int width, int iterations) {
     if (width <= 1) { return; }
     if (im.width == 1) { return; }
 
@@ -592,12 +592,12 @@ void RectFilter::blurX(NewImage im, int width, int iterations) {
 
 }
 
-void RectFilter::blurY(NewImage im, int width, int iterations) {
+void RectFilter::blurY(Image im, int width, int iterations) {
     if (width <= 1) { return; }
     if (im.height == 1) { return; }
 
     // pull out strips of columns and blur them
-    NewImage chunk(im.height, 8, 1, 1);
+    Image chunk(im.height, 8, 1, 1);
 
     for (int c = 0; c < im.channels; c++) {
         for (int t = 0; t < im.frames; t++) {
@@ -626,12 +626,12 @@ void RectFilter::blurY(NewImage im, int width, int iterations) {
     }
 }
 
-void RectFilter::blurT(NewImage im, int width, int iterations) {
+void RectFilter::blurT(Image im, int width, int iterations) {
     if (width <= 1) { return; }
     if (im.frames == 1) { return; }
 
     // pull out strips across frames from rows and blur them
-    NewImage chunk(im.frames, 8, 1, 1);
+    Image chunk(im.frames, 8, 1, 1);
 
     for (int c = 0; c < im.channels; c++) {
         for (int y = 0; y < im.height; y++) {
@@ -686,19 +686,19 @@ void LanczosBlur::parse(vector<string> args) {
         panic("-lanczosblur takes one, two, or three arguments\n");
     }
 
-    NewImage im = apply(stack(0), width, height, frames);
+    Image im = apply(stack(0), width, height, frames);
     pop();
     push(im);
 }
 
-NewImage LanczosBlur::apply(NewImage im, float filterWidth, float filterHeight, float filterFrames) {
-    NewImage out(im);
+Image LanczosBlur::apply(Image im, float filterWidth, float filterHeight, float filterFrames) {
+    Image out(im);
 
     if (filterFrames != 0) {
         // make the frames filter
         int size = (int)(filterFrames * 6 + 1) | 1;
         int radius = size / 2;
-        NewImage filter(1, 1, size, 1);
+        Image filter(1, 1, size, 1);
         float sum = 0;
         for (int i = 0; i < size; i++) {
             float value = lanczos_3((i-radius) / filterFrames);
@@ -717,7 +717,7 @@ NewImage LanczosBlur::apply(NewImage im, float filterWidth, float filterHeight, 
         // make the width filter
         int size = (int)(filterWidth * 6 + 1) | 1;
         int radius = size / 2;
-        NewImage filter(size, 1, 1, 1);
+        Image filter(size, 1, 1, 1);
         float sum = 0;
         for (int i = 0; i < size; i++) {
             float value = lanczos_3((i-radius) / filterWidth);
@@ -736,7 +736,7 @@ NewImage LanczosBlur::apply(NewImage im, float filterWidth, float filterHeight, 
         // make the height filter
         int size = (int)(filterHeight * 6 + 1) | 1;
         int radius = size / 2;
-        NewImage filter(1, size, 1, 1);
+        Image filter(1, size, 1, 1);
         float sum = 0;
         for (int i = 0; i < size; i++) {
             float value = lanczos_3((i-radius) / filterHeight);
@@ -771,7 +771,7 @@ void MinFilter::parse(vector<string> args) {
     apply(stack(0), radius);
 }
 
-void MinFilter::apply(NewImage im, int radius) {
+void MinFilter::apply(Image im, int radius) {
     // Make a heap with (2*radius + 1) leaves. Unlike a regular heap,
     // each internal node is a _copy_ of the smaller child. The leaf
     // nodes act as a circular buffer. Every time we introduce a new
@@ -855,7 +855,7 @@ void MaxFilter::parse(vector<string> args) {
     apply(stack(0), radius);
 }
 
-void MaxFilter::apply(NewImage im, int radius) {
+void MaxFilter::apply(Image im, int radius) {
     // Make a heap with (2*radius + 1) leaves. Unlike a regular heap,
     // each internal node is a _copy_ of the smaller child. The leaf
     // nodes act as a circular buffer. Every time we introduce a new
@@ -936,12 +936,12 @@ void MedianFilter::parse(vector<string> args) {
     assert(args.size() == 1, "-medianfilter takes one argument\n");
     int radius = readInt(args[0]);
     assert(radius > -1, "radius must be positive");
-    NewImage im = apply(stack(0), radius);
+    Image im = apply(stack(0), radius);
     pop();
     push(im);
 }
 
-NewImage MedianFilter::apply(NewImage im, int radius) {
+Image MedianFilter::apply(Image im, int radius) {
     return PercentileFilter::apply(im, radius, 0.5);
 }
 
@@ -960,13 +960,13 @@ void PercentileFilter::parse(vector<string> args) {
     assert(0 <= percentile && percentile <= 1, "percentile must be between zero and one");
     if (percentile == 1) { percentile = 0.999; }
     assert(radius > -1, "radius must be positive");
-    NewImage im = apply(stack(0), radius, percentile);
+    Image im = apply(stack(0), radius, percentile);
     pop();
     push(im);
 }
 
-NewImage PercentileFilter::apply(NewImage im, int radius, float percentile) {
-    struct SlidingNewImage {
+Image PercentileFilter::apply(Image im, int radius, float percentile) {
+    struct SlidingImage {
 
         // We'll use a pair of heap-like data structures, with a circular
         // buffer as the leaves. The internal nodes point to the smaller
@@ -981,7 +981,7 @@ NewImage PercentileFilter::apply(NewImage im, int radius, float percentile) {
         // 2) How many valid children this node has. If zero, then 1) is meaningless.
         vector<pair<int, int> > minHeap, maxHeap;
 
-        SlidingNewImage(int maxKey) {
+        SlidingImage(int maxKey) {
             buf.resize(maxKey);
             size_t heapSize = 1;
             while (heapSize < 2*buf.size()-1) {
@@ -1131,7 +1131,7 @@ NewImage PercentileFilter::apply(NewImage im, int radius, float percentile) {
 
     };
 
-    NewImage out(im.width, im.height, im.frames, im.channels);
+    Image out(im.width, im.height, im.frames, im.channels);
 
     // make the filter edge profile
     int d = 2*radius+1;
@@ -1145,7 +1145,7 @@ NewImage PercentileFilter::apply(NewImage im, int radius, float percentile) {
         for (int t = 0; t < im.frames; t++) {
             for (int y = 0; y < im.height; y++) {
                 // initialize the sliding window for this scanline
-                SlidingNewImage window(d*d);
+                SlidingImage window(d*d);
                 for (int i = 0; i < 2*radius+1; i++) {
                     int xoff = edge[i];
                     int yoff = i - radius;
@@ -1206,13 +1206,13 @@ void CircularFilter::help() {
 void CircularFilter::parse(vector<string> args) {
     assert(args.size() == 1, "-circularfilter takes one argument\n");
 
-    NewImage im = apply(stack(0), readInt(args[0]));
+    Image im = apply(stack(0), readInt(args[0]));
     pop();
     push(im);
 }
 
-NewImage CircularFilter::apply(NewImage im, int radius) {
-    NewImage out(im.width, im.height, im.frames, im.channels);
+Image CircularFilter::apply(Image im, int radius) {
+    Image out(im.width, im.height, im.frames, im.channels);
 
     // maintain the average response currently under the filter, and the number of pixels under the filter
     float average = 0;
@@ -1290,7 +1290,7 @@ void Envelope::parse(vector<string> args) {
     apply(stack(0), m, readInt(args[1]));
 }
 
-void Envelope::apply(NewImage im, Mode m, int radius) {
+void Envelope::apply(Image im, Mode m, int radius) {
     if (m == Upper) {
         MaxFilter::apply(im, radius);
         RectFilter::apply(im, 2*radius+1, 2*radius+1, 1);
@@ -1319,13 +1319,13 @@ void HotPixelSuppression::help() {
 void HotPixelSuppression::parse(vector<string> args) {
     assert(args.size() == 0, 
            "-hotpixelsuppression takes no arguments\n");
-    NewImage im = apply(stack(0));
+    Image im = apply(stack(0));
     pop();
     push(im);
 }
 
-NewImage HotPixelSuppression::apply(NewImage im) {
-    NewImage out(im.width, im.height, im.frames, im.channels);
+Image HotPixelSuppression::apply(Image im) {
+    Image out(im.width, im.height, im.frames, im.channels);
 
     for (int t = 0; t < im.frames; t++) {
         for (int y = 1; y < im.height-1; y++) {

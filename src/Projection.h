@@ -6,7 +6,7 @@ class Sinugram : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static NewImage apply(NewImage im, int directions);
+    static Image apply(Image im, int directions);
 };
 
 #include "footer.h"

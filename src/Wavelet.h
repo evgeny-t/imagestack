@@ -6,28 +6,28 @@ class Haar : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static void apply(NewImage im, int times = -1);
+    static void apply(Image im, int times = -1);
 };
 
 class InverseHaar : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static void apply(NewImage im, int times = -1);
+    static void apply(Image im, int times = -1);
 };
 
 class Daubechies : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static void apply(NewImage im);
+    static void apply(Image im);
 };
 
 class InverseDaubechies : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static void apply(NewImage im);
+    static void apply(Image im);
 };
 
 #include "footer.h"

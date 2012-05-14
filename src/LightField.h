@@ -6,7 +6,7 @@
 // and y, like an image of the lenslets in a plenoptic camera
 class LightField {
 public:
-    LightField(NewImage im, int uSize_, int vSize_) : image(im), uSize(uSize_), vSize(vSize_) {
+    LightField(Image im, int uSize_, int vSize_) : image(im), uSize(uSize_), vSize(vSize_) {
         assert(im.width % uSize == 0, "width is not a multiple of lenslet width\n");
         assert(im.height % vSize == 0, "height is not a multiple of lenslet height\n");
         xSize = im.width / uSize;
@@ -90,7 +90,7 @@ public:
         sample4D(x,y,u,v,0,result);
     }
 
-    NewImage image;
+    Image image;
     int uSize, vSize;
     int xSize, ySize;
 
@@ -101,14 +101,14 @@ class LFFocalStack : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static NewImage apply(LightField im, float minAlpha, float maxAlpha, float deltaAlpha);
+    static Image apply(LightField im, float minAlpha, float maxAlpha, float deltaAlpha);
 };
 
 class LFWarp : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static NewImage apply(LightField lf, NewImage warper, bool quick);
+    static Image apply(LightField lf, Image warper, bool quick);
 };
 
 class LFPoint : public Operation {

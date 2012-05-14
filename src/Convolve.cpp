@@ -46,7 +46,7 @@ void Convolve::parse(vector<string> args) {
     string boundaryCondition = "homogeneous";
     string channelMode = "outer";
 
-    NewImage filter;
+    Image filter;
 
     if (args.size() > 3) {
         int frames, width, height;
@@ -64,7 +64,7 @@ void Convolve::parse(vector<string> args) {
                "a size of %ix%ix%i requires at most %i more arguments. %i were given.",
                width, height, frames, size, (int)args.size() - 2);
 
-        filter = NewImage(width, height, frames, 1);
+        filter = Image(width, height, frames, 1);
 
         size_t i = 3;
         for (int t = 0; t < frames; t++) {
@@ -111,14 +111,14 @@ void Convolve::parse(vector<string> args) {
         panic("Unknown vector-vector multiplication: %s\n", channelMode.c_str());
     }
 
-    NewImage im = apply(stack(0), filter, b, m);
+    Image im = apply(stack(0), filter, b, m);
     pop();
     push(im);
 
 }
 
 // For a single channel, out += in * filter
-void Convolve::convolveSingle(NewImage in, NewImage filter, NewImage out, 
+void Convolve::convolveSingle(Image in, Image filter, Image out, 
                               BoundaryCondition b) {
     assert(in.channels == 1 && filter.channels == 1 && out.channels == 1,
            "convolveSingle should only be called on single-channel images");
@@ -236,8 +236,8 @@ void Convolve::convolveSingle(NewImage in, NewImage filter, NewImage out,
     }
 }
 
-NewImage Convolve::apply(NewImage im, NewImage filter, BoundaryCondition b, Multiply::Mode m) {
-    NewImage out;
+Image Convolve::apply(Image im, Image filter, BoundaryCondition b, Multiply::Mode m) {
+    Image out;
     if (m == Multiply::Inner) {
         assert(filter.channels % im.channels == 0 ||
                im.channels % filter.channels == 0,
@@ -246,14 +246,14 @@ NewImage Convolve::apply(NewImage im, NewImage filter, BoundaryCondition b, Mult
                "the channel count of the other.");
         int maxc = max(im.channels, filter.channels);
         int minc = min(im.channels, filter.channels);
-        out = NewImage(im.width, im.height, im.frames, maxc/minc);
+        out = Image(im.width, im.height, im.frames, maxc/minc);
         for (int i = 0; i < maxc; i++) {
             convolveSingle(im.channel(i), 
                            filter.channel(i % minc), 
                            out.channel(i / minc), b);
         }
     } else if (m == Multiply::Outer) {
-        out = NewImage(im.width, im.height, im.frames, im.channels * filter.channels);
+        out = Image(im.width, im.height, im.frames, im.channels * filter.channels);
         for (int i = 0; i < im.channels; i++) {
             for (int j = 0; j < filter.channels; j++) {
                 convolveSingle(im.channel(i),
@@ -265,7 +265,7 @@ NewImage Convolve::apply(NewImage im, NewImage filter, BoundaryCondition b, Mult
         assert(im.channels == filter.channels,
                "For element-wise multiplication, the image "
                "and filter must have the same number of channels.");
-        out = NewImage(im.width, im.height, im.frames, im.channels);        
+        out = Image(im.width, im.height, im.frames, im.channels);        
         for (int i = 0; i < im.channels; i++) {
             convolveSingle(im.channel(i), filter.channel(i), out.channel(i), b);
         }

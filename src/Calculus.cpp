@@ -29,13 +29,13 @@ void Gradient::parse(vector<string> args) {
 }
 
 // gradient can be called as gradient('t') or gradient("xyt")
-void Gradient::apply(NewImage im, string dimensions) {
+void Gradient::apply(Image im, string dimensions) {
     for (size_t i = 0; i < dimensions.size(); i++) {
         apply(im, dimensions[i]);
     }
 }
 
-void Gradient::apply(NewImage im, char dimension) {
+void Gradient::apply(Image im, char dimension) {
     int mint = 0, minx = 0, miny = 0;
     int dt = 0, dx = 0, dy = 0;
 
@@ -83,13 +83,13 @@ void Integrate::parse(vector<string> args) {
 }
 
 // integrate can be called as integrate('t') or integrate("xyt")
-void Integrate::apply(NewImage im, string dimensions) {
+void Integrate::apply(Image im, string dimensions) {
     for (size_t i = 0; i < dimensions.size(); i++) {
         apply(im, dimensions[i]);
     }
 }
 
-void Integrate::apply(NewImage im, char dimension) {
+void Integrate::apply(Image im, char dimension) {
     int minx = 0, miny = 0, mint = 0;
     int dx = 0, dy = 0, dt = 0;
 
@@ -134,7 +134,7 @@ void GradMag::parse(vector<string> args) {
     apply(stack(0));
 }
 
-void GradMag::apply(NewImage im) {
+void GradMag::apply(Image im) {
     for (int c = 0; c < im.channels; c++) {
         for (int t = 0; t < im.frames; t++) {
             for (int y = im.height-1; y >=0; y--) {
@@ -170,7 +170,7 @@ void Poisson::parse(vector<string> args) {
     push(apply(stack(1), stack(0), rms));
 }
 
-NewImage Poisson::apply(NewImage dx, NewImage dy, float rms) {
+Image Poisson::apply(Image dx, Image dy, float rms) {
     assert(dx.width  == dy.width &&
            dx.height == dy.height &&
            dx.frames == dy.frames &&
@@ -178,9 +178,9 @@ NewImage Poisson::apply(NewImage dx, NewImage dy, float rms) {
            "derivatives must be matching size and number of channels\n");
 
 
-    NewImage zerosc(dx.width, dx.height, dx.frames, dx.channels);
-    NewImage zeros1(dx.width, dx.height, dx.frames, 1);
-    NewImage ones1(dx.width, dx.height, dx.frames, 1);
+    Image zerosc(dx.width, dx.height, dx.frames, dx.channels);
+    Image zeros1(dx.width, dx.height, dx.frames, 1);
+    Image ones1(dx.width, dx.height, dx.frames, 1);
     ones1 = 1.0f;
     return LAHBPCG::apply(zerosc, dx, dy, zeros1, ones1, ones1, 999999, rms);
 }

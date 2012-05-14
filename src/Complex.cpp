@@ -26,7 +26,7 @@ void ComplexMultiply::parse(vector<string> args) {
     }
 }
 
-void ComplexMultiply::apply(NewImage a, NewImage b, bool conj = false) {
+void ComplexMultiply::apply(Image a, Image b, bool conj = false) {
     assert(a.channels % 2 == 0 && b.channels % 2 == 0,
            "-complexmultiply requires images with an even number of channels (%d %d)\n",
            a.channels, b.channels);
@@ -96,7 +96,7 @@ void ComplexDivide::parse(vector<string> args) {
     }
 }
 
-void ComplexDivide::apply(NewImage a, NewImage b, bool conj = false) {
+void ComplexDivide::apply(Image a, Image b, bool conj = false) {
     assert(a.channels % 2 == 0 && b.channels % 2 == 0,
            "-complexdivide requires images with an even number of channels\n");
 
@@ -154,16 +154,16 @@ void ComplexReal::help() {
 
 void ComplexReal::parse(vector<string> args) {
     assert(args.size() == 0, "-complexreal takes no arguments\n");
-    NewImage im = apply(stack(0));
+    Image im = apply(stack(0));
     pop();
     push(im);
 }
 
-NewImage ComplexReal::apply(NewImage im) {
+Image ComplexReal::apply(Image im) {
     assert(im.channels % 2 == 0,
            "complex images must have an even number of channels\n");
 
-    NewImage out(im.width, im.height, im.frames, im.channels/2);
+    Image out(im.width, im.height, im.frames, im.channels/2);
 
     for (int c = 0; c < out.channels; c++) {
         for (int t = 0; t < out.frames; t++) {
@@ -188,13 +188,13 @@ void RealComplex::help() {
 
 void RealComplex::parse(vector<string> args) {
     assert(args.size() == 0, "-complexreal takes no arguments\n");
-    NewImage im = apply(stack(0));
+    Image im = apply(stack(0));
     pop();
     push(im);
 }
 
-NewImage RealComplex::apply(NewImage im) {
-    NewImage out(im.width, im.height, im.frames, im.channels*2);
+Image RealComplex::apply(Image im) {
+    Image out(im.width, im.height, im.frames, im.channels*2);
 
     for (int c = 0; c < im.channels; c++) {                    
         for (int t = 0; t < im.frames; t++) {
@@ -220,16 +220,16 @@ void ComplexImag::help() {
 
 void ComplexImag::parse(vector<string> args) {
     assert(args.size() == 0, "-compleximag takes no arguments\n");
-    NewImage im = apply(stack(0));
+    Image im = apply(stack(0));
     pop();
     push(im);
 }
 
-NewImage ComplexImag::apply(NewImage im) {
+Image ComplexImag::apply(Image im) {
     assert(im.channels % 2 == 0,
            "complex images must have an even number of channels\n");
 
-    NewImage out(im.width, im.height, im.frames, im.channels/2);
+    Image out(im.width, im.height, im.frames, im.channels/2);
 
     for (int c = 0; c < out.channels; c++) {
         for (int t = 0; t < out.frames; t++) {
@@ -256,16 +256,16 @@ void ComplexMagnitude::help() {
 
 void ComplexMagnitude::parse(vector<string> args) {
     assert(args.size() == 0, "-complexmagnitude takes no arguments\n");
-    NewImage im = apply(stack(0));
+    Image im = apply(stack(0));
     pop();
     push(im);
 }
 
-NewImage ComplexMagnitude::apply(NewImage im) {
+Image ComplexMagnitude::apply(Image im) {
     assert(im.channels % 2 == 0,
            "complex images must have an even number of channels\n");
 
-    NewImage out(im.width, im.height, im.frames, im.channels/2);
+    Image out(im.width, im.height, im.frames, im.channels/2);
 
     for (int c = 0; c < out.channels; c++) {
         for (int t = 0; t < out.frames; t++) {
@@ -295,15 +295,15 @@ void ComplexPhase::help() {
 
 void ComplexPhase::parse(vector<string> args) {
     assert(args.size() == 0, "-complexphase takes no arguments\n");
-    NewImage im = apply(stack(0));
+    Image im = apply(stack(0));
     pop();
     push(im);
 }
 
-NewImage ComplexPhase::apply(NewImage im) {
+Image ComplexPhase::apply(Image im) {
     assert(im.channels % 2 == 0, "complex images must have an even number of channels\n");
 
-    NewImage out(im.width, im.height, im.frames, im.channels/2);
+    Image out(im.width, im.height, im.frames, im.channels/2);
 
     for (int c = 0; c < out.channels; c++) {
         for (int t = 0; t < out.frames; t++) {
@@ -335,7 +335,7 @@ void ComplexConjugate::parse(vector<string> args) {
     apply(stack(0));
 }
 
-void ComplexConjugate::apply(NewImage im) {
+void ComplexConjugate::apply(Image im) {
     assert(im.channels % 2 == 0, "complex images must have an even number of channels\n");
 
     for (int c = 1; c < im.channels; c+=2) {

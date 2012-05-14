@@ -10,7 +10,7 @@ void help() {
             " of the file, and height, frames, and channels become rows.\n");
 }
 
-void save(NewImage im, string filename) {
+void save(Image im, string filename) {
     FILE *f = fopen(filename.c_str(), "w");
     assert(f, "Could not write output file %s\n", filename.c_str());
     // write the dimensions
@@ -37,7 +37,7 @@ void save(NewImage im, string filename) {
     fclose(f);
 }
 
-NewImage load(string filename) {
+Image load(string filename) {
     FILE *f = fopen(filename.c_str(), "r");
     assert(f, "Could not read input file %s\n", filename.c_str());
 
@@ -67,7 +67,7 @@ NewImage load(string filename) {
 
 
 
-    NewImage im(wi, he, fr, ch);
+    Image im(wi, he, fr, ch);
 
     // read the data
     for (int c = 0; c < im.channels; c++) {

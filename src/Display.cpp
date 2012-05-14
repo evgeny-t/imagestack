@@ -21,7 +21,7 @@ void Display::parse(vector<string> args) {
     apply(stack(0), args.size() == 1);
 }
 
-void Display::apply(NewImage im, bool fullscreen) {
+void Display::apply(Image im, bool fullscreen) {
     DisplayWindow::instance().setMode(im.width, im.height, fullscreen);
     DisplayWindow::instance().setImage(im);
 
@@ -48,7 +48,7 @@ void Display::parse(vector<string> args) {
     panic("This version of ImageStack was compiled without SDL, so cannot display.\n");
 }
 
-void Display::apply(NewImage im, bool fullscreen) {
+void Display::apply(Image im, bool fullscreen) {
     panic("This version of ImageStack was compiled without SDL, so cannot display.\n");
 }
 
