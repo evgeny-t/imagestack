@@ -21,22 +21,22 @@ void LFFocalStack::help() {
 void LFFocalStack::parse(vector<string> args) {
     assert(args.size() == 5, "-lffocalstack takes five arguments.\n");
     LightField lf(stack(0), readInt(args[0]), readInt(args[1]));
-    NewImage im = apply(lf, readFloat(args[2]), readFloat(args[3]), readFloat(args[4]));
+    Image im = apply(lf, readFloat(args[2]), readFloat(args[3]), readFloat(args[4]));
     pop();
     push(im);
 }
 
 
-NewImage LFFocalStack::apply(LightField lf, float minAlpha, float maxAlpha, float deltaAlpha) {
+Image LFFocalStack::apply(LightField lf, float minAlpha, float maxAlpha, float deltaAlpha) {
     assert(lf.image.frames == 1, "Can only turn a single light field into a focal stack\n");
 
     int frames = 0;
     for (float alpha = minAlpha; alpha <= maxAlpha; alpha += deltaAlpha) { frames++; }
 
-    NewImage out(lf.xSize, lf.ySize, frames, lf.image.channels);
+    Image out(lf.xSize, lf.ySize, frames, lf.image.channels);
 
-    NewImage view(lf.xSize, lf.ySize, 1, lf.image.channels);
-    NewImage shifted, prefiltered;
+    Image view(lf.xSize, lf.ySize, 1, lf.image.channels);
+    Image shifted, prefiltered;
 
     int t = 0;
     for (float alpha = minAlpha; alpha <= maxAlpha; alpha += deltaAlpha) {
@@ -103,19 +103,19 @@ void LFWarp::parse(vector<string> args) {
         }
     }
     LightField lf(stack(1), readInt(args[0]), readInt(args[1]));
-    NewImage im = apply(lf, stack(0), quick);
+    Image im = apply(lf, stack(0), quick);
     pop();
     pop();
     push(im);
 }
 
-NewImage LFWarp::apply(LightField lf, NewImage warper, bool quick) {
+Image LFWarp::apply(LightField lf, Image warper, bool quick) {
 
     // these are the LightField object coordinates
     float lx, ly, lu, lv;
 
     // the output image
-    NewImage out(warper.frames, warper.width, warper.height, lf.image.channels);
+    Image out(warper.frames, warper.width, warper.height, lf.image.channels);
 
     // do the processing loop
     vector<float> sample(lf.image.channels);

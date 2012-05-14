@@ -12,10 +12,10 @@ public:
 
     enum BoundaryCondition {Zero = 0, Homogeneous, Clamp, Wrap};
 
-    static NewImage apply(NewImage im, NewImage filter, BoundaryCondition b = Zero,
+    static Image apply(Image im, Image filter, BoundaryCondition b = Zero,
                        Multiply::Mode m = Multiply::Outer);
  private:
-    static void convolveSingle(NewImage im, NewImage filter, NewImage out, BoundaryCondition b);
+    static void convolveSingle(Image im, Image filter, Image out, BoundaryCondition b);
 };
 
 #include "footer.h"

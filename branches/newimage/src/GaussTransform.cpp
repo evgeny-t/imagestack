@@ -65,12 +65,12 @@ void GaussTransform::parse(vector<string> args) {
               " number of channels in the second image on the stack arguments\n");
     }
  
-    NewImage im = apply(stack(0), stack(1), stack(2), sigmas, m);
+    Image im = apply(stack(0), stack(1), stack(2), sigmas, m);
     pop();
     push(im);
 }
 
-NewImage GaussTransform::apply(NewImage slice, NewImage splat, NewImage values,
+Image GaussTransform::apply(Image slice, Image splat, Image values,
                             vector<float> sigmas,
                             GaussTransform::Method method) {
     assert(splat.width == values.width &&
@@ -91,7 +91,7 @@ NewImage GaussTransform::apply(NewImage slice, NewImage splat, NewImage values,
 
     switch (method) {
     case EXACT: {
-        NewImage out(slice.width, slice.height, 
+        Image out(slice.width, slice.height, 
 		     slice.frames, values.channels);
         for (int t1 = 0; t1 < slice.frames; t1++) {
             for (int t2 = 0; t2 < splat.frames; t2++) {
@@ -149,7 +149,7 @@ NewImage GaussTransform::apply(NewImage slice, NewImage splat, NewImage values,
         // Slice from the lattice
         //printf("Slicing...\n");
 
-        NewImage out(slice.width, slice.height, slice.frames, values.channels);
+        Image out(slice.width, slice.height, slice.frames, values.channels);
 
         if (slice == splat) {
             lattice.beginSlice();
@@ -236,7 +236,7 @@ NewImage GaussTransform::apply(NewImage slice, NewImage splat, NewImage values,
         // Slice from the grid
         //printf("Slicing...\n");
 
-        NewImage out(slice.width, slice.height, slice.frames, values.channels);
+        Image out(slice.width, slice.height, slice.frames, values.channels);
 
         for (int t = 0; t < slice.frames; t++) {
             for (int y = 0; y < slice.height; y++) {
@@ -330,7 +330,7 @@ NewImage GaussTransform::apply(NewImage slice, NewImage splat, NewImage values,
         }
         printf("\n");
 
-        NewImage out(slice.width, slice.height, slice.frames, values.channels);
+        Image out(slice.width, slice.height, slice.frames, values.channels);
 
         vector<float> pos(slice.channels);
         vector<double> outDbl(out.channels);
@@ -376,7 +376,7 @@ NewImage GaussTransform::apply(NewImage slice, NewImage splat, NewImage values,
     }
     default: {
         panic("This Gauss transform method not yet implemented\n");
-        return NewImage();
+        return Image();
     }
     }
 }
@@ -426,7 +426,7 @@ void JointBilateral::parse(vector<string> args) {
     apply(stack(0), stack(1), filterWidth, filterHeight, filterFrames, colorSigma, m);
 }
 
-void JointBilateral::apply(NewImage im, NewImage ref,
+void JointBilateral::apply(Image im, Image ref,
                            float filterWidth, float filterHeight, float filterFrames, float colorSigma,
                            GaussTransform::Method method) {
     assert(im.width == ref.width &&
@@ -491,14 +491,14 @@ void JointBilateral::apply(NewImage im, NewImage ref,
 
     if (method == GaussTransform::EXACT) {
 
-        NewImage out(im.width, im.height, im.frames, im.channels);
+        Image out(im.width, im.height, im.frames, im.channels);
 
         // make the spatial filter
         int filterSizeT = (int)(filterFrames * 6 + 1) | 1;
         int filterSizeX = (int)(filterWidth * 6 + 1) | 1;
         int filterSizeY = (int)(filterHeight * 6 + 1) | 1;
 
-        NewImage filter(filterSizeX, filterSizeY, filterSizeT, 1);
+        Image filter(filterSizeX, filterSizeY, filterSizeT, 1);
 
         for (int t = 0; t < filter.frames; t++) {
             for (int y = 0; y < filter.height; y++) {
@@ -573,8 +573,8 @@ void JointBilateral::apply(NewImage im, NewImage ref,
     // methods directly, but it would involve copy pasting large
     // amounts of code with minor tweaks.
 
-    NewImage splat(im.width, im.height, im.frames, posChannels);
-    NewImage values(im.width, im.height, im.frames, im.channels+1);
+    Image splat(im.width, im.height, im.frames, posChannels);
+    Image values(im.width, im.height, im.frames, im.channels+1);
 
     float invColorSigma = 1.0f/colorSigma;
     float invSigmaX = 1.0f/filterWidth;
@@ -693,7 +693,7 @@ void Bilateral::parse(vector<string> args) {
     apply(stack(0), filterWidth, filterHeight, filterFrames, colorSigma, m);
 }
 
-void Bilateral::apply(NewImage image, float filterWidth, float filterHeight,
+void Bilateral::apply(Image image, float filterWidth, float filterHeight,
                       float filterFrames, float colorSigma,
                       GaussTransform::Method m) {
     JointBilateral::apply(image, image, filterWidth, filterHeight, filterFrames, colorSigma, m);
@@ -711,13 +711,13 @@ void BilateralSharpen::help() {
 
 void BilateralSharpen::parse(vector<string> args) {
     assert(args.size() == 3, "-bilateralsharpen takes three arguments");
-    NewImage im = apply(stack(0), readFloat(args[0]), readFloat(args[1]), readFloat(args[2]));
+    Image im = apply(stack(0), readFloat(args[0]), readFloat(args[1]), readFloat(args[2]));
     pop();
     push(im);
 }
 
-NewImage BilateralSharpen::apply(NewImage im, float spatialSigma, float colorSigma, float sharpness) {
-    NewImage out = im.copy();
+Image BilateralSharpen::apply(Image im, float spatialSigma, float colorSigma, float sharpness) {
+    Image out = im.copy();
     Bilateral::apply(out, spatialSigma, spatialSigma, 0, colorSigma);
 
     float imWeight = 1+sharpness, outWeight = -sharpness;
@@ -745,15 +745,15 @@ void ChromaBlur::help() {
 
 void ChromaBlur::parse(vector<string> args) {
     assert(args.size() == 2, "-chromablur takes two arguments");
-    NewImage im = apply(stack(0), readFloat(args[0]), readFloat(args[1]));
+    Image im = apply(stack(0), readFloat(args[0]), readFloat(args[1]));
     pop();
     push(im);
 }
 
-NewImage ChromaBlur::apply(NewImage im, float spatialSigma, float colorSigma) {
+Image ChromaBlur::apply(Image im, float spatialSigma, float colorSigma) {
     assert(im.channels == 3, "input must be a rgb image\n");
-    NewImage yuv = ColorConvert::rgb2yuv(im);
-    NewImage luminance = ColorConvert::rgb2y(im);
+    Image yuv = ColorConvert::rgb2yuv(im);
+    Image luminance = ColorConvert::rgb2y(im);
 
     // blur chrominance
     JointBilateral::apply(yuv, luminance, spatialSigma, spatialSigma, 0, colorSigma);
@@ -809,12 +809,12 @@ void NLMeans::parse(vector<string> args) {
 
 }
 
-void NLMeans::apply(NewImage image, float patchSize, int dimensions,
+void NLMeans::apply(Image image, float patchSize, int dimensions,
                     float spatialSigma, float patchSigma,
                     GaussTransform::Method method) {
 
-    NewImage filters = PatchPCA::apply(image, patchSize, dimensions);
-    NewImage pca = Convolve::apply(image, filters, Convolve::Zero, Multiply::Inner);
+    Image filters = PatchPCA::apply(image, patchSize, dimensions);
+    Image pca = Convolve::apply(image, filters, Convolve::Zero, Multiply::Inner);
     JointBilateral::apply(image, pca, spatialSigma, spatialSigma, INF, patchSigma);
 };
 
@@ -862,12 +862,12 @@ void NLMeans3D::parse(vector<string> args) {
 
 }
 
-void NLMeans3D::apply(NewImage image, float patchSize, int dimensions,
+void NLMeans3D::apply(Image image, float patchSize, int dimensions,
                       float spatialSigma, float patchSigma,
                       GaussTransform::Method method) {
 
-    NewImage filters = PatchPCA3D::apply(image, patchSize, dimensions);
-    NewImage pca = Convolve::apply(image, filters, Convolve::Zero, Multiply::Inner);
+    Image filters = PatchPCA3D::apply(image, patchSize, dimensions);
+    Image pca = Convolve::apply(image, filters, Convolve::Zero, Multiply::Inner);
     JointBilateral::apply(image, pca, spatialSigma, spatialSigma, INF, patchSigma);
 };
 

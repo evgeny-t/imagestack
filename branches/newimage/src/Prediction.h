@@ -6,7 +6,7 @@ class Inpaint : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static NewImage apply(NewImage im, NewImage mask);
+    static Image apply(Image im, Image mask);
 };
 
 #include "footer.h"

@@ -48,18 +48,18 @@ void PatchMatch::parse(vector<string> args) {
         numIter = readInt(args[0]);
     }
 
-    NewImage result;
+    Image result;
 
     result = apply(stack(0), stack(1), numIter, patchSize);
 
     push(result);
 }
 
-NewImage PatchMatch::apply(NewImage source, NewImage target, int iterations, int patchSize) {
-    return apply(source, target, NewImage(), iterations, patchSize);
+Image PatchMatch::apply(Image source, Image target, int iterations, int patchSize) {
+    return apply(source, target, Image(), iterations, patchSize);
 }
 
-NewImage PatchMatch::apply(NewImage source, NewImage target, NewImage mask, int iterations, int patchSize) {
+Image PatchMatch::apply(Image source, Image target, Image mask, int iterations, int patchSize) {
 
     if (mask) {
         assert(target.width == mask.width &&
@@ -77,7 +77,7 @@ NewImage PatchMatch::apply(NewImage source, NewImage target, NewImage mask, int 
 
     // For each source pixel, output a 3-vector to the best match in
     // the target, with an error as the last channel.
-    NewImage out(source.width, source.height, source.frames, 4);
+    Image out(source.width, source.height, source.frames, 4);
 
     // Iterate over source frames, finding a match in the target where
     // the mask is high
@@ -102,7 +102,7 @@ NewImage PatchMatch::apply(NewImage source, NewImage target, NewImage mask, int 
 
     bool forwardSearch = true;
 
-    NewImage dx = out.channel(0), dy = out.channel(1), dt = out.channel(2), error = out.channel(3);
+    Image dx = out.channel(0), dy = out.channel(1), dt = out.channel(2), error = out.channel(3);
 
     for (int i = 0; i < iterations; i++) {
 
@@ -243,7 +243,7 @@ NewImage PatchMatch::apply(NewImage source, NewImage target, NewImage mask, int 
     return out;
 }
 
-float PatchMatch::distance(NewImage source, NewImage target, NewImage mask,
+float PatchMatch::distance(Image source, Image target, Image mask,
                            int st, int sx, int sy,
                            int tt, int tx, int ty,
                            int patchSize, float prevDist) {
@@ -338,15 +338,15 @@ void BidirectionalSimilarity::parse(vector<string> args) {
         alpha = readFloat(args[0]);
     }
 
-    apply(stack(1), stack(0), NewImage(), NewImage(), alpha, numIter, numIterPM);
+    apply(stack(1), stack(0), Image(), Image(), alpha, numIter, numIterPM);
 }
 
 
 // Reconstruct the portion of the target where the mask is high, using
 // the portion of the source where its mask is high. Source and target
 // masks are allowed to be null windows.
-void BidirectionalSimilarity::apply(NewImage source, NewImage target,
-                                    NewImage sourceMask, NewImage targetMask,
+void BidirectionalSimilarity::apply(Image source, Image target,
+                                    Image sourceMask, Image targetMask,
                                     float alpha, int numIter, int numIterPM) {
 
 
@@ -357,11 +357,11 @@ void BidirectionalSimilarity::apply(NewImage source, NewImage target,
 
     // recurse
     if (source.width > 32 && source.height > 32 && target.width > 32 && target.height > 32) {
-        NewImage smallSource = Resample::apply(source, source.width/2, source.height/2, source.frames);
-        NewImage smallTarget = Resample::apply(target, target.width/2, target.height/2, target.frames);
+        Image smallSource = Resample::apply(source, source.width/2, source.height/2, source.frames);
+        Image smallTarget = Resample::apply(target, target.width/2, target.height/2, target.frames);
 
-        NewImage smallSourceMask;
-        NewImage smallTargetMask;
+        Image smallSourceMask;
+        Image smallTargetMask;
         if (sourceMask) {
             smallSourceMask = Downsample::apply(sourceMask, 2, 2, 1);
         }
@@ -372,7 +372,7 @@ void BidirectionalSimilarity::apply(NewImage source, NewImage target,
 
         apply(smallSource, smallTarget, smallSourceMask, smallTargetMask, alpha, numIter, numIterPM);
 
-        NewImage newTarget = Resample::apply(smallTarget, target.width, target.height, target.frames);
+        Image newTarget = Resample::apply(smallTarget, target.width, target.height, target.frames);
 
         if (targetMask) {
             Composite::apply(target, newTarget, targetMask);
@@ -386,15 +386,15 @@ void BidirectionalSimilarity::apply(NewImage source, NewImage target,
         printf("."); fflush(stdout);
 
         int patchSize = 5;
-        NewImage completeMatch, coherentMatch;
+        Image completeMatch, coherentMatch;
 
         // The homogeneous output for this iteration
-        NewImage out(target.width, target.height, target.frames, target.channels+1);
+        Image out(target.width, target.height, target.frames, target.channels+1);
 
         if (alpha != 0) {
 
             // COMPLETENESS TERM
-            NewImage completeMatch = PatchMatch::apply(source, target, targetMask, numIterPM, patchSize);
+            Image completeMatch = PatchMatch::apply(source, target, targetMask, numIterPM, patchSize);
 
             // For every patch in the source, splat it onto the
             // nearest match in the target, weighted by the source
@@ -433,7 +433,7 @@ void BidirectionalSimilarity::apply(NewImage source, NewImage target,
 
         if (alpha != 1) {
             // COHERENCE TERM
-            NewImage coherentMatch = PatchMatch::apply(target, source, sourceMask,
+            Image coherentMatch = PatchMatch::apply(target, source, sourceMask,
 						       numIterPM, patchSize);
             // For every patch in the target, pull from the nearest match in the source
             for (int t = 0; t < target.frames; t++) {
@@ -509,10 +509,10 @@ void Heal::parse(vector<string> args) {
 
     assert(args.size() < 3, "-heal takes zero, one, or two arguments\n");
 
-    NewImage mask = stack(1);
-    NewImage image = stack(0);
+    Image mask = stack(1);
+    Image image = stack(0);
 
-    NewImage inverseMask = mask.copy();
+    Image inverseMask = mask.copy();
     inverseMask *= -1;
     inverseMask += 1;
 

@@ -4,21 +4,21 @@
 #include "tables.h"
 #include "header.h"
 
-class NewImage {
+class Image {
   public:
-    NewImage() {
+    Image() {
         init(0, 0, 0, 0);
     }
 
-    NewImage(int w, int h) {
+    Image(int w, int h) {
         init(w, h, 1, 1);
     }
 
-    NewImage(int w, int h, int c) {
+    Image(int w, int h, int c) {
         init(w, h, 1, c);
     }
 
-    NewImage(int w, int h, int f, int c) {
+    Image(int w, int h, int f, int c) {
         init(w, h, f, c);
     }
 
@@ -50,13 +50,13 @@ class NewImage {
         return base;
     }
 
-    NewImage copy() {
-        NewImage m(width, height, frames, channels);
+    Image copy() {
+        Image m(width, height, frames, channels);
 	m.copyFrom(*this);
         return m;
     }
 
-    void copyFrom(NewImage other) {
+    void copyFrom(Image other) {
 	assert(other.width == width &&
 	       other.height == height &&
 	       other.frames == frames &&
@@ -73,13 +73,13 @@ class NewImage {
 	}
     }
 
-    void copyTo(NewImage other) {
+    void copyTo(Image other) {
 	other.copyFrom(*this);
     }
 
-    NewImage region(int x, int y, int t, int c,
+    Image region(int x, int y, int t, int c,
                     int width, int height, int frames, int channels) {
-        NewImage im;
+        Image im;
         im.data = data;
         im.base = &((*this)(x, y, t, c));
         im.width = width;
@@ -92,19 +92,19 @@ class NewImage {
         return im;
     }
 
-    NewImage column(int x) {
+    Image column(int x) {
         return region(x, 0, 0, 0, 1, height, frames, channels);
     }
 
-    NewImage row(int y) {
+    Image row(int y) {
         return region(0, y, 0, 0, width, 1, frames, channels);
     }
 
-    NewImage frame(int t) {
+    Image frame(int t) {
         return region(0, 0, t, 0, width, height, 1, channels);
     }
     
-    NewImage channel(int c) {
+    Image channel(int c) {
         return region(0, 0, 0, c, width, height, frames, 1);
     }
 
@@ -194,7 +194,7 @@ class NewImage {
 	}
     }
 
-    void operator+=(NewImage other) {
+    void operator+=(const Image other) {
 	assert(other.width == width &&
 	       other.height == height &&
 	       other.frames == frames,
@@ -213,7 +213,7 @@ class NewImage {
 	}
     }
 
-    void operator*=(NewImage other) {
+    void operator*=(const Image other) {
 	assert(other.width == width &&
 	       other.height == height &&
 	       other.frames == frames,
@@ -232,7 +232,7 @@ class NewImage {
 	}
     }
 
-    void operator-=(NewImage other) {
+    void operator-=(const Image other) {
 	assert(other.width == width &&
 	       other.height == height &&
 	       other.frames == frames,
@@ -251,7 +251,7 @@ class NewImage {
 	}
     }
 
-    void operator/=(NewImage other) {
+    void operator/=(const Image other) {
 	assert(other.width == width &&
 	       other.height == height &&
 	       other.frames == frames,

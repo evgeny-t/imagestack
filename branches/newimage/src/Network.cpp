@@ -157,12 +157,12 @@ bool TCPConnection::send(const char *buffer, int len) {
     return true;
 }
 
-NewImage TCPConnection::recvImage() {
+Image TCPConnection::recvImage() {
     // receive the header
     unsigned int header[4];
     recv((char *)header, 4*sizeof(unsigned int));
 
-    NewImage im(header[0], header[1], header[2], header[3]);
+    Image im(header[0], header[1], header[2], header[3]);
 
     for (int c = 0; c < im.channels; c++) {
 	for (int t = 0; t < im.frames; t++) {
@@ -176,7 +176,7 @@ NewImage TCPConnection::recvImage() {
     return im;
 }
 
-void TCPConnection::sendImage(NewImage im) {
+void TCPConnection::sendImage(Image im) {
     // Send the header first (4 32-bit unsigned integers)
     unsigned header[4];
     header[0] = im.width;

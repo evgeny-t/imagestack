@@ -28,7 +28,7 @@ void Send::parse(vector<string> args) {
     }
 }
 
-void Send::apply(NewImage im, string host, int port) {
+void Send::apply(Image im, string host, int port) {
     TCPConnection conn(Address(host, port));
     conn.sendImage(im);
 }
@@ -51,7 +51,7 @@ void Receive::parse(vector<string> args) {
 }
 
 
-NewImage Receive::apply(int port) {
+Image Receive::apply(int port) {
     // create and bind the server if it hasn't already been created
     if (!servers[port]) {
         servers[port] = new TCPServer(port);
@@ -61,7 +61,7 @@ NewImage Receive::apply(int port) {
     TCPConnection *conn = servers[port]->listen();
     printf("Got a connection, reading image...\n");
 
-    NewImage im = conn->recvImage();
+    Image im = conn->recvImage();
 
     delete conn;
     return im;

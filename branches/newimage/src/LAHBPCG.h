@@ -7,8 +7,8 @@ public:
     void help();
     void parse(vector<string> args);
 
-    static NewImage apply(NewImage d, NewImage gx, NewImage gy, 
-			  NewImage w, NewImage sx, NewImage sy, int max_iter, float tol);
+    static Image apply(Image d, Image gx, Image gy, 
+			  Image w, Image sx, Image sy, int max_iter, float tol);
 private:
 };
 

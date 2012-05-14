@@ -25,7 +25,7 @@ void help() {
            "are low dynamic range.\n");
 }
 
-NewImage load(string filename) {
+Image load(string filename) {
     FILE *f = fopen(filename.c_str(), "rb");
     assert(f, "Could not open file %s\n", filename.c_str());
 
@@ -82,7 +82,7 @@ NewImage load(string filename) {
 
     assert(bits == 8 * channels, "ImageStack only supports 8 bits per channel tgas (this one has %i bits for %i channels)\n", bits, channels);
 
-    NewImage im(width, height, 1, channels);
+    Image im(width, height, 1, channels);
 
     bool vflip = true; //!(descriptor & 0x10);
 
@@ -188,7 +188,7 @@ NewImage load(string filename) {
     return im;
 }
 
-void save(NewImage im, string filename) {
+void save(Image im, string filename) {
     FILE *f = fopen(filename.c_str(), "wb");
     assert(f, "Could not open file %s\n", filename.c_str());
     assert(im.frames == 1, "can only save single frame tgas\n");

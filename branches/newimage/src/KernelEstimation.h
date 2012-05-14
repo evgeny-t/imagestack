@@ -7,17 +7,17 @@ class KernelEstimation : public Operation {
   public:
     void help();
     void parse(vector<string> args);
-    static NewImage apply(NewImage im, int kernel_size = 9);
+    static Image apply(Image im, int kernel_size = 9);
 
     // Helpers
-    static void NormalizeSum(NewImage im);
-    static NewImage EnlargeKernel(NewImage im, int w, int h);
-    static NewImage ContractKernel(NewImage im, int size);
-    static NewImage BilinearResample(NewImage im, int w, int h);
+    static void NormalizeSum(Image im);
+    static Image EnlargeKernel(Image im, int w, int h);
+    static Image ContractKernel(Image im, int size);
+    static Image BilinearResample(Image im, int w, int h);
 
   private:
-    static void ShockFilterIteration(NewImage im, float dt = 1.f);
-    static void BilateralFilterIteration(NewImage im, float sigma_r);
+    static void ShockFilterIteration(Image im, float dt = 1.f);
+    static void BilateralFilterIteration(Image im, float sigma_r);
 };
 
 #include "footer.h"

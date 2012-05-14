@@ -6,29 +6,29 @@ class Eval : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static NewImage apply(NewImage im, string expression);
+    static Image apply(Image im, string expression);
 };
 
 class EvalChannels : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static NewImage apply(NewImage im, vector<string> expressions);
+    static Image apply(Image im, vector<string> expressions);
 };
 
 class Plot : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static NewImage apply(NewImage im, int width, int height, float lineThickness);
+    static Image apply(Image im, int width, int height, float lineThickness);
 };
 
 class Composite : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static void apply(NewImage dst, NewImage src);
-    static void apply(NewImage dst, NewImage src, NewImage mask);
+    static void apply(Image dst, Image src);
+    static void apply(Image dst, Image src, Image mask);
 };
 
 #include "footer.h"

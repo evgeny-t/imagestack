@@ -93,7 +93,7 @@ void DisplayWindow::handleModeChange() {
     SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
 }
 
-void DisplayWindow::setImage(NewImage im) {
+void DisplayWindow::setImage(Image im) {
     unsigned int rmask, gmask, bmask, amask;
 
     image_ = im.copy();
@@ -139,7 +139,7 @@ void DisplayWindow::renderSurface() {
 
     SDL_LockSurface(surface);
 
-    NewImage im = image_.frame(tOffset_);
+    Image im = image_.frame(tOffset_);
 
     switch (image_.channels) {
 

@@ -53,7 +53,7 @@ void Load::parse(vector<string> args) {
 }
 
 
-NewImage Load::apply(string filename) {
+Image Load::apply(string filename) {
     if (suffixMatch(filename, ".tmp")) {
         return FileTMP::load(filename);
     } else if (suffixMatch(filename, ".hdr")) {
@@ -85,7 +85,7 @@ NewImage Load::apply(string filename) {
     panic("Unknown file format %s\n", filename.c_str());
 
     // keep compiler happy
-    return NewImage();
+    return Image();
 }
 
 void LoadFrames::help() {
@@ -101,12 +101,12 @@ void LoadFrames::parse(vector<string> args) {
 }
 
 
-NewImage LoadFrames::apply(vector<string> args) {
+Image LoadFrames::apply(vector<string> args) {
     assert(args.size() > 0, "-loadframes requires at least one file argument.\n");
 
-    NewImage im = Load::apply(args[0]);
+    Image im = Load::apply(args[0]);
     assert(im.frames == 1, "-loadframes can only load many single frame images\n");
-    NewImage result(im.width, im.height, (int)args.size(), im.channels);
+    Image result(im.width, im.height, (int)args.size(), im.channels);
     result.frame(0).copyFrom(im);
 
     for (size_t i = 1; i < args.size(); i++) {
@@ -135,12 +135,12 @@ void LoadChannels::parse(vector<string> args) {
 }
 
 
-NewImage LoadChannels::apply(vector<string> args) {
+Image LoadChannels::apply(vector<string> args) {
     assert(args.size() > 0, "-loadchannels requires at least one file argument.\n");
 
-    NewImage im = Load::apply(args[0]);
+    Image im = Load::apply(args[0]);
     assert(im.channels == 1, "-loadchannels can only load many single channel images\n");
-    NewImage result(im.width, im.height, im.frames, (int)args.size());
+    Image result(im.width, im.height, im.frames, (int)args.size());
     result.channel(0).copyFrom(im);
 
     for (size_t i = 1; i < args.size(); i++) {
@@ -201,7 +201,7 @@ void Save::parse(vector<string> args) {
 }
 
 
-void Save::apply(NewImage im, string filename, string arg) {
+void Save::apply(Image im, string filename, string arg) {
     if (suffixMatch(filename, ".tmp")) {
         if (arg == "") { arg = "float32"; }
         FileTMP::save(im, filename, arg);
@@ -262,7 +262,7 @@ void SaveFrames::parse(vector<string> args) {
 #endif
 #endif
 
-void SaveFrames::apply(NewImage im, string pattern, string arg) {
+void SaveFrames::apply(Image im, string pattern, string arg) {
     char filename[4096];
 
     for (int t = 0; t < im.frames; t++) {
@@ -286,7 +286,7 @@ void SaveChannels::parse(vector<string> args) {
     else { apply(stack(0), args[0], args[1]); }
 }
 
-void SaveChannels::apply(NewImage im, string pattern, string arg) {
+void SaveChannels::apply(Image im, string pattern, string arg) {
     char filename[4096];
 
     for (int c = 0; c < im.channels; c++) {
@@ -357,7 +357,7 @@ void fread_(void *ptr, size_t size, size_t n, FILE *f) {
            "Unexpected end of file\n");
 }
 
-NewImage LoadBlock::apply(string filename, int xoff, int yoff, int toff, int coff,
+Image LoadBlock::apply(string filename, int xoff, int yoff, int toff, int coff,
                        int width, int height, int frames, int channels) {
     // peek in the header
 
@@ -376,7 +376,7 @@ NewImage LoadBlock::apply(string filename, int xoff, int yoff, int toff, int cof
     if (header.type != 0) {
         fclose(f);
         panic("-loadblock can only handle tmp files containing floating point data.\n");
-        return NewImage();
+        return Image();
     }
 
     // sanity check the header
@@ -384,10 +384,10 @@ NewImage LoadBlock::apply(string filename, int xoff, int yoff, int toff, int cof
         fclose(f);
         panic("According the header of the tmp file, the image has dimensions %ix%ix%ix%i. "
               "Perhaps this is not a tmp file?\n", header.width, header.height, header.frames, header.channels);
-        return NewImage();
+        return Image();
     }
 
-    NewImage out(width, height, frames, channels);
+    Image out(width, height, frames, channels);
 
     off_t xStride = sizeof(float);
     off_t yStride = header.width*xStride;
@@ -460,7 +460,7 @@ void SaveBlock::parse(vector<string> args) {
     SaveBlock::apply(stack(0), args[0], x, y, t, c);
 }
 
-void SaveBlock::apply(NewImage im, string filename, int xoff, int yoff, int toff, int coff) {
+void SaveBlock::apply(Image im, string filename, int xoff, int yoff, int toff, int coff) {
     // Peek in the header
     struct {
         int width, height, frames, channels, type;
@@ -607,14 +607,14 @@ void LoadArray::parse(vector<string> args) {
 }
 
 template<typename T>
-NewImage LoadArray::apply(string filename, int width, int height, int frames, int channels) {
+Image LoadArray::apply(string filename, int width, int height, int frames, int channels) {
     FILE *f = fopen(filename.c_str(), "rb");
 
     int size = width * height * channels * frames;
 
     assert(f, "Could not open file %s", filename.c_str());
 
-    NewImage im(width, height, frames, channels);
+    Image im(width, height, frames, channels);
 
     vector<T> rawData(size);
     fread_(&rawData[0], sizeof(T), size, f);
@@ -675,7 +675,7 @@ void SaveArray::parse(vector<string> args) {
 
 
 template<typename T>
-void SaveArray::apply(NewImage im, string filename) {
+void SaveArray::apply(Image im, string filename) {
     FILE *f = fopen(filename.c_str(), "wb");
 
     assert(f, "Could not open file %s\n", filename.c_str());

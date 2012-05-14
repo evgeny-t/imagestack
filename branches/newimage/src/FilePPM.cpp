@@ -43,7 +43,7 @@ void help() {
            "have three channels and one frame.\n");
 }
 
-NewImage load(string filename) {
+Image load(string filename) {
     FILE *f = fopen(filename.c_str(), "rb");
     assert(f, "Could not open file %s", filename.c_str());
 
@@ -57,7 +57,7 @@ NewImage load(string filename) {
     // remove the next whitespace char
     fgetc(f);
 
-    NewImage im(width, height, 1, 3);
+    Image im(width, height, 1, 3);
 
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
@@ -76,7 +76,7 @@ NewImage load(string filename) {
     return im;
 }
 
-void save(NewImage im, string filename, int depth) {
+void save(Image im, string filename, int depth) {
     FILE *f = fopen(filename.c_str(), "wb");
     assert(f, "Could not open file %s\n", filename.c_str());
     assert(depth == 16 || depth == 8, "bit depth must be 8 or 16\n");

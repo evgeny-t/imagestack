@@ -33,7 +33,7 @@ class Stash : public Operation {
   public:
     void help();
     void parse(vector<string> args);
-    static map<string, NewImage> stash;
+    static map<string, Image> stash;
 };
 
 #include "footer.h"

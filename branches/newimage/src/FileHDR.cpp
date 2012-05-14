@@ -343,7 +343,7 @@ int bigdiff(COLOR c1, COLOR c2, double md) {                      /* c1 delta c2
 }
 
 
-void save(NewImage im, string filename) {
+void save(Image im, string filename) {
 
     assert(im.channels == 3, "Can't save HDR image with <> 3 channels.\n");
     assert(im.frames == 1, "Can't save a multi-frame HDR image\n");
@@ -371,7 +371,7 @@ void save(NewImage im, string filename) {
     fclose(f);
 }
 
-NewImage load(string filename) {
+Image load(string filename) {
     FILE *f = fopen(filename.c_str(), "rb");
 
     assert(f, "Could not open file\n");
@@ -386,7 +386,7 @@ NewImage load(string filename) {
     int height, width;
     assert(2 == fscanf(f, "-Y %d +X %d\n", &height, &width),
            "Could not parse HDR header\n");
-    NewImage im(width, height, 1, 3);
+    Image im(width, height, 1, 3);
 
     // Read image
     vector<float> scanline(width*3);

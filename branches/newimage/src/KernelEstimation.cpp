@@ -23,7 +23,7 @@ void KernelEstimation::help() {
 void KernelEstimation::parse(vector<string> args) {
     assert(args.size() <= 1, "-kernelestimation takes at most one argument.\n");
     int kernel_size = args.size() == 1 ? readInt(args[0]) : 25;
-    NewImage im = apply(stack(0), kernel_size);
+    Image im = apply(stack(0), kernel_size);
     push(im);
 }
 
@@ -31,7 +31,7 @@ void KernelEstimation::parse(vector<string> args) {
  * Normalizes the window to have a sum of 1, provided that
  * the window has one channel and one frame, and a nonzero sum.
  */
-void KernelEstimation::NormalizeSum(NewImage im) {
+void KernelEstimation::NormalizeSum(Image im) {
     assert(im.channels == 1 && im.frames == 1,
            "The image to be normalized must have one channel and one frame!\n");
     double sum = 0.0;
@@ -43,8 +43,8 @@ void KernelEstimation::NormalizeSum(NewImage im) {
     im /= sum;
 }
 
-NewImage KernelEstimation::EnlargeKernel(NewImage im, int w, int h) {
-    NewImage ret(w, h, 1, 2);
+Image KernelEstimation::EnlargeKernel(Image im, int w, int h) {
+    Image ret(w, h, 1, 2);
     for (int y = 0; y < im.height; y++) {
         int new_y = (y - (im.height >> 1) + h) % h;
         int new_x =  - (im.width >> 1) + w;
@@ -56,8 +56,8 @@ NewImage KernelEstimation::EnlargeKernel(NewImage im, int w, int h) {
     return ret;
 }
 
-NewImage KernelEstimation::ContractKernel(NewImage im, int size) {
-    NewImage ret(size, size, 1, 1);
+Image KernelEstimation::ContractKernel(Image im, int size) {
+    Image ret(size, size, 1, 1);
     for (int y = 0; y < size; y++) {
         int y_old = (y - (size >> 1) + im.height) % im.height;
         int x_old = ( - (size >> 1) + im.width) % im.width;
@@ -72,8 +72,8 @@ NewImage KernelEstimation::ContractKernel(NewImage im, int size) {
 /*
  * Applies the shock filter of Osher and Rudin 1990, as described by Cho and Lee 2009.
  */
-void KernelEstimation::ShockFilterIteration(NewImage im, float dt) {
-    NewImage input(im.width+2, im.height+2, im.frames, im.channels);
+void KernelEstimation::ShockFilterIteration(Image im, float dt) {
+    Image input(im.width+2, im.height+2, im.frames, im.channels);
     Paste::apply(input, im, 0, 0, 0, 0, im.width, im.height);
     for (int t = 0; t < im.frames; t++) {
         for (int y = 1; y < im.height - 1; y++) {
@@ -95,13 +95,13 @@ void KernelEstimation::ShockFilterIteration(NewImage im, float dt) {
  * The support is a 5x5 window, with spatial standard deviation at 2, and the range
  * standard deviation specified.
  */
-void KernelEstimation::BilateralFilterIteration(NewImage im, float sigma_r) {
+void KernelEstimation::BilateralFilterIteration(Image im, float sigma_r) {
     float sigma_s = 2.0f;
     float gaussian[5][5];
     for (int y = 0; y < 5; y++)
         for (int x = 0; x < 5; x++)
             gaussian[y][x] = expf(-(float)((x-2)*(x-2)+(y-2)*(y-2)) / (2.0f * sigma_s * sigma_s));
-    NewImage input(im);
+    Image input(im);
     for (int t = 0; t < im.frames; t++)
         for (int y = 0; y < im.height; y++)
             for (int x = 0; x < im.width; x++)
@@ -119,8 +119,8 @@ void KernelEstimation::BilateralFilterIteration(NewImage im, float sigma_r) {
                 }
 }
 
-NewImage KernelEstimation::BilinearResample(NewImage im, int w, int h) {
-    NewImage ret(w, h, im.frames, im.channels);
+Image KernelEstimation::BilinearResample(Image im, int w, int h) {
+    Image ret(w, h, im.frames, im.channels);
     vector<float> sample(im.channels);
     float x_factor = ((float)im.width-1) / (w-1);
     for (int t = 0; t < im.frames; t++) {
@@ -154,7 +154,7 @@ NewImage KernelEstimation::BilinearResample(NewImage im, int w, int h) {
     return ret;
 }
 
-NewImage KernelEstimation::apply(NewImage B, int kernel_size) {
+Image KernelEstimation::apply(Image B, int kernel_size) {
 
     /******************************* Parameter check */
 
@@ -180,10 +180,10 @@ NewImage KernelEstimation::apply(NewImage B, int kernel_size) {
     }
 
     /******************************* Declare Local Variables */
-    NewImage Bgray = (B.channels == 3) ? ColorConvert::apply(B, "rgb", "y") : B.copy();
-    NewImage Blurry;
-    NewImage guess;
-    NewImage K(3, 3, 1, 1);
+    Image Bgray = (B.channels == 3) ? ColorConvert::apply(B, "rgb", "y") : B.copy();
+    Image Blurry;
+    Image guess;
+    Image K(3, 3, 1, 1);
     K(1,1) = 0.4;
     K(0,1) = K(2,1) = K(1,0) = K(1,2) = 0.15;
 
@@ -263,10 +263,10 @@ NewImage KernelEstimation::apply(NewImage B, int kernel_size) {
             gradient_threshold *= 0.9f * 0.9f;
         }
         // Generate the gradient channels.
-        NewImage Px(padded_width, padded_height, 1, 2);
-        NewImage Py(padded_width, padded_height, 1, 2);
-        NewImage Bx(padded_width, padded_height, 1, 2);
-        NewImage By(padded_width, padded_height, 1, 2);
+        Image Px(padded_width, padded_height, 1, 2);
+        Image Py(padded_width, padded_height, 1, 2);
+        Image Bx(padded_width, padded_height, 1, 2);
+        Image By(padded_width, padded_height, 1, 2);
         int xoffset = (padded_width - newwidth) >> 1;
         int yoffset = (padded_height - newheight) >> 1;
         for (int y = 0; y < newheight - 1; y++) {
@@ -294,12 +294,12 @@ NewImage KernelEstimation::apply(NewImage B, int kernel_size) {
         /**************************************************************/
         // Build the gradient images.
         float beta = 1.f;
-        NewImage dxPx(padded_width, padded_height, 1, 2);    
-        NewImage dyPy(padded_width, padded_height, 1, 2);    
-        NewImage dxyPxy(padded_width, padded_height, 1, 2);    
-        NewImage dxBx(padded_width, padded_height, 1, 2);    
-        NewImage dyBy(padded_width, padded_height, 1, 2);    
-        NewImage dxyBxy(padded_width, padded_height, 1, 2);    
+        Image dxPx(padded_width, padded_height, 1, 2);    
+        Image dyPy(padded_width, padded_height, 1, 2);    
+        Image dxyPxy(padded_width, padded_height, 1, 2);    
+        Image dxBx(padded_width, padded_height, 1, 2);    
+        Image dyBy(padded_width, padded_height, 1, 2);    
+        Image dxyBxy(padded_width, padded_height, 1, 2);    
         for (int y = yoffset; y < newheight - 2 + yoffset; y++) {
             for (int x = xoffset; x < newwidth - 2 + xoffset; x++) {
                 dxPx(x, y) = Px(x+1, y) - Px(x, y);
@@ -328,11 +328,11 @@ NewImage KernelEstimation::apply(NewImage B, int kernel_size) {
         // This requires us to precompute, among other things,
         // "CoeffA" = 2.0 * sum_i w_i F{A_i^T} .* F{A_i}) + F{beta} /// in fourier domain!
         // "CoeffB" = 2.0 * sum_i w_i F^{-1} { F{A_i^T} F{B_i} }
-        NewImage CoeffA(padded_width, padded_height, 1, 2);
-        NewImage CoeffB(padded_width, padded_height, 1, 2);
-        NewImage Ri[CG_ITERATIONS], Di;
+        Image CoeffA(padded_width, padded_height, 1, 2);
+        Image CoeffB(padded_width, padded_height, 1, 2);
+        Image Ri[CG_ITERATIONS], Di;
         float alpha = 0.f;
-        NewImage CoeffADi;
+        Image CoeffADi;
 
         // Compute CoeffB:
         ComplexMultiply::apply(Bx, Px, true);
@@ -390,9 +390,9 @@ NewImage KernelEstimation::apply(NewImage B, int kernel_size) {
 
             // 1) Compute residual Ri: CoeffB - CoeffA * K,
             // In subsequent iterations, Ri = CoeffB - CoeffA * (K{i-1} + delta) = R{i-1} - CoeffA * Di * coeff
-            Ri[i] = NewImage(padded_width, padded_height, 1, 1);
+            Ri[i] = Image(padded_width, padded_height, 1, 1);
             if (i == 0) {
-                NewImage tmp = K.copy();
+                Image tmp = K.copy();
                 FourierTransform(tmp);  // tmp = F{K}
                 ComplexMultiply::apply(tmp, CoeffA, false); // tmp =  F{CoeffA} F{K}
                 InverseFourierTransform(tmp); // tmp = CoeffA * K

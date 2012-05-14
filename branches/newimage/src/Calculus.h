@@ -6,30 +6,30 @@ class Gradient : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static void apply(NewImage im, string dimensions);
-    static void apply(NewImage im, char dimension);
+    static void apply(Image im, string dimensions);
+    static void apply(Image im, char dimension);
 };
 
 class Integrate : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static void apply(NewImage im, string dimensions);
-    static void apply(NewImage im, char dimension);
+    static void apply(Image im, string dimensions);
+    static void apply(Image im, char dimension);
 };
 
 class GradMag : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static void apply(NewImage im);
+    static void apply(Image im);
 };
 
 class Poisson : public Operation {
 public:
     void help();
     void parse(vector<string> args);
-    static NewImage apply(NewImage dx, NewImage dy, float termination = 0.01);
+    static Image apply(Image dx, Image dy, float termination = 0.01);
 };
 
 #include "footer.h"

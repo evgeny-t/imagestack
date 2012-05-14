@@ -7,10 +7,10 @@
 #include "File.h"
 #include "header.h"
 
-NewImage LocalLaplacian::pyramidDown(NewImage im) {
-    NewImage smaller((im.width+1)/2, (im.height+1)/2, (im.frames+1)/2, im.channels);
+Image LocalLaplacian::pyramidDown(Image im) {
+    Image smaller((im.width+1)/2, (im.height+1)/2, (im.frames+1)/2, im.channels);
 
-    NewImage blurry = im.copy();
+    Image blurry = im.copy();
     FastBlur::apply(blurry, 1, 1, 1);
 
     for (int c = 0; c < im.channels; c++) {
@@ -41,8 +41,8 @@ NewImage LocalLaplacian::pyramidDown(NewImage im) {
     return smaller;
 }
 
-NewImage LocalLaplacian::pyramidUp(NewImage im, int w, int h, int f) {
-    NewImage larger(w, h, f, im.channels);
+Image LocalLaplacian::pyramidUp(Image im, int w, int h, int f) {
+    Image larger(w, h, f, im.channels);
 
     for (int c = 0; c < im.channels; c++) {
 	for (int t = 0; t < f; t++) {
@@ -81,12 +81,12 @@ void LocalLaplacian::help() {
 
 void LocalLaplacian::parse(vector<string> args) {
     assert(args.size() == 2, "-locallaplacian takes two arguments");
-    NewImage im = stack(0);
+    Image im = stack(0);
     pop();
     push(apply(im, readFloat(args[0]), readFloat(args[1]))); 
 }
 
-NewImage LocalLaplacian::apply(NewImage im, float alpha, float beta) {
+Image LocalLaplacian::apply(Image im, float alpha, float beta) {
     const int K = 8, J = 8;
 
     // Compute a discretized set of K intensities that span the values in the image
@@ -101,9 +101,9 @@ NewImage LocalLaplacian::apply(NewImage im, float alpha, float beta) {
 
     // Make a set of K processed images
     printf("Computing different processed images\n");
-    NewImage processed[K];
+    Image processed[K];
     for (int i = 0; i < K; i++) {
-	NewImage p = im.copy();
+	Image p = im.copy();
         
         for (int t = 0; t < im.frames; t++) {
             for (int y = 0; y < im.height; y++) {
@@ -133,7 +133,7 @@ NewImage LocalLaplacian::apply(NewImage im, float alpha, float beta) {
 
     // Compute a J-level laplacian pyramid per processed image
     printf("Computing their laplacian pyramids\n");
-    NewImage pyramid[K][J];
+    Image pyramid[K][J];
     for (int i = 0; i < K; i++) {
         pyramid[i][0] = processed[i];
         for (int j = 1; j < J; j++) {
@@ -147,8 +147,8 @@ NewImage LocalLaplacian::apply(NewImage im, float alpha, float beta) {
 
     // Now compute a Gaussian and Laplacian pyramid for the input
     printf("Computing Gaussian pyramid for input\n");
-    NewImage imPyramid[J];
-    NewImage imLPyramid[J];
+    Image imPyramid[J];
+    Image imLPyramid[J];
     imPyramid[0] = im;
     imLPyramid[0] = im.copy();
     for (int j = 1; j < J; j++) {
@@ -213,7 +213,7 @@ NewImage LocalLaplacian::apply(NewImage im, float alpha, float beta) {
 
     // Now collapse the output laplacian pyramid
     printf("Collapsing laplacian pyramid down to output image\n");
-    NewImage output = imLPyramid[J-1];
+    Image output = imLPyramid[J-1];
     for (int j = J-2; j >= 0; j--) { 
         output = pyramidUp(output, imLPyramid[j].width, imLPyramid[j].height, imLPyramid[j].frames);
 	output += imLPyramid[j];

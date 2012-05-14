@@ -23,7 +23,7 @@ void help() {
            "zips, zip, piz, or pxr24. piz is the default, all but pxr24 are lossless.\n");
 }
 
-NewImage load(string filename) {
+Image load(string filename) {
     Imf::Array2D<Imf::Rgba> pixels;
     Imf::RgbaInputFile file(filename.c_str());
     Imath::Box2i dw = file.dataWindow();
@@ -51,7 +51,7 @@ NewImage load(string filename) {
     file.setFrameBuffer(&pixels[0][0] - dw.min.x - dw.min.y * width, 1, width);
     file.readPixels(dw.min.y, dw.max.y);
 
-    NewImage im(width, height, 1, numChannels);
+    Image im(width, height, 1, numChannels);
 
     switch (numChannels) {
     case 1:
@@ -100,7 +100,7 @@ NewImage load(string filename) {
     return im;
 }
 
-void save(NewImage im, string filename, string compression = "piz") {
+void save(Image im, string filename, string compression = "piz") {
     Imf::RgbaChannels flags=Imf::WRITE_C; // not going to be used
     int width = im.width;
     int height = im.height;

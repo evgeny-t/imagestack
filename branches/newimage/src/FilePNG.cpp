@@ -18,7 +18,7 @@ void help() {
            "only have 1 frame.\n");
 }
 
-NewImage load(string filename) {
+Image load(string filename) {
     png_byte header[8];        // 8 is the maximum size that can be checked
     png_structp png_ptr;
     png_infop info_ptr;
@@ -55,7 +55,7 @@ NewImage load(string filename) {
         png_set_packing(png_ptr);
     }
 
-    NewImage im(width, height, 1, channels);
+    Image im(width, height, 1, channels);
 
     //number_of_passes = png_set_interlace_handling(png_ptr);
     png_read_update_info(png_ptr, info_ptr);
@@ -109,7 +109,7 @@ NewImage load(string filename) {
 }
 
 
-void save(NewImage im, string filename) {
+void save(Image im, string filename) {
     png_structp png_ptr;
     png_infop info_ptr;
     png_bytep *row_pointers;

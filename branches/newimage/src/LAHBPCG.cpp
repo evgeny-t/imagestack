@@ -24,7 +24,7 @@ class PCG {
         float SW;
     };
 public:
-    PCG(NewImage d, NewImage gx, NewImage gy, NewImage w, NewImage sx, NewImage sy)
+    PCG(Image d, Image gx, Image gy, Image w, Image sx, Image sy)
         : AW(d.width, d.height, 1, 1),
           AN(d.width, d.height, 1, 1),
           w(w),
@@ -100,16 +100,16 @@ public:
         constructPreconditioner();
     }
 
-    void solve(NewImage guess, int max_iter, float tol);
+    void solve(Image guess, int max_iter, float tol);
 
 private:
-    NewImage Ax(NewImage im); // apply A to "x" the image
+    Image Ax(Image im); // apply A to "x" the image
 
-    NewImage hbPrecondition(NewImage r); // apply the preconditioner to the residual r
+    Image hbPrecondition(Image r); // apply the preconditioner to the residual r
 
-    float dot(NewImage a, NewImage b);
+    float dot(Image a, Image b);
 
-    void alphax(float alpha, NewImage im);
+    void alphax(float alpha, Image im);
 
     void RBBmaps();
     void constructPreconditioner();
@@ -127,19 +127,19 @@ private:
     }
 
     // these are just references to already allocated memory
-    //NewImage ADcoarse;
-    NewImage AW;
-    NewImage AN;
-    NewImage w;
-    NewImage sx;
-    NewImage sy;
+    //Image ADcoarse;
+    Image AW;
+    Image AN;
+    Image w;
+    Image sx;
+    Image sy;
 
-    NewImage b; // const?
+    Image b; // const?
 
-    NewImage f; // current iterate storate....
-    NewImage hbRes;
+    Image f; // current iterate storate....
+    Image hbRes;
 
-    NewImage AD; // diagonalized A matrix
+    Image AD; // diagonalized A matrix
     const unsigned int max_length;
 
     vector< vector<unsigned int> > index_map; // goes up to 2^32
@@ -306,8 +306,8 @@ void PCG::constructPreconditioner() {
 
         // now we need to redistribute edges....
         // need temp storage for this new AN....
-        NewImage AN_tmp(AN.width, AN.height, AN.frames, AN.channels); // actually "sparse"
-        NewImage AW_tmp(AW.width, AW.height, AW.frames, AW.channels); // actually "sparse"
+        Image AN_tmp(AN.width, AN.height, AN.frames, AN.channels); // actually "sparse"
+        Image AW_tmp(AW.width, AW.height, AW.frames, AW.channels); // actually "sparse"
 
         int i = 0;
         // modify AD at this level
@@ -510,7 +510,7 @@ void PCG::constructPreconditioner() {
 // applies the sparse, pentadiagonal matrix A to x (stored in im)
 // assumes gradient images taken from ImageStack's gradient operator
 // (i.e. backward differences) if not, results could be bogus!
-NewImage PCG::Ax(NewImage im) {
+Image PCG::Ax(Image im) {
     float a1,a2,a3;
 
     // (Ax + w)* x
@@ -587,7 +587,7 @@ NewImage PCG::Ax(NewImage im) {
 }
 
 // apply the preconditioner to the residual r
-NewImage PCG::hbPrecondition(NewImage r) {
+Image PCG::hbPrecondition(Image r) {
     // wonder if there's a way to apply the preconditioner in a cache coherent manner....
     hbRes = r.copy(); // ugh.. another deep copy... (no way around it...)
     int x,y,x1,y1;
@@ -724,7 +724,7 @@ NewImage PCG::hbPrecondition(NewImage r) {
 }
 
 // compute dot product
-float PCG::dot(NewImage a, NewImage b) {
+float PCG::dot(Image a, Image b) {
     assert(a.frames == b.frames && a.height == b.height && a.width == b.width && a.channels == b.channels,
            "a and b need to be the same size\n");
     double result = 0;
@@ -741,13 +741,13 @@ float PCG::dot(NewImage a, NewImage b) {
 }
 
 // solve the PCG!
-void PCG::solve(NewImage guess, int max_iter, float tol) {
+void PCG::solve(Image guess, int max_iter, float tol) {
 
-    NewImage dr_tmp, s;
+    Image dr_tmp, s;
 
-    NewImage r(b); // we currently do not use b anywhere else, so reuse its memory
+    Image r(b); // we currently do not use b anywhere else, so reuse its memory
     r -= Ax(guess);
-    NewImage dr = hbPrecondition(r); // precondition, dr to differentiate from d
+    Image dr = hbPrecondition(r); // precondition, dr to differentiate from d
 
     float delta = dot(r,dr);
     float epsilon = tol*tol*delta;
@@ -758,7 +758,7 @@ void PCG::solve(NewImage guess, int max_iter, float tol) {
             break;
         }
 
-        NewImage wr = Ax(dr);
+        Image wr = Ax(dr);
         float alpha = delta / dot(dr,wr);
 
         dr_tmp = dr.copy();
@@ -823,7 +823,7 @@ void LAHBPCG::help() {
 void LAHBPCG::parse(vector<string> args) {
     assert(args.size() == 2, "-lahbpcg takes two arguments\n");
 
-    NewImage result;
+    Image result;
 
     result = apply(stack(5), stack(4), stack(3), stack(2), stack(1), stack(0), readInt(args[0]), readFloat(args[1]));
 
@@ -833,7 +833,7 @@ void LAHBPCG::parse(vector<string> args) {
     push(result);
 }
 
-NewImage LAHBPCG::apply(NewImage d, NewImage gx, NewImage gy, NewImage w, NewImage sx, NewImage sy, int max_iter, float tol) {
+Image LAHBPCG::apply(Image d, Image gx, Image gy, Image w, Image sx, Image sy, int max_iter, float tol) {
     // check to make sure have same # of frames and same # of channels
     // assumes gradient images computed using ImageStack's gradient, which is
     // slightly different from the standard convolution gradient
@@ -870,7 +870,7 @@ NewImage LAHBPCG::apply(NewImage d, NewImage gx, NewImage gy, NewImage w, NewIma
            "Image and gradients must have a matching number of channels. Weight terms must have one channel.\n");
 
 
-    NewImage out(d.width, d.height, d.frames, d.channels);
+    Image out(d.width, d.height, d.frames, d.channels);
 
     // solves frames independently
     for (int t = 0; t < d.frames; t++) {

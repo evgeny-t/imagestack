@@ -11,7 +11,7 @@ void help() {
 }
 
 
-NewImage load(string filename) {
+Image load(string filename) {
     // calculate the number of rows and columns in the file
     FILE *f = fopen(filename.c_str(), "r");
 
@@ -34,7 +34,7 @@ NewImage load(string filename) {
     // go back to the start and start reading data
     fseek(f, 0, SEEK_SET);
 
-    NewImage out(width, height, 1, 1);
+    Image out(width, height, 1, 1);
 
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width-1; x++) {
@@ -48,7 +48,7 @@ NewImage load(string filename) {
     return out;
 }
 
-void save(NewImage im, string filename) {
+void save(Image im, string filename) {
     FILE *f = fopen(filename.c_str(), "w");
 
     for (int c = 0; c < im.channels; c++) {

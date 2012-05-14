@@ -21,7 +21,7 @@ void Haar::parse(vector<string> args) {
     }
 }
 
-void Haar::apply(NewImage im, int times) {
+void Haar::apply(Image im, int times) {
 
     if (times <= 0) {
         assert(im.width == im.height, "to perform a full haar transorm, the image must be square.\n");
@@ -38,7 +38,7 @@ void Haar::apply(NewImage im, int times) {
     assert(im.height % factor == 0, "the image height is not a multiple of 2^%i", times);
 
     // transform in x
-    NewImage win = im.region(0, 0, 0, 0, im.width, im.height, im.frames, im.channels);
+    Image win = im.region(0, 0, 0, 0, im.width, im.height, im.frames, im.channels);
     for (int i = 0; i < times; i++) {
 	for (int c = 0; c < win.channels; c++) {
 	    for (int t = 0; t < win.frames; t++) {
@@ -97,7 +97,7 @@ void InverseHaar::parse(vector<string> args) {
     }
 }
 
-void InverseHaar::apply(NewImage im, int times) {
+void InverseHaar::apply(Image im, int times) {
     if (times <= 0) {
         assert(im.width == im.height, "to perform a full haar transorm, the image must be square.\n");
         times = 0;
@@ -114,7 +114,7 @@ void InverseHaar::apply(NewImage im, int times) {
 
     // transform in y
     int h = 2*im.height/factor;
-    NewImage win = im.region(0, 0, 0, 0, im.width, h, im.frames, im.channels);
+    Image win = im.region(0, 0, 0, 0, im.width, h, im.frames, im.channels);
     while (1) {
         // combine the averages and differences
         Interleave::apply(win, 1, 2, 1);
@@ -182,7 +182,7 @@ void Daubechies::parse(vector<string> args) {
     apply(stack(0));
 }
 
-void Daubechies::apply(NewImage im) {
+void Daubechies::apply(Image im) {
 
     int i;
     for (i = 1; i < im.width; i <<= 1) { ; }
@@ -191,7 +191,7 @@ void Daubechies::apply(NewImage im) {
     assert(i == im.height, "Image height must be a power of two\n");
 
     // transform in x
-    NewImage win = im;
+    Image win = im;
     while (1) {
 	for (int c = 0; c < win.channels; c++) {
 	    for (int t = 0; t < win.frames; t++) {
@@ -274,7 +274,7 @@ void InverseDaubechies::parse(vector<string> args) {
     apply(stack(0));
 }
 
-void InverseDaubechies::apply(NewImage im) {
+void InverseDaubechies::apply(Image im) {
 
     int i;
     for (i = 1; i < im.width; i <<= 1) { ; }
@@ -284,7 +284,7 @@ void InverseDaubechies::apply(NewImage im) {
 
 
     // transform in x
-    NewImage win = im.region(0, 0, 0, 0, 2, im.height, im.frames, im.channels);
+    Image win = im.region(0, 0, 0, 0, 2, im.height, im.frames, im.channels);
     while (1) {
         // Collect averages and differences
         Interleave::apply(win, 2, 1, 1);

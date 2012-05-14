@@ -29,15 +29,15 @@ void WLS::parse(vector<string> args) {
     alpha = readFloat(args[0]);
     lambda = readFloat(args[1]);
 
-    NewImage im = apply(stack(0), alpha, lambda, 0.01);
+    Image im = apply(stack(0), alpha, lambda, 0.01);
 
     pop();
     push(im);
 }
 
-NewImage WLS::apply(NewImage im, float alpha, float lambda, float tolerance) {
+Image WLS::apply(Image im, float alpha, float lambda, float tolerance) {
 
-    NewImage L;
+    Image L;
 
     // Precalculate the log-luminance differences Lx and Ly
     if (im.channels == 3) {
@@ -58,10 +58,10 @@ NewImage WLS::apply(NewImage im, float alpha, float lambda, float tolerance) {
         Log::apply(L);
     }
 
-    NewImage Lx = L.copy();
+    Image Lx = L.copy();
     Gradient::apply(Lx, 'x');
 
-    NewImage Ly = L.copy();
+    Image Ly = L.copy();
     Gradient::apply(Ly, 'y');
 
     // Lx = lambda / (|dl(p)/dx|^alpha + eps)
@@ -81,14 +81,14 @@ NewImage WLS::apply(NewImage im, float alpha, float lambda, float tolerance) {
     }
 
     // Data weights equal to 1 all over...
-    NewImage w(im.width, im.height, 1, 1);
+    Image w(im.width, im.height, 1, 1);
     w = 1;
 
     // For this filter gx and gy is 0 all over (target gradient is smooth)
-    NewImage zeros(im.width, im.height, 1, im.channels);
+    Image zeros(im.width, im.height, 1, im.channels);
 
     // Solve using the fast preconditioned conjugate gradient.
-    NewImage x = LAHBPCG::apply(im, zeros, zeros, w, Lx, Ly, 200, tolerance);
+    Image x = LAHBPCG::apply(im, zeros, zeros, w, Lx, Ly, 200, tolerance);
 
     return x;
 }

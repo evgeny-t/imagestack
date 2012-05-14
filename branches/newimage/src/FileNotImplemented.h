@@ -1,20 +1,20 @@
 void help() {
 }
 
-NewImage load(string filename) {
+Image load(string filename) {
     panic("This file type not implemented in this build\n");
-    NewImage im;
+    Image im;
     return im;
 }
 
-void save(NewImage im, string filename) {
+void save(Image im, string filename) {
     panic("This file type not implemented in this build\n");
 }
 
-void save(NewImage im, string filename, int opt) {
+void save(Image im, string filename, int opt) {
     panic("This file type not implemented in this build\n");
 }
 
-void save(NewImage im, string filename, string opt) {
+void save(Image im, string filename, string opt) {
     panic("This file type not implemented in this build\n");
 }

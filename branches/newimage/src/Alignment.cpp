@@ -329,7 +329,7 @@ class Digest {
 public:
 
     void findOrientations(LocalMaxima::Maximum m,
-                          NewImage *magPyramid, NewImage *ornPyramid,
+                          Image *magPyramid, Image *ornPyramid,
                           vector<float> *sigma, vector<float> *orientations) {
 
         //printf("Start finding orientations..\n");
@@ -400,7 +400,7 @@ public:
         Descriptor() {}
 
         Descriptor(LocalMaxima::Maximum m,
-                   NewImage *magPyramid, NewImage *ornPyramid,
+                   Image *magPyramid, Image *ornPyramid,
                    vector<float> *sigma, float orientation) {
 
             length = 128;
@@ -477,7 +477,7 @@ public:
 
     struct Feature : public LocalMaxima::Maximum {
     public:
-        Feature(LocalMaxima::Maximum m, NewImage *magPyramid, NewImage *ornPyramid, vector<float> *sigma, float orientation) {
+        Feature(LocalMaxima::Maximum m, Image *magPyramid, Image *ornPyramid, vector<float> *sigma, float orientation) {
             x = m.x;
             y = m.y;
             t = floor(m.t + 0.5);
@@ -506,7 +506,7 @@ public:
         int usage;
 
         bool usePatch;
-        NewImage patch;
+        Image patch;
         Descriptor descriptor;
     };
 
@@ -527,14 +527,14 @@ public:
         }
     };
 
-    Digest(NewImage im) {
+    Digest(Image im) {
 
         // Convert to grayscale
         vector<float> grayMatrix;
         for (int i = 0; i < im.channels; i++) {
             grayMatrix.push_back(1.0f/im.channels);
         }
-        NewImage gray = ColorMatrix::apply(im, grayMatrix);
+        Image gray = ColorMatrix::apply(im, grayMatrix);
 
         // Gaussian Pyramid
         // k1: first sigma, k: scale factor between each level
@@ -544,9 +544,9 @@ public:
         const int gaussianLevels = 5;
 
         vector<float> sigma;
-        NewImage magPyramid[gaussianLevels-3];
-        NewImage ornPyramid[gaussianLevels-3];
-        NewImage gPyramid = Upsample::apply(gray, 1, 1, gaussianLevels);
+        Image magPyramid[gaussianLevels-3];
+        Image ornPyramid[gaussianLevels-3];
+        Image gPyramid = Upsample::apply(gray, 1, 1, gaussianLevels);
 
         float sig = k1;
         for (int i = 0; i < gaussianLevels; i++) {
@@ -557,12 +557,12 @@ public:
 
         // Magnitude and phase of gradient images
         for (int i=0; i<gaussianLevels-3; i++) {
-            ornPyramid[i] = NewImage(gray.width, gray.height, gray.frames, gray.channels);
-            magPyramid[i] = NewImage(gray.width, gray.height, gray.frames, gray.channels);
+            ornPyramid[i] = Image(gray.width, gray.height, gray.frames, gray.channels);
+            magPyramid[i] = Image(gray.width, gray.height, gray.frames, gray.channels);
 
             for (int y=1; y<gray.height-1; y++) {
 
-                NewImage level = gPyramid.frame(i+2);
+                Image level = gPyramid.frame(i+2);
                 for (int x=1; x<gray.width-1; x++) {
                     float dx = level(x-1, y) - level(x+1, y);
                     float dy = level(x, y-1) - level(x, y+1);
@@ -576,7 +576,7 @@ public:
         for (int i = 0; i < gaussianLevels-1; i++) {
 	    gPyramid.frame(i) -= gPyramid.frame(i+1);
         }
-        NewImage dogPyramid = gPyramid.region(0, 0, 0, 0, 
+        Image dogPyramid = gPyramid.region(0, 0, 0, 0, 
 					      gPyramid.width, gPyramid.height, gaussianLevels-1, gPyramid.channels);
 
 
@@ -599,7 +599,7 @@ public:
             int mt = (int)(maxima[i].t + 0.5);
             float mx = maxima[i].x;
             float my = maxima[i].y;
-            NewImage patch(3,3,1,1);
+            Image patch(3,3,1,1);
             if (mt < 0 || mt >= gaussianLevels) {
                 j--;
                 continue;
@@ -824,7 +824,7 @@ public:
     }
 
     // Visualize feature locations
-    void displayFeatures(NewImage out) {
+    void displayFeatures(Image out) {
 
         for (int i=0; i<(int)corners.size(); i++) {
 
@@ -867,7 +867,7 @@ void Align::help() {
 void Align::parse(vector<string> args) {
     assert(args.size() == 1, "-align takes one argument\n");
 
-    NewImage result;
+    Image result;
 
     if (args[0] == "translate") {
         result = apply(stack(1), stack(0), TRANSLATE);
@@ -888,7 +888,7 @@ void Align::parse(vector<string> args) {
 
 
 // Warp window b to match window a
-NewImage Align::apply(NewImage a, NewImage b, Mode m) {
+Image Align::apply(Image a, Image b, Mode m) {
 
     // Iterative scale pyramid alignment
 #define SCALE_LEVELS 3
@@ -912,8 +912,8 @@ NewImage Align::apply(NewImage a, NewImage b, Mode m) {
         //downA = 4; downB = 4;
         printf("scale (%d, %d)\n",indexA[i],indexB[i]);
 
-        NewImage aa = Downsample::apply(a, downA, downA);
-        NewImage bb = Downsample::apply(b, downB, downB);
+        Image aa = Downsample::apply(a, downA, downA);
+        Image bb = Downsample::apply(b, downB, downB);
 
         Digest digestA(aa);
 
@@ -934,7 +934,7 @@ NewImage Align::apply(NewImage a, NewImage b, Mode m) {
         }
     }
 
-    NewImage out = a.copy();
+    Image out = a.copy();
     vector<float> sample(a.channels);
     for (int t = 0; t < out.frames; t++) {
         for (int y = 0; y < out.height; y++) {
@@ -979,7 +979,7 @@ void AlignFrames::parse(vector<string> args) {
     }
 }
 
-void AlignFrames::apply(NewImage im, Align::Mode m) {
+void AlignFrames::apply(Image im, Align::Mode m) {
 
     assert(im.frames > 1, "Input must have at least two frames\n");
 
@@ -1028,7 +1028,7 @@ void AlignFrames::apply(NewImage im, Align::Mode m) {
     for (int t = 0; t < im.frames; t++) {
         printf("."); fflush(stdout);
         if (t == bestT) { continue; }
-        NewImage tmp = im.frame(t).copy();
+        Image tmp = im.frame(t).copy();
 
 	vector<float> sample(im.channels);
         for (int y = 0; y < im.height; y++) {

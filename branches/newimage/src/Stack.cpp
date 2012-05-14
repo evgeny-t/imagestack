@@ -27,11 +27,11 @@ void Push::help() {
 
 void Push::parse(vector<string> args) {
     if (args.size() == 0) {
-        push(NewImage(stack(0).width, stack(0).height, stack(0).frames, stack(0).channels));
+        push(Image(stack(0).width, stack(0).height, stack(0).frames, stack(0).channels));
     } else if (args.size() == 3) {
-        push(NewImage(readInt(args[0]), readInt(args[1]), 1, readInt(args[2])));
+        push(Image(readInt(args[0]), readInt(args[1]), 1, readInt(args[2])));
     } else if (args.size() == 4) {
-        push(NewImage(readInt(args[0]), readInt(args[1]), readInt(args[2]), readInt(args[3])));
+        push(Image(readInt(args[0]), readInt(args[1]), readInt(args[2]), readInt(args[3])));
     } else {
         panic("-push takes zero, three, or four arguments\n");
     }
@@ -54,11 +54,11 @@ void Pull::parse(vector<string> args) {
         assert(depth > 0, "-pull only makes sense on strictly positive depths\n");
         pull(depth);
     } else {
-        map<string, NewImage>::iterator iter = Stash::stash.find(args[0]);
+        map<string, Image>::iterator iter = Stash::stash.find(args[0]);
         assert(iter != Stash::stash.end(),
                "Image with name %s was not found in the stash\n",
                args[0].c_str());
-        NewImage im = iter->second;
+        Image im = iter->second;
         push(im);
         Stash::stash.erase(iter);
     }
@@ -84,17 +84,17 @@ void Dup::parse(vector<string> args) {
             int depth = readInt(args[0]);
             push(stack(depth));
         } else {
-            map<string, NewImage>::iterator iter = Stash::stash.find(args[0]);
+            map<string, Image>::iterator iter = Stash::stash.find(args[0]);
             assert(iter != Stash::stash.end(),
                    "Image with name %s was not found in the stash\n",
                    args[0].c_str());
-            NewImage im = iter->second;
+            Image im = iter->second;
             push(im.copy());
         }
     }
 }
 
-map<string, NewImage> Stash::stash;
+map<string, Image> Stash::stash;
 
 void Stash::help() {
     pprintf("-stash removes the top image from the stack and gives it a name. It"
@@ -105,7 +105,7 @@ void Stash::help() {
 
 void Stash::parse(vector<string> args) {
     assert(args.size() == 1, "-stash takes one argument\n");
-    NewImage im = stack(0);
+    Image im = stack(0);
     pop();
     stash[args[0]] = im;
 }

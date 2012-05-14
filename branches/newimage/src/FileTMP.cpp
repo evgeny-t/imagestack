@@ -33,7 +33,7 @@ void help() {
 }
 
 template<typename T>
-void saveData(FILE *f, NewImage im) {
+void saveData(FILE *f, Image im) {
 
     vector<T> buf(im.width);
 
@@ -51,7 +51,7 @@ void saveData(FILE *f, NewImage im) {
 }
 
 template<>
-void saveData<float>(FILE *f, NewImage im) {
+void saveData<float>(FILE *f, Image im) {
 
     vector<float> buf(im.width*im.channels);
 
@@ -65,7 +65,7 @@ void saveData<float>(FILE *f, NewImage im) {
 }
 
 
-void save(NewImage im, string filename, string type) {
+void save(Image im, string filename, string type) {
     FILE *f = fopen(filename.c_str(), "wb");
     assert(f, "Could not write output file %s\n", filename.c_str());
     // write the dimensions
@@ -121,8 +121,8 @@ void save(NewImage im, string filename, string type) {
 }
 
 template<typename T>
-NewImage loadData(FILE *f, int width, int height, int frames, int channels) {
-    NewImage im(width, height, frames, channels);
+Image loadData(FILE *f, int width, int height, int frames, int channels) {
+    Image im(width, height, frames, channels);
 
     vector<T> scanline(width);
     for (int c = 0; c < channels; c++) {
@@ -141,8 +141,8 @@ NewImage loadData(FILE *f, int width, int height, int frames, int channels) {
 }
 
 template<>
-NewImage loadData<float>(FILE *f, int width, int height, int frames, int channels) {
-    NewImage im(width, height, frames, channels);
+Image loadData<float>(FILE *f, int width, int height, int frames, int channels) {
+    Image im(width, height, frames, channels);
 
     for (int c = 0; c < im.channels; c++) {
 	for (int t = 0; t < im.frames; t++) {
@@ -156,7 +156,7 @@ NewImage loadData<float>(FILE *f, int width, int height, int frames, int channel
     return im;
 }
 
-NewImage load(string filename) {
+Image load(string filename) {
     FILE *file = fopen(filename.c_str(), "rb");
     assert(file, "Could not open file %s\n", filename.c_str());
 
@@ -167,7 +167,7 @@ NewImage load(string filename) {
     assert(fread(&h, sizeof(int), 5, file) == 5,
            "File ended before end of header\n");
 
-    NewImage im;
+    Image im;
 
     if (h.typeCode == FLOAT32) {
         im = loadData<float>(file, h.width, h.height, h.frames, h.channels);

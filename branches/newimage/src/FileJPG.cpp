@@ -24,7 +24,7 @@ void help() {
            "and may have either one or three channels.\n");
 }
 
-void save(NewImage im, string filename, int quality) {
+void save(Image im, string filename, int quality) {
     assert(im.channels == 1 || im.channels == 3, "Can only save jpg images with 1 or 3 channels\n");
     assert(im.frames == 1, "Can't save multiframe jpg images\n");
     assert(quality > 0 && quality <= 100, "jpeg quality must lie between 1 and 100\n");
@@ -77,7 +77,7 @@ void save(NewImage im, string filename, int quality) {
 
 
 
-NewImage load(string filename) {
+Image load(string filename) {
 
     struct jpeg_decompress_struct cinfo;
     struct jpeg_error_mgr jerr;
@@ -92,7 +92,7 @@ NewImage load(string filename) {
     jpeg_read_header(&cinfo, TRUE);
     jpeg_start_decompress(&cinfo);
 
-    NewImage im(cinfo.output_width, cinfo.output_height, 1, cinfo.output_components);
+    Image im(cinfo.output_width, cinfo.output_height, 1, cinfo.output_components);
     JSAMPARRAY buffer = (*cinfo.mem->alloc_sarray)((j_common_ptr)&cinfo, JPOOL_IMAGE, im.width * im.channels, 1);
 
     while (cinfo.output_scanline < cinfo.output_height) {

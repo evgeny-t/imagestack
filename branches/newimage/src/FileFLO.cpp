@@ -12,7 +12,7 @@ void help() {
             " 2-band float image for horizontal and vertical flow components.\n");
 }
 
-void save(NewImage im, string filename) {
+void save(Image im, string filename) {
 
     assert(im.channels == 2, "image must have 2 channels", filename.c_str());
     assert(im.frames == 1, "Can only save single-frame .flo files\n");
@@ -39,7 +39,7 @@ void save(NewImage im, string filename) {
     fclose(stream);
 }
 
-NewImage load(string filename) {
+Image load(string filename) {
     FILE *stream = fopen(filename.c_str(), "rb");
     assert(stream, "Could not open file %s\n", filename.c_str());
 
@@ -58,7 +58,7 @@ NewImage load(string filename) {
     assert(width > 0 && width < 999999, "illegal width %d", width);
     assert(height > 0 && height < 999999, "illegal height %d", height);
 
-    NewImage out(width, height, 1, 2);
+    Image out(width, height, 1, 2);
 
     vector<float> scanline(width*2);
 
