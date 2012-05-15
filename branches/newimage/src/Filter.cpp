@@ -187,253 +187,165 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
         return;
     }
 
-    // IIR filtering fails if the std dev is similar to the image
-    // size, because it displays a bias towards the edge values on the
-    // starting side. We solve this by adding a margin and using
-    // homogeneous weights.
-    if (addMargin && (im.frames / filterFrames < 8 ||
-                      im.width / filterWidth < 8 ||
-                      im.height / filterHeight < 8)) {
-
-        int marginT = (int)(filterFrames);
-        int marginX = (int)(filterWidth);
-        int marginY = (int)(filterHeight);
-
-        Image bigger(im.width+2*marginX, im.height+2*marginY, im.frames+2*marginT, im.channels+1);
-        for (int t = 0; t < im.frames; t++) {
-            for (int y = 0; y < im.height; y++) {
-                for (int x = 0; x < im.width; x++) {
-                    bigger(x+marginX, y+marginY, t+marginT, im.channels) = 1;
-                    for (int c = 0; c < im.channels; c++) {
-                        bigger(x+marginX, y+marginY, t+marginT, c) = im(x, y, t, c);
-                    }
-                }
-            }
-        }
-
-        FastBlur::apply(bigger, filterFrames, filterWidth, filterHeight, false);
-        for (int t = 0; t < im.frames; t++) {
-            for (int y = 0; y < im.height; y++) {
-                for (int x = 0; x < im.width; x++) {
-                    float w = 1.0f/bigger(x+marginX, y+marginY, t+marginT, im.channels);
-                    for (int c = 0; c < im.channels; c++) {
-                        im(x, y, t, c) = w*bigger(x+marginX, y+marginY, t+marginT, c);
-                    }
-                }
-            }
-        }
-
-        return;
+    // Deal with very large filters by splitting into multiple smaller filters
+    if (filterWidth > 100) {
+	
+	FastBlur::apply(im, filterWidth/sqrtf(2), filterHeight, filterFrames);
+	FastBlur::apply(im, filterWidth/sqrtf(2), filterHeight, filterFrames);
+	return;
     }
 
-    // now perform the blur
-    if (filterWidth > 32) {
-        // for large filters, we decompose into a dense blur and a
-        // sparse blur, by spacing out the taps on the IIR
-        float remainingStdDev = sqrtf(filterWidth*filterWidth - 32*32);
-        int tapSpacing = (int)(remainingStdDev / 32 + 1);
-        blurX(im, remainingStdDev/tapSpacing, tapSpacing);
-        blurX(im, 32, 1);
-    } else if (filterWidth > 0) {
-	blurX(im, filterWidth, 1);
+    if (filterHeight > 100) {
+	FastBlur::apply(im, filterWidth, filterHeight/sqrtf(2), filterFrames);
+	FastBlur::apply(im, filterWidth, filterHeight/sqrtf(2), filterFrames);
+	return;
     }
 
-    if (filterHeight > 32) {
-        float remainingStdDev = sqrtf(filterHeight*filterHeight - 32*32);
-        int tapSpacing = (int)(remainingStdDev / 32 + 1);
-        blurY(im, remainingStdDev/tapSpacing, tapSpacing);
-        blurY(im, 32, 1);
-    } else if (filterHeight > 0) {
-	blurY(im, filterHeight, 1);
+    if (filterFrames > 100) {
+	FastBlur::apply(im, filterWidth, filterHeight, filterFrames/sqrtf(2));
+	FastBlur::apply(im, filterWidth, filterHeight, filterFrames/sqrtf(2));
+	return;
     }
 
-    if (filterFrames > 32) {
-        float remainingStdDev = sqrtf(filterFrames*filterFrames - 32*32);
-        int tapSpacing = (int)(remainingStdDev / 32 + 1);
-        blurT(im, remainingStdDev/tapSpacing, tapSpacing);
-        blurT(im, 32, 1);
-    } else if (filterFrames > 0) {
-        blurT(im, filterFrames, 1);
-    }
-}
+    // blur in x
+    const int w = 16;
 
-void FastBlur::blurX(Image im, float sigma, int ts) {
-    if (sigma == 0) { return; }
+    if (filterWidth > 0) {
+	const int size = im.width + (int)(filterWidth*6);
+	vector<float> chunk(size*w, 0);
 
-    // blur in the x-direction
-    float coeff0, coeff1, coeff2, coeff3;
-    calculateCoefficients(sigma, &coeff0, &coeff1, &coeff2, &coeff3);
-    const float c0 = coeff0, c1 = coeff1, c2 = coeff2, c3 = coeff3;
-    const float invC01 = 1.0f/(c0+c1);
-    const float invC012 = 1.0f/(c0+c1+c2);
+	float c0, c1, c2, c3;
+	calculateCoefficients(filterWidth, &c0, &c1, &c2, &c3);
+	
+	for (int c = 0; c < im.channels; c++) {
+	    for (int t = 0; t < im.frames; t++) {
+		for (int y = 0; y < im.height; y += w) {
+		    // clear the chunk
+		    memset(&chunk[0], 0, sizeof(float)*chunk.size());
 
-    // we step through each row of each frame, and apply a forwards and then
-    // a backwards pass of our IIR filter to approximate Gaussian blurring
-    // in the x-direction
-    for (int c = 0; c < im.channels; c++) {				
-        for (int t = 0; t < im.frames; t++) {
-	    for (int y = 0; y < im.height; y++) {
-		
-                // forward pass
-                
-                // use a zero boundary condition in the homogeneous
-                // sense (ie zero weight outside the image, divide by
-                // the sum of the weights)
-                for (int j = 0; j < ts; j++) {
-		    im(ts+j, y, t, c) = (c0*im(ts+j, y, t, c) + c1*im(j, y, t, c)) * invC01;
-		    im(2*ts+j, y, t, c) = (c0*im(2*ts+j, y, t, c) + c1*im(ts+j, y, t, c) + c2*im(j, y, t, c)) * invC012;
-                }
-                
-                // now apply the forward filter		
-                for (int x = 3*ts; x < im.width; x++) {
-                    im(x, y, t, c) = (c0 * im(x, y, t, c) +
-                                      c1 * im(x-ts, y, t, c) +
-                                      c2 * im(x-2*ts, y, t, c) + 
-                                      c3 * im(x-3*ts, y, t, c));
-                }		
+		    // prepare 16 scanlines
+		    for (int x = 0; x < im.width; x++) {
+			for (int i = 0; i < w && y+i < im.height; i++) {
+			    chunk[x*w + i] = im(x, y+i, t, c);
+			}
+		    }
 
-                // use a zero boundary condition in the homogeneous
-                // sense
-                int x = im.width-3*ts;
-                for (int j = 0; j < ts; j++) {
-		    im(x+ts+j, y, t, c) = (c0*im(x+ts+j, y, t, c) + c1*im(x+2*ts+j, y, t, c)) * invC01;
-		    im(x+j, y, t, c) = (c0*im(x+j, y, t, c) + c1*im(x+ts+j, y, t, c) + c2*im(x+2*ts+j, y, t, c)) * invC012;
-                }
-                
-                // backward pass		
-                for (int x = im.width-3*ts-1; x >= 0; x--) {
-		    im(x, y, t, c) = (c0 * im(x, y, t, c) + 
-				      c1 * im(x+ts, y, t, c) + 
-				      c2 * im(x+2*ts, y, t, c) + 
-				      c3 * im(x+3*ts, y, t, c));
+		    // blur them
+		    blurChunk(&chunk[0], size, c0, c1, c2, c3);
+		    blurChunk(&chunk[0], size, c0, c1, c2, c3);
+
+		    // read them back
+		    for (int x = 0; x < im.width; x++) {
+			for (int i = 0; i < w && y+i < im.height; i++) {
+			    im(x, y+i, t, c) = chunk[x*w + i];
+			}
+		    }		    
 		}
-		asm("#bar");		
+	    }
+	}
+    }
+
+    // blur in y
+    if (filterHeight > 0) {
+	const int size = im.height + (int)(filterHeight*6);
+	vector<float> chunk(size*w, 0);
+
+	float c0, c1, c2, c3;
+	calculateCoefficients(filterWidth, &c0, &c1, &c2, &c3);
+	
+	for (int c = 0; c < im.channels; c++) {
+	    for (int t = 0; t < im.frames; t++) {
+		for (int x = 0; x < im.width; x += w) {
+		    // clear the chunk
+		    memset(&chunk[0], 0, sizeof(float)*chunk.size());
+
+		    // prepare 16 columns
+		    for (int y = 0; y < im.height; y++) {
+			for (int i = 0; i < w && x+i < im.width; i++) {
+			    chunk[y*w + i] = im(x+i, y, t, c);
+			}
+		    }
+
+		    // blur them
+		    blurChunk(&chunk[0], size, c0, c1, c2, c3);
+		    blurChunk(&chunk[0], size, c0, c1, c2, c3);
+
+		    // read them back
+		    for (int y = 0; y < im.height; y++) {
+			for (int i = 0; i < w && x+i < im.width; i++) {
+			    im(x+i, y, t, c) = chunk[y*w + i];
+			}
+		    }		    
+		}
+	    }
+	}
+    }
+
+    // blur in t
+    if (filterFrames > 0) {
+	const int size = im.frames + (int)(filterFrames*6);
+	vector<float> chunk(size*w, 0);
+
+	float c0, c1, c2, c3;
+	calculateCoefficients(filterWidth, &c0, &c1, &c2, &c3);
+	
+	for (int c = 0; c < im.channels; c++) {
+	    for (int y = 0; y < im.height; y++) {		
+		for (int x = 0; x < im.width; x += w) {
+		    // clear the chunk
+		    memset(&chunk[0], 0, sizeof(float)*chunk.size());
+
+		    // prepare 16 scanlines
+		    for (int t = 0; t < im.frames; t++) {
+			for (int i = 0; i < w && x+i < im.width; i++) {
+			    chunk[t*w + i] = im(x+i, y, t, c);
+			}
+		    }
+
+		    // blur them
+		    blurChunk(&chunk[0], size, c0, c1, c2, c3);
+		    blurChunk(&chunk[0], size, c0, c1, c2, c3);
+
+		    // read them back
+		    for (int t = 0; t < im.frames; t++) {
+			for (int i = 0; i < w && x+i < im.width; i++) {
+			    im(x+i, y, t, c) = chunk[t*w + i];
+			}
+		    }		    
+		}
 	    }
 	}
     }
 }
 
-void FastBlur::blurY(Image im, const float sigma, const int ts) {
-    if (sigma == 0) { return; }
+void FastBlur::blurChunk(float *data, int size, const float c0, const float c1, const float c2, const float c3) {
+    // filter a 16-wide chunk of data in place
 
-    float coeff0, coeff1, coeff2, coeff3;
-    calculateCoefficients(sigma, &coeff0, &coeff1, &coeff2, &coeff3);
-    const float c0 = coeff0, c1 = coeff1, c2 = coeff2, c3 = coeff3;
+    const int w = 16;
 
-    // blur in the y-direction
-    //  we do the same thing here as in the x-direction
-    //  but we apply im.width different filters in parallel,
-    //  for cache coherency's sake, first all going in the "forwards"
-    //  direction, and then all going in the "backwards" direction
-    for (int c = 0; c < im.channels; c++) {
-        for (int t = 0; t < im.frames; t++) {
-            // use a zero boundary condition in the homogeneous
-            // sense (ie zero weight outside the image, divide by
-            // the sum of the weights)
-            for (int j = 0; j < ts; j++) {
-                for (int x = 0; x < im.width; x++) {
-                    im(x, ts+j, t, c) = (c0*im(x, ts+j, t, c) +
-					 c1*im(x, j, t, c)) / (c0 + c1);
-                    im(x, 2*ts+j, t, c) = (c0*im(x, 2*ts+j, t, c) + 
-					   c1*im(x, ts+j, t, c) + 
-					   c2*im(x, j, t, c)) / (c0 + c1 + c2);
-                }
-            }
-
-            // forward pass
-	    asm("#foo");	       
-            for (int y = 3*ts; y < im.height; y++) {
-                for (int x = 0; x < im.width; x++) {
-		    im(x, y, t, c) = (c0*im(x, y, t, c) + 
-				      c1*im(x, y-ts, t, c) +
-				      c2*im(x, y-2*ts, t, c) +
-				      c3*im(x, y-3*ts, t, c));
-                }
-            }
-	    asm("#bar");
-                
-            // use a zero boundary condition in the homogeneous
-            // sense (ie zero weight outside the image, divide by
-            // the sum of the weights)
-            int y = im.height-3*ts;
-            for (int j = 0; j < ts; j++) {
-                for (int x = 0; x < im.width; x++) {
-                    im(x, y+ts+j, t, c) = (c0*im(x, y+ts+j, t, c) +
-					   c1*im(x, y+ts*2+j, t, c)) / (c0 + c1);
-                    im(x, y+j, t, c) = (c0*im(x, y+j, t, c) + 
-					c1*im(x, y+ts+j, t, c) + 
-					c2*im(x, y+ts*2+j, t, c)) / (c0 + c1 + c2);
-                }
-            }
-            
-            // backward pass
-            for (int y = im.height-3*ts-1; y >= 0; y--) {
-		for (int x = 0; x < im.width; x++) {
-                    im(x, y, t, c) = (c0 * im(x, y, t, c) + 
-                                      c1 * im(x, y+ts, t, c) + 
-                                      c2 * im(x, y+2*ts, t, c) + 
-                                      c3 * im(x, y+3*ts, t, c));
-		}
-            }
-        }
+    // Warm up
+    for (int x = 0; x < w; x++) {
+	data[x] = c0*data[x];
+	data[w + x] = (c0*data[w + x] +
+		       c1*data[x]);
+	data[2*w + x] = (c0*data[2*w + x] + 
+			 c1*data[w + x] + 
+			 c2*data[x]);
     }
-}
 
-void FastBlur::blurT(Image im, float sigma, int ts) {
-    if (sigma == 0) { return; }
+    // Filter
+    for (int x = 3*w; x < size*w; x++) {
+	data[x] = (c0 * data[x] + 
+		   c1 * data[x-w] + 
+		   c2 * data[x-w*2] + 
+		   c3 * data[x-w*3]);
+    }
 
-    float c0, c1, c2, c3;
-    calculateCoefficients(sigma, &c0, &c1, &c2, &c3);
-    float invC01 = 1.0f/(c0+c1);
-    float invC012 = 1.0f/(c0+c1+c2);
-
-    // blur in the t-direction
-    // this is the same strategy as blurring in y, but we swap t
-    // for y everywhere
-    for (int c = 0; c < im.channels; c++) {
-        for (int y = 0; y < im.height; y++) {
-            // use a zero boundary condition in the homogeneous
-            // sense (ie zero weight outside the image, divide by
-            // the sum of the weights)
-            for (int j = 0; j < ts; j++) {
-                for (int x = 0; x < im.width; x++) {
-                    im(x, y, ts+j, c) = (c0*im(x, y, ts+j, c) + c1*im(x, y, j, c)) * invC01;
-                    im(x, y, 2*ts+j, c) = (c0*im(x, y, 2*ts+j, c) + c1*im(x, y, ts+j, c) + c2*im(x, y, j, c)) * invC012;
-                }
-            }
-            
-            // forward pass
-            
-            for (int t = 3*ts; t < im.frames; t++) {
-                for (int x = 0; x < im.width; x++) {
-                    im(x, y, t, c) = (c0 * im(x, y, t, c) + 
-                                      c1 * im(x, y, t-ts, c) + 
-                                      c2 * im(x, y, t-2*ts, c) + 
-                                      c3 * im(x, y, t-3*ts, c));
-                }
-            }
-            
-            // use a zero boundary condition in the homogeneous
-            // sense (ie zero weight outside the image, divide by
-            // the sum of the weights)
-            int t = im.frames-3*ts;
-            for (int j = 0; j < ts; j++) {
-                for (int x = 0; x < im.width; x++) {
-                    im(x, y, t+ts+j, c) = (c0*im(x, y, t+ts+j, c) + c1*im(x, y, t+2*ts+j, c)) * invC01;
-                    im(x, y, t+j, c) = (c0*im(x, y, t+j, c) + c1*im(x, y, t+ts+j, c) + c2*im(x, y, t+2*ts+j, c)) * invC012;
-                }
-            }
-            
-            // backward pass
-            for (int t = im.frames-3*ts-1; t >= 0; t--) {
-                for (int x = 0; x < im.width; x++) {
-                    im(x, y, t, c) = (c0 * im(x, y, t, c) + 
-                                      c1 * im(x, y, t+ts, c) + 
-                                      c2 * im(x, y, t+2*ts, c) + 
-                                      c3 * im(x, y, t+3*ts, c));
-                }
-            }
-        }
+    // Flip the data
+    for (int y = 0; y < size/2; y++) {
+	for (int x = 0; x < w; x++) {
+	    swap(data[y*w+x], data[(size-1-y)*w+x]);
+	}
     }
 }
 

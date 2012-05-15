@@ -153,14 +153,9 @@ Image LocalLaplacian::apply(Image im, float alpha, float beta) {
         int oldW = imPyramid[j-1].width;
         int oldH = imPyramid[j-1].height;
         int oldF = imPyramid[j-1].frames;
-	float t1 = currentTime();
         imPyramid[j] = pyramidDown(imPyramid[j-1]);
-	float t2 = currentTime();
         imLPyramid[j] = imPyramid[j].copy();
-	float t3 = currentTime();
 	imLPyramid[j-1] -= pyramidUp(imPyramid[j], oldW, oldH, oldF);
-	float t4 = currentTime();
-	printf("%f %f %f\n", t2-t1, t3-t2, t4-t3);
     }
 
     // Now construct output laplacian pyramid by looking up the

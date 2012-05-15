@@ -15,13 +15,11 @@ public:
     void parse(vector<string> args);
     static void apply(Image im, float filterWidth, float filterHeight, float filterFrames, bool addMargin = true);
 private:
-    // IIR filters
-    static void blurX(Image im, float filterWidth, int tapSpacing = 1);
-    static void blurY(Image im, float filterHeight, int tapSpacing = 1);
-    static void blurT(Image im, float filterFrames, int tapSpacing = 1);
-
     // helper function for IIR filtering
     static void calculateCoefficients(float sigma, float *c0, float *c1, float *c2, float *c3);
+
+    // filter a 16-wide chunk of data in place with the given iir coefficients
+    static void blurChunk(float *data, int size, float c0, float c1, float c2, float c3);
 };
 
 class RectFilter : public Operation {
