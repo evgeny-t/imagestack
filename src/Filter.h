@@ -22,7 +22,7 @@ private:
     static void blurChunk(float *data, int size, float c0, float c1, float c2, float c3);
 
     // compute the inverse of the attenuation due to the zero boundary condition
-    static void computeAttenuation(float *data, int size, int width, float c0, float c1, float c2, float c3);
+    static void computeAttenuation(float *data, int size, int width, float c0, float c1, float c2, float c3, int iterations);
 };
 
 class RectFilter : public Operation {
