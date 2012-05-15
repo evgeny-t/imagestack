@@ -188,12 +188,18 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
     }
 
     // Deal with very large filters by splitting into multiple smaller filters
-    int iterations = 1;
-    while (filterWidth > 64 || filterHeight > 64 || filterFrames > 64) {	
+    int xIterations = 1, yIterations = 1, tIterations = 1;
+    while (filterWidth > 64) {
 	filterWidth /= sqrtf(2);
+	xIterations *= 2;
+    }
+    while (filterHeight > 64) {
 	filterHeight /= sqrtf(2);
+	yIterations *= 2;
+    }
+    while (filterFrames > 64) {
 	filterFrames /= sqrtf(2);
-	iterations *= 2;
+	tIterations *= 2;
     }
 
     const int w = 16;
@@ -207,7 +213,7 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
 	calculateCoefficients(filterWidth, &c0, &c1, &c2, &c3);
 
 	vector<float> scale(size);
-	computeAttenuation(&scale[0], size, im.width, c0, c1, c2, c3, iterations);
+	computeAttenuation(&scale[0], size, im.width, c0, c1, c2, c3, xIterations);
 	
 	for (int c = 0; c < im.channels; c++) {
 	    for (int t = 0; t < im.frames; t++) {
@@ -223,7 +229,7 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
 		    }
 
 		    // blur them
-		    for (int i = 0; i < iterations; i++) {
+		    for (int i = 0; i < xIterations; i++) {
 			blurChunk(&chunk[0], size, c0, c1, c2, c3);
 			blurChunk(&chunk[0], size, c0, c1, c2, c3);
 		    }
@@ -248,7 +254,7 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
 	calculateCoefficients(filterHeight, &c0, &c1, &c2, &c3);
 	
 	vector<float> scale(size);
-	computeAttenuation(&scale[0], size, im.height, c0, c1, c2, c3, iterations);
+	computeAttenuation(&scale[0], size, im.height, c0, c1, c2, c3, yIterations);
 
 	for (int c = 0; c < im.channels; c++) {
 	    for (int t = 0; t < im.frames; t++) {
@@ -264,7 +270,7 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
 		    }
 
 		    // blur them
-		    for (int i = 0; i < iterations; i++) {
+		    for (int i = 0; i < yIterations; i++) {
 			blurChunk(&chunk[0], size, c0, c1, c2, c3);
 			blurChunk(&chunk[0], size, c0, c1, c2, c3);
 		    }
@@ -289,7 +295,7 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
 	calculateCoefficients(filterFrames, &c0, &c1, &c2, &c3);
 	
 	vector<float> scale(size);
-	computeAttenuation(&scale[0], size, im.frames, c0, c1, c2, c3, iterations);
+	computeAttenuation(&scale[0], size, im.frames, c0, c1, c2, c3, tIterations);
 
 	for (int c = 0; c < im.channels; c++) {
 	    for (int y = 0; y < im.height; y++) {		
@@ -305,7 +311,7 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
 		    }
 
 		    // blur them
-		    for (int i = 0; i < iterations; i++) {
+		    for (int i = 0; i < tIterations; i++) {
 			blurChunk(&chunk[0], size, c0, c1, c2, c3);
 			blurChunk(&chunk[0], size, c0, c1, c2, c3);
 		    }
