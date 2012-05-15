@@ -20,6 +20,9 @@ private:
 
     // filter a 16-wide chunk of data in place with the given iir coefficients
     static void blurChunk(float *data, int size, float c0, float c1, float c2, float c3);
+
+    // compute the inverse of the attenuation due to the zero boundary condition
+    static void computeAttenuation(float *data, int size, int width, float c0, float c1, float c2, float c3);
 };
 
 class RectFilter : public Operation {

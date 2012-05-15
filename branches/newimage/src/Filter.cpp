@@ -188,22 +188,9 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
     }
 
     // Deal with very large filters by splitting into multiple smaller filters
-    if (filterWidth > 100) {
-	
-	FastBlur::apply(im, filterWidth/sqrtf(2), filterHeight, filterFrames);
-	FastBlur::apply(im, filterWidth/sqrtf(2), filterHeight, filterFrames);
-	return;
-    }
-
-    if (filterHeight > 100) {
-	FastBlur::apply(im, filterWidth, filterHeight/sqrtf(2), filterFrames);
-	FastBlur::apply(im, filterWidth, filterHeight/sqrtf(2), filterFrames);
-	return;
-    }
-
-    if (filterFrames > 100) {
-	FastBlur::apply(im, filterWidth, filterHeight, filterFrames/sqrtf(2));
-	FastBlur::apply(im, filterWidth, filterHeight, filterFrames/sqrtf(2));
+    if (filterWidth > 64 || filterHeight > 64 || filterFrames > 64) {	
+	FastBlur::apply(im, filterWidth/sqrtf(2), filterHeight/sqrtf(2), filterFrames/sqrtf(2));
+	FastBlur::apply(im, filterWidth/sqrtf(2), filterHeight/sqrtf(2), filterFrames/sqrtf(2));
 	return;
     }
 
@@ -216,6 +203,9 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
 
 	float c0, c1, c2, c3;
 	calculateCoefficients(filterWidth, &c0, &c1, &c2, &c3);
+
+	vector<float> scale(size);
+	computeAttenuation(&scale[0], size, im.width, c0, c1, c2, c3);
 	
 	for (int c = 0; c < im.channels; c++) {
 	    for (int t = 0; t < im.frames; t++) {
@@ -237,7 +227,7 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
 		    // read them back
 		    for (int x = 0; x < im.width; x++) {
 			for (int i = 0; i < w && y+i < im.height; i++) {
-			    im(x, y+i, t, c) = chunk[x*w + i];
+			    im(x, y+i, t, c) = chunk[x*w + i] * scale[x];
 			}
 		    }		    
 		}
@@ -251,8 +241,11 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
 	vector<float> chunk(size*w, 0);
 
 	float c0, c1, c2, c3;
-	calculateCoefficients(filterWidth, &c0, &c1, &c2, &c3);
+	calculateCoefficients(filterHeight, &c0, &c1, &c2, &c3);
 	
+	vector<float> scale(size);
+	computeAttenuation(&scale[0], size, im.height, c0, c1, c2, c3);
+
 	for (int c = 0; c < im.channels; c++) {
 	    for (int t = 0; t < im.frames; t++) {
 		for (int x = 0; x < im.width; x += w) {
@@ -273,7 +266,7 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
 		    // read them back
 		    for (int y = 0; y < im.height; y++) {
 			for (int i = 0; i < w && x+i < im.width; i++) {
-			    im(x+i, y, t, c) = chunk[y*w + i];
+			    im(x+i, y, t, c) = chunk[y*w + i] * scale[y];
 			}
 		    }		    
 		}
@@ -287,8 +280,11 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
 	vector<float> chunk(size*w, 0);
 
 	float c0, c1, c2, c3;
-	calculateCoefficients(filterWidth, &c0, &c1, &c2, &c3);
+	calculateCoefficients(filterFrames, &c0, &c1, &c2, &c3);
 	
+	vector<float> scale(size);
+	computeAttenuation(&scale[0], size, im.frames, c0, c1, c2, c3);
+
 	for (int c = 0; c < im.channels; c++) {
 	    for (int y = 0; y < im.height; y++) {		
 		for (int x = 0; x < im.width; x += w) {
@@ -309,7 +305,7 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
 		    // read them back
 		    for (int t = 0; t < im.frames; t++) {
 			for (int i = 0; i < w && x+i < im.width; i++) {
-			    im(x+i, y, t, c) = chunk[t*w + i];
+			    im(x+i, y, t, c) = chunk[t*w + i] * scale[t];
 			}
 		    }		    
 		}
@@ -318,7 +314,9 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
     }
 }
 
-void FastBlur::blurChunk(float *data, int size, const float c0, const float c1, const float c2, const float c3) {
+void FastBlur::blurChunk(float *data, int size, 
+			 const float c0, const float c1,
+			 const float c2, const float c3) {
     // filter a 16-wide chunk of data in place
 
     const int w = 16;
@@ -346,6 +344,48 @@ void FastBlur::blurChunk(float *data, int size, const float c0, const float c1, 
 	for (int x = 0; x < w; x++) {
 	    swap(data[y*w+x], data[(size-1-y)*w+x]);
 	}
+    }
+}
+
+void FastBlur::computeAttenuation(float *scale, int size, int width, 
+				  const float c0, const float c1, 
+				  const float c2, const float c3) {
+    // Initial value
+    for (int x = 0; x < width; x++) {
+	scale[x] = 1.0f;
+    }
+    for (int x = width; x < size; x++) {
+	scale[x] = 0.0f;
+    }
+
+    // Forward pass
+    scale[0] = c0 * scale[0];
+    scale[1] = c0 * scale[1] + c1 * scale[0];
+    scale[2] = c0 * scale[2] + c1 * scale[1] + c2 * scale[0];
+    for (int x = 3; x < size; x++) {
+	scale[x] = (c0 * scale[x] +
+		    c1 * scale[x-1] + 
+		    c2 * scale[x-2] + 
+		    c3 * scale[x-3]);
+    }
+
+    // Backward pass
+    scale[size-1] = c0 * scale[size-1];
+    scale[size-2] = (c0 * scale[size-2] + 
+		     c1 * scale[size-1]);
+    scale[size-3] = (c0 * scale[size-3] + 
+		     c1 * scale[size-2] + 
+		     c2 * scale[size-1]);    
+    for (int x = size-4; x >= 0; x--) {
+	scale[x] = (c0 * scale[x] + 
+		    c1 * scale[x+1] + 
+		    c2 * scale[x+2] + 
+		    c3 * scale[x+3]);
+    }
+
+    // Invert
+    for (int x = 0; x < size; x++) {
+	scale[x] = 1.0f/scale[x];
     }
 }
 
