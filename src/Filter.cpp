@@ -235,7 +235,7 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
         blurX(im, remainingStdDev/tapSpacing, tapSpacing);
         blurX(im, 32, 1);
     } else if (filterWidth > 0) {
-        blurX(im, filterWidth, 1);
+	blurX(im, filterWidth, 1);
     }
 
     if (filterHeight > 32) {
@@ -244,7 +244,7 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
         blurY(im, remainingStdDev/tapSpacing, tapSpacing);
         blurY(im, 32, 1);
     } else if (filterHeight > 0) {
-        blurY(im, filterHeight, 1);
+	blurY(im, filterHeight, 1);
     }
 
     if (filterFrames > 32) {
@@ -261,63 +261,64 @@ void FastBlur::blurX(Image im, float sigma, int ts) {
     if (sigma == 0) { return; }
 
     // blur in the x-direction
-    float c0, c1, c2, c3;
-    calculateCoefficients(sigma, &c0, &c1, &c2, &c3);
-
-    float invC01 = 1.0f/(c0+c1);
-    float invC012 = 1.0f/(c0+c1+c2);
+    float coeff0, coeff1, coeff2, coeff3;
+    calculateCoefficients(sigma, &coeff0, &coeff1, &coeff2, &coeff3);
+    const float c0 = coeff0, c1 = coeff1, c2 = coeff2, c3 = coeff3;
+    const float invC01 = 1.0f/(c0+c1);
+    const float invC012 = 1.0f/(c0+c1+c2);
 
     // we step through each row of each frame, and apply a forwards and then
     // a backwards pass of our IIR filter to approximate Gaussian blurring
     // in the x-direction
-    for (int c = 0; c < im.channels; c++) {
+    for (int c = 0; c < im.channels; c++) {				
         for (int t = 0; t < im.frames; t++) {
-            for (int y = 0; y < im.height; y++) {
+	    for (int y = 0; y < im.height; y++) {
+		
                 // forward pass
                 
                 // use a zero boundary condition in the homogeneous
                 // sense (ie zero weight outside the image, divide by
                 // the sum of the weights)
                 for (int j = 0; j < ts; j++) {
-                    im(ts+j, y, t, c) = (c0*im(ts+j, y, t, c) + c1*im(j, y, t, c)) * invC01;
-                    im(2*ts+j, y, t, c) = (c0*im(2*ts+j, y, t, c) + c1*im(ts+j, y, t, c) + c2*im(j, y, t, c)) * invC012;
+		    im(ts+j, y, t, c) = (c0*im(ts+j, y, t, c) + c1*im(j, y, t, c)) * invC01;
+		    im(2*ts+j, y, t, c) = (c0*im(2*ts+j, y, t, c) + c1*im(ts+j, y, t, c) + c2*im(j, y, t, c)) * invC012;
                 }
                 
-                // now apply the forward filter
+                // now apply the forward filter		
                 for (int x = 3*ts; x < im.width; x++) {
                     im(x, y, t, c) = (c0 * im(x, y, t, c) +
                                       c1 * im(x-ts, y, t, c) +
                                       c2 * im(x-2*ts, y, t, c) + 
                                       c3 * im(x-3*ts, y, t, c));
-                }
+                }		
 
                 // use a zero boundary condition in the homogeneous
                 // sense
                 int x = im.width-3*ts;
                 for (int j = 0; j < ts; j++) {
-                    im(x+ts+j, y, t, c) = (c0*im(x+ts+j, y, t, c) + c1*im(x+2*ts+j, y, t, c)) * invC01;
-                    im(x+j, y, t, c) = (c0*im(x+j, y, t, c) + c1*im(x+ts+j, y, t, c) + c2*im(x+2*ts+j, y, t, c)) * invC012;
+		    im(x+ts+j, y, t, c) = (c0*im(x+ts+j, y, t, c) + c1*im(x+2*ts+j, y, t, c)) * invC01;
+		    im(x+j, y, t, c) = (c0*im(x+j, y, t, c) + c1*im(x+ts+j, y, t, c) + c2*im(x+2*ts+j, y, t, c)) * invC012;
                 }
                 
-                // backward pass
+                // backward pass		
                 for (int x = im.width-3*ts-1; x >= 0; x--) {
-                    im(x, y, t, c) = (c0 * im(x, y, t, c) + 
-                                      c1 * im(x+ts, y, t, c) + 
-                                      c2 * im(x+2*ts, y, t, c) + 
-                                      c3 * im(x+3*ts, y, t, c));
-                }
-            }
-        }
+		    im(x, y, t, c) = (c0 * im(x, y, t, c) + 
+				      c1 * im(x+ts, y, t, c) + 
+				      c2 * im(x+2*ts, y, t, c) + 
+				      c3 * im(x+3*ts, y, t, c));
+		}
+		asm("#bar");		
+	    }
+	}
     }
 }
 
-void FastBlur::blurY(Image im, float sigma, int ts) {
+void FastBlur::blurY(Image im, const float sigma, const int ts) {
     if (sigma == 0) { return; }
 
-    float c0, c1, c2, c3;
-    calculateCoefficients(sigma, &c0, &c1, &c2, &c3);
-    float invC01 = 1.0f/(c0+c1);
-    float invC012 = 1.0f/(c0+c1+c2);
+    float coeff0, coeff1, coeff2, coeff3;
+    calculateCoefficients(sigma, &coeff0, &coeff1, &coeff2, &coeff3);
+    const float c0 = coeff0, c1 = coeff1, c2 = coeff2, c3 = coeff3;
 
     // blur in the y-direction
     //  we do the same thing here as in the x-direction
@@ -331,20 +332,25 @@ void FastBlur::blurY(Image im, float sigma, int ts) {
             // the sum of the weights)
             for (int j = 0; j < ts; j++) {
                 for (int x = 0; x < im.width; x++) {
-                    im(x, ts+j, t, c) = (c0*im(x, ts+j, t, c) + c1*im(x, j, t, c)) * invC01;
-                    im(x, 2*ts+j, t, c) = (c0*im(x, 2*ts+j, t, c) + c1*im(x, ts+j, t, c) + c2*im(x, j, t, c)) * invC012;
+                    im(x, ts+j, t, c) = (c0*im(x, ts+j, t, c) +
+					 c1*im(x, j, t, c)) / (c0 + c1);
+                    im(x, 2*ts+j, t, c) = (c0*im(x, 2*ts+j, t, c) + 
+					   c1*im(x, ts+j, t, c) + 
+					   c2*im(x, j, t, c)) / (c0 + c1 + c2);
                 }
             }
 
             // forward pass
+	    asm("#foo");	       
             for (int y = 3*ts; y < im.height; y++) {
                 for (int x = 0; x < im.width; x++) {
-                    im(x, y, t, c) = (c0 * im(x, y, t, c) + 
-                                      c1 * im(x, y-ts, t, c) + 
-                                      c2 * im(x, y-2*ts, t, c) + 
-                                      c3 * im(x, y-3*ts, t, c));
+		    im(x, y, t, c) = (c0*im(x, y, t, c) + 
+				      c1*im(x, y-ts, t, c) +
+				      c2*im(x, y-2*ts, t, c) +
+				      c3*im(x, y-3*ts, t, c));
                 }
             }
+	    asm("#bar");
                 
             // use a zero boundary condition in the homogeneous
             // sense (ie zero weight outside the image, divide by
@@ -352,18 +358,22 @@ void FastBlur::blurY(Image im, float sigma, int ts) {
             int y = im.height-3*ts;
             for (int j = 0; j < ts; j++) {
                 for (int x = 0; x < im.width; x++) {
-                    im(x, y+ts+j, t, c) = (c0*im(x, y+ts+j, t, c) + c1*im(x, y+ts*2+j, t, c)) * invC01;
-                    im(x, y+j, t, c) = (c0*im(x, y+j, t, c) + c1*im(x, y+ts+j, t, c) + c2*im(x, y+ts*2+j, t, c)) * invC012;
+                    im(x, y+ts+j, t, c) = (c0*im(x, y+ts+j, t, c) +
+					   c1*im(x, y+ts*2+j, t, c)) / (c0 + c1);
+                    im(x, y+j, t, c) = (c0*im(x, y+j, t, c) + 
+					c1*im(x, y+ts+j, t, c) + 
+					c2*im(x, y+ts*2+j, t, c)) / (c0 + c1 + c2);
                 }
             }
             
             // backward pass
             for (int y = im.height-3*ts-1; y >= 0; y--) {
-                for (int x = 0; x < im.width; x++) 
+		for (int x = 0; x < im.width; x++) {
                     im(x, y, t, c) = (c0 * im(x, y, t, c) + 
                                       c1 * im(x, y+ts, t, c) + 
                                       c2 * im(x, y+2*ts, t, c) + 
                                       c3 * im(x, y+3*ts, t, c));
+		}
             }
         }
     }

@@ -7,7 +7,7 @@
 #include "File.h"
 #include "header.h"
 
-Image LocalLaplacian::pyramidDown(Image im) {
+Image LocalLaplacian::pyramidDown(const Image im) {
     Image smaller((im.width+1)/2, (im.height+1)/2, (im.frames+1)/2, im.channels);
 
     Image blurry = im.copy();
@@ -23,16 +23,14 @@ Image LocalLaplacian::pyramidDown(Image im) {
         }
     }
 
-    float scale[4] = {0.125f, 0.25f, 0.5f, 1.0f};
-
     for (int c = 0; c < smaller.channels; c++) {
 	for (int t = 0; t < smaller.frames; t++) {
-	    int tFactor = ((t*2+1) < im.frames) ? 0 : 1;
+	    float tFactor = ((t*2+1) < im.frames) ? 0.125f : 0.25f;
 	    for (int y = 0; y < smaller.height; y++) {
-		int yFactor = ((y*2+1) < im.height) ? tFactor : (tFactor+1);
+		float yFactor = ((y*2+1) < im.height) ? tFactor : (tFactor*2);
 		for (int x = 0; x < smaller.width; x++) {
-		    int xFactor = ((x*2+1) < im.width) ? (yFactor) : (yFactor+1);
-                    smaller(x, y, t, c) *= scale[xFactor];
+		    float xFactor = ((x*2+1) < im.width) ? (yFactor) : (yFactor*2);
+                    smaller(x, y, t, c) *= xFactor;
                 }
             }
         }
@@ -41,7 +39,7 @@ Image LocalLaplacian::pyramidDown(Image im) {
     return smaller;
 }
 
-Image LocalLaplacian::pyramidUp(Image im, int w, int h, int f) {
+Image LocalLaplacian::pyramidUp(const Image im, int w, int h, int f) {
     Image larger(w, h, f, im.channels);
 
     for (int c = 0; c < im.channels; c++) {
@@ -155,9 +153,14 @@ Image LocalLaplacian::apply(Image im, float alpha, float beta) {
         int oldW = imPyramid[j-1].width;
         int oldH = imPyramid[j-1].height;
         int oldF = imPyramid[j-1].frames;
+	float t1 = currentTime();
         imPyramid[j] = pyramidDown(imPyramid[j-1]);
+	float t2 = currentTime();
         imLPyramid[j] = imPyramid[j].copy();
+	float t3 = currentTime();
 	imLPyramid[j-1] -= pyramidUp(imPyramid[j], oldW, oldH, oldF);
+	float t4 = currentTime();
+	printf("%f %f %f\n", t2-t1, t3-t2, t4-t3);
     }
 
     // Now construct output laplacian pyramid by looking up the
