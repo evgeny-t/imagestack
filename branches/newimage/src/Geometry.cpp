@@ -1474,15 +1474,8 @@ Image Reshape::apply(Image im, int x, int y, int t, int c) {
     assert(t * x * y * c == im.frames * im.width * im.height * im.channels,
            "New shape uses a different amount of memory that the old shape.\n");
     assert(im.dense(), "Input image is not densely packed in memory");
-    Image out = im.copy();
-    
-    out.frames = t;
-    out.width = x;
-    out.height = y;
-    out.channels = c;
-    out.cstride = x*y*t;
-    out.tstride = x*y;
-    out.ystride = x;
+    Image out(x, y, t, c);
+    memcpy(&out(0, 0, 0, 0), &im(0, 0, 0, 0), x*y*t*c*sizeof(float));
     return out;
 }
 

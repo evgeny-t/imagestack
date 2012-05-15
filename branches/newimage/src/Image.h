@@ -6,51 +6,50 @@
 
 class Image {
   public:
-    Image() {
-        init(0, 0, 0, 0);
+
+    const int width, height, frames, channels;
+    const int ystride, tstride, cstride;   
+
+    Image() : 
+	width(0), height(0), frames(0), channels(0), 
+	ystride(0), tstride(0), cstride(0), data(), base(NULL) {
     }
 
-    Image(int w, int h) {
-        init(w, h, 1, 1);
+    Image(int w, int h, int f, int c) :
+	width(w), height(h), frames(f), channels(c), 
+	ystride(w), tstride(w*h), cstride(w*h*f), 
+	data(new vector<float>(w*h*f*c+3)), base(compute_base(data)) {
     }
 
-    Image(int w, int h, int c) {
-        init(w, h, 1, c);
+    inline float &operator()(int x, int y) {
+        return (base + y*ystride)[x];
     }
 
-    Image(int w, int h, int f, int c) {
-        init(w, h, f, c);
+    inline float &operator()(int x, int y, int c) {
+	return (base + c*cstride + y*ystride)[x];
     }
 
-    float &operator()(int x, int y) {
-        return base[x + y*ystride];
+    inline float &operator()(int x, int y, int t, int c) {
+        return (base + c*cstride + t*tstride + y*ystride)[x];
     }
 
-    float &operator()(int x, int y, int c) {
-        return base[x + y*ystride + c*cstride];
+    inline float operator()(int x, int y) const {
+        return (base + y*ystride)[x];
     }
 
-    float &operator()(int x, int y, int t, int c) {
-        return base[x + y*ystride + t*tstride + c*cstride];
+    inline float operator()(int x, int y, int c) const {
+	return (base + c*cstride + y*ystride)[x];
     }
 
-    const float &operator()(int x, int y) const {
-        return base[x + y*ystride];
-    }
-
-    const float &operator()(int x, int y, int c) const {
-        return base[x + y*ystride + c*cstride];
-    }
-
-    const float &operator()(int x, int y, int t, int c) const {
-        return base[x + y*ystride + t*tstride + c*cstride];
+    inline float operator()(int x, int y, int t, int c) const {
+        return (base + c*cstride + t*tstride + y*ystride)[x];
     }
 
     float *baseAddress() {
         return base;
     }
 
-    Image copy() {
+    Image copy() const {
         Image m(width, height, frames, channels);
 	m.copyFrom(*this);
         return m;
@@ -78,18 +77,8 @@ class Image {
     }
 
     Image region(int x, int y, int t, int c,
-                    int width, int height, int frames, int channels) {
-        Image im;
-        im.data = data;
-        im.base = &((*this)(x, y, t, c));
-        im.width = width;
-        im.height = height;
-        im.frames = frames;
-        im.channels = channels;
-        im.cstride = cstride;
-        im.tstride = tstride;
-        im.ystride = ystride;
-        return im;
+		 int width, int height, int frames, int channels) {
+        return Image(*this, x, y, t, c, width, height, frames, channels);
     }
 
     Image column(int x) {
@@ -112,9 +101,6 @@ class Image {
         return (cstride == width*height*frames && tstride == width*height && ystride == width);
     }
 
-    int frames, width, height, channels;
-    int ystride, tstride, cstride;
-    
     operator bool() {
         return (base != NULL);
     }
@@ -521,30 +507,36 @@ class Image {
 
     }
 
+    void operator=(const Image &other) {
+	const_cast<int *>(&width)[0] = other.width;
+	const_cast<int *>(&height)[0] = other.height;
+	const_cast<int *>(&frames)[0] = other.frames;
+	const_cast<int *>(&channels)[0] = other.channels;
+	const_cast<int *>(&ystride)[0] = other.ystride;
+	const_cast<int *>(&tstride)[0] = other.tstride;
+	const_cast<int *>(&cstride)[0] = other.cstride;
+	const_cast<float **>(&base)[0] = other.base;
+	const_cast<std::shared_ptr<std::vector<float> > *>(&data)[0] = other.data;
+    }
 
   private:
 
-    void init(int w, int h, int f, int c) {
-        width = w;
-        height = h;
-        frames = f;
-        channels = c;
-
-        cstride = width*height*frames;
-        tstride = width*height;
-        ystride = width;
-
-        if (w*h*f*c) {
-            data.reset(new vector<float>(w*h*f*c+3));
-            base = &((*data)[0]);
-            while (((size_t)base) & 0xf) base++;
-        } else {
-            base = NULL;
-        }
+    float *compute_base(std::shared_ptr<vector<float> > data) {
+	float *base = &((*data)[0]);
+	while (((size_t)base) & 0xf) base++;    
+	return base;
     }
 
-    std::shared_ptr<std::vector<float> > data;
-    float *base;
+    // Region constructor
+    Image(Image im, int x, int y, int t, int c,
+	  int width, int height, int frames, int channels) :
+	width(width), height(height), frames(frames), channels(channels),
+	ystride(im.ystride), tstride(im.tstride), cstride(im.cstride),
+	data(im.data), base(&im(x, y, t, c)) {	
+    }
+
+    const std::shared_ptr<std::vector<float> > data;
+    float * const base;
 };
 
 

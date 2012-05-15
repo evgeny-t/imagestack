@@ -29,6 +29,7 @@ using ::std::make_pair;
 using ::std::map;
 using ::std::list;
 using ::std::swap;
+using ::std::isfinite;
 
 #ifdef WIN32
 #include <windows.h>
