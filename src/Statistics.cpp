@@ -336,7 +336,7 @@ void Noise::help() {
 }
 
 bool Noise::test() {
-    // Tested by stats
+    // Tested by statistics
     return true;
 }
 
@@ -379,7 +379,22 @@ void Histogram::help() {
 }
 
 bool Histogram::test() {
-    // TODO
+    Image a(123, 346, 101, 3);
+    Noise::apply(a, -3, 16);
+    Image hist = Histogram::apply(a, 17, -3, 16);
+
+    float expected = 1/17.0f;
+
+    for (int c = 0; c < a.channels; c++) {
+	float sum = 0;
+	for (int bucket = 0; bucket < 17; bucket++) {
+	    float val = hist(bucket, 0, 0, c);
+	    sum += val;
+	    if (!nearly_equal(val, expected)) return false;
+	}
+	if (!nearly_equal(sum, 1)) return false;
+    }
+
     return true;
 }
 
@@ -406,10 +421,7 @@ Image Histogram::apply(Image im, int buckets, float minVal, float maxVal) {
 
     float invBucketWidth = buckets / (maxVal - minVal);
 
-    float inc = 1.0f / (im.width * im.height * im.frames);
-
-    Image hg(buckets, 1, 1, im.channels);
-
+    vector<size_t> count(buckets*im.channels, 0);
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
             for (int x = 0; x < im.width; x++) {
@@ -425,11 +437,19 @@ Image Histogram::apply(Image im, int buckets, float minVal, float maxVal) {
                         if (bucket >= buckets) { bucket = buckets-1; }
                         if (bucket < 0) { bucket = 0; }
                     }
-                    hg(bucket, 0, 0, c) += inc;
+		    count[bucket*im.channels + c]++;
                 }
             }
         }
     }
+
+    float invScale = 1.0 / (im.width * im.height * im.frames);
+    Image hg(buckets, 1, 1, im.channels);
+    for (int c = 0; c < im.channels; c++) {
+	for (int x = 0; x < buckets; x++) {
+	    hg(x, 0, 0, c) = count[x*im.channels + c] * invScale;
+	}
+    }	
 
     return hg;
 }
