@@ -5,6 +5,7 @@
 class Dimensions : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
 };
 
@@ -35,8 +36,8 @@ public:
     inline double kurtosis()      {MOMENT; return kurtosis_;}
     inline double barycenterX(int c) { MOMENT; return barycenters[c*2]; }
     inline double barycenterY(int c) { MOMENT; return barycenters[c*2+1]; }
-    inline double spatialvarianceX(int c) { MOMENT; return spatialvariances[c*2]; }
-    inline double spatialvarianceY(int c) { MOMENT; return spatialvariances[c*2+1]; }
+    inline double spatialVarianceX(int c) { MOMENT; return spatialVariances[c*2]; }
+    inline double spatialVarianceY(int c) { MOMENT; return spatialVariances[c*2+1]; }
 
 #undef BASIC
 #undef MOMENT
@@ -50,7 +51,7 @@ private:
 
     int channels;
     vector<double> sums, means, variances, kurtoses, skews, mins, maxs;
-    vector<double> barycenters, spatialvariances;
+    vector<double> barycenters, spatialVariances;
     vector<double> covarianceMatrix;
     double sum_, mean_, variance_, min_, max_, kurtosis_, skew_;
     int nans_, neginfs_, posinfs_;
@@ -59,6 +60,7 @@ private:
 class Statistics : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im);
 };
@@ -66,6 +68,7 @@ public:
 class Noise : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im, float minVal, float maxVal);
 };
@@ -73,6 +76,7 @@ public:
 class Histogram : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, int buckets = 256, float minVal = 0, float maxVal = 1);
 };
@@ -81,6 +85,7 @@ public:
 class Equalize : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im, float lower, float upper);
 };
@@ -89,6 +94,7 @@ public:
 class HistogramMatch : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im, Image model);
 };
@@ -97,6 +103,7 @@ public:
 class Shuffle : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im);
 };
@@ -104,6 +111,7 @@ public:
 class KMeans : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im, int clusters);
 };
@@ -111,6 +119,7 @@ public:
 class Sort : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im, char dimension);
 };
@@ -118,6 +127,7 @@ public:
 class DimensionReduction : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im, int newChannels);
 };
@@ -125,6 +135,7 @@ public:
 class LocalMaxima : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
 
     struct Maximum {
@@ -154,6 +165,7 @@ public:
 class Printf : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im, string fmt, vector<float> args);
 };
@@ -161,6 +173,7 @@ public:
 class FPrintf : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im, string filename, string fmt, vector<float> args);
 };
@@ -168,6 +181,7 @@ public:
 class PCA : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, int newChannels);
 };
@@ -175,6 +189,7 @@ public:
 class PatchPCA : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, float sigma, int newChannels);
 };
@@ -182,6 +197,7 @@ public:
 class PatchPCA3D : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, float sigma, int newChannels);
 };

@@ -43,6 +43,12 @@ inline T clamp(const T &a, const T &b, const T &c) {
     return a;
 }
 
+// Equal to within 1/100. Useful for testing
+static inline bool nearly_equal(float a, float b) {
+    if (b == 0) return fabs(a < 0.01);
+    return fabs(a/b - 1.0) < 0.01;
+}
+
 #ifndef M_PI
 #define M_PI 3.14159265
 #endif
