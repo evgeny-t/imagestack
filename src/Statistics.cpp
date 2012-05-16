@@ -162,7 +162,7 @@ void Statistics::help() {
 }
 
 bool Statistics::test() {
-    Image a(160, 300, 90, 2);    
+    Image a(160, 300, 30, 2);    
 
     // You get 10 tries to pass the statistical tests
     for (int i = 0; i < 10; i++) {
@@ -173,7 +173,7 @@ bool Statistics::test() {
 	Stats s(a);
 	
 	printf("Sum: %f\n", s.sum());	
-	if (!nearly_equal(s.sum(), 160*300*90*2*10)) continue;
+	if (!nearly_equal(s.sum(), 160*300*30*2*10)) continue;
 	
 	printf("Mean: %f\n", s.mean());
 	if (!nearly_equal(s.mean(), 10)) continue;
@@ -467,7 +467,26 @@ void Equalize::help() {
 }
 
 bool Equalize::test() {
-    // TODO
+    Image a(123, 346, 10, 3);
+    a.row(17) = 5000;
+    Noise::apply(a, -3, 16);
+    Noise::apply(a, 50, 80);
+    Noise::apply(a, -99, 160);
+    Equalize::apply(a, 0, 1);
+    Image hist = Histogram::apply(a, 17, 0, 1);
+
+    float expected = 1/17.0f;
+
+    for (int c = 0; c < a.channels; c++) {
+	float sum = 0;
+	for (int bucket = 0; bucket < 17; bucket++) {
+	    float val = hist(bucket, 0, 0, c);
+	    sum += val;
+	    if (!nearly_equal(val, expected)) return false;
+	}
+	if (!nearly_equal(sum, 1)) return false;
+    }
+
     return true;
 }
 
@@ -529,7 +548,21 @@ void HistogramMatch::help() {
 }
 
 bool HistogramMatch::test() {
-    // TODO
+    Image a(523, 456, 2, 3), b(2340, 556, 2, 3);
+    Noise::apply(a, -34, 2);
+    Noise::apply(a, -34, -39);
+    Gamma::apply(a, 2);
+    Noise::apply(b, 123, 234);
+    Stats sa(a);
+    Image ha = Histogram::apply(a, 10, sa.minimum(), sa.maximum());
+    HistogramMatch::apply(b, a);
+    Image hb = Histogram::apply(b, 10, sa.minimum(), sa.maximum());
+
+    for (int c = 0; c < a.channels; c++) {
+	for (int x = 0; x < ha.width; x++) {
+	    if (!nearly_equal(ha(x, 0, 0, c), hb(x, 0, 0, c))) return false;
+	}
+    }
     return true;
 }
 
