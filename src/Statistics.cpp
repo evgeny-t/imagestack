@@ -12,11 +12,17 @@ void Dimensions::help() {
             "Usage: ImageStack -load a.tga -dimensions\n");
 }
 
+bool Dimensions::test() {
+    // uh...
+    return true;
+}
+
 void Dimensions::parse(vector<string> args) {
     assert(args.size() == 0, "-dimensions takes no arguments\n");
     printf("Width x Height x Frames x Channels: %d x %d x %d x %d\n",
            stack(0).width, stack(0).height, stack(0).frames, stack(0).channels);
 }
+
 
 Stats::Stats(Image im) : im_(im) {
     sum_ = mean_ = variance_ = skew_ = kurtosis_ = 0;
@@ -33,8 +39,8 @@ Stats::Stats(Image im) : im_(im) {
         skews.push_back(0);
         mins.push_back(im(0, 0, c));
         maxs.push_back(im(0, 0, c));
-        spatialvariances.push_back(0);
-        spatialvariances.push_back(0);
+        spatialVariances.push_back(0);
+        spatialVariances.push_back(0);
         barycenters.push_back(0);
         barycenters.push_back(0);
 
@@ -109,16 +115,16 @@ void Stats::computeMoments() {
                     float power = diff * diff;
                     barycenters[c*2] += x*val;
                     barycenters[c*2+1] += y*val;
-                    spatialvariances[c*2] += x*x*val;
-                    spatialvariances[c*2+1] += y*y*val;
+                    spatialVariances[c*2] += x*x*val;
+                    spatialVariances[c*2+1] += y*y*val;
                     variances[c] += power;
                     variance_ += power;
                     power *= diff;
                     skews[c] += power;
                     skew_ += power;
                     power *= diff;
-                    kurtosis_ += power * diff;
-                    kurtoses[c] += power * diff;
+                    kurtosis_ += power;
+                    kurtoses[c] += power;
                 }
             }
         }
@@ -127,6 +133,7 @@ void Stats::computeMoments() {
     variance_ /= (count - 1);
     skew_ /= (count - 1) * variance_ * ::sqrt(variance_);
     kurtosis_ /= (count - 1) * variance_ * variance_;
+    kurtosis_ -= 3;
     for (int c = 0; c < im_.channels; c++) {
         for (int c2 = 0; c2 < im_.channels; c2++) {
             covarianceMatrix[c *channels + c2] /= covarianceCounts[c * channels + c2] - 1;
@@ -134,15 +141,16 @@ void Stats::computeMoments() {
         variances[c] /= (counts[c] - 1);
         skews[c] /= (counts[c] - 1) * variances[c] * ::sqrt(variances[c]);
         kurtoses[c] /= (counts[c] - 1) * variances[c] * variances[c];
+        kurtoses[c] -= 3;
     }
 
     for (int c = 0; c < im_.channels; c++) {
         barycenters[c*2] /= sums[c];
         barycenters[c*2+1] /= sums[c];
-        spatialvariances[c*2] /= sums[c];
-        spatialvariances[c*2] -= barycenters[c*2] * barycenters[c*2];
-        spatialvariances[c*2+1] /= sums[c];
-        spatialvariances[c*2+1] -= barycenters[c*2+1] * barycenters[c*2+1];
+        spatialVariances[c*2] /= sums[c];
+        spatialVariances[c*2] -= barycenters[c*2] * barycenters[c*2];
+        spatialVariances[c*2+1] /= sums[c];
+        spatialVariances[c*2+1] -= barycenters[c*2+1] * barycenters[c*2+1];
     }
     momentsComputed = true;
 }
@@ -152,6 +160,76 @@ void Statistics::help() {
     pprintf("-statistics provides per channel statistical information about the current image.\n\n"
             "Usage: ImageStack -load a.tga -statistics\n");
 }
+
+bool Statistics::test() {
+    Image a(160, 300, 90, 2);    
+
+    // You get 10 tries to pass the statistical tests
+    for (int i = 0; i < 10; i++) {
+	a = 0;
+	Noise::apply(a, 0, 10);
+	Noise::apply(a, 0, 10);
+	// We now expect a to have certain statistical properties. Let's check them.
+	Stats s(a);
+	
+	printf("Sum: %f\n", s.sum());	
+	if (!nearly_equal(s.sum(), 160*300*90*2*10)) continue;
+	
+	printf("Mean: %f\n", s.mean());
+	if (!nearly_equal(s.mean(), 10)) continue;
+	
+	printf("Minimum: %f\n", s.minimum());
+	if (!nearly_equal(s.minimum(), 0)) continue;
+	
+	printf("Maximum: %f\n", s.maximum());
+	if (!nearly_equal(s.maximum(), 20)) continue;
+	
+	printf("NaNs: %d\n", s.nans());
+	if (s.nans() != 0) continue;
+	
+	printf("PosInfs: %d\n", s.posinfs());
+	if (s.posinfs() != 0) continue;
+	
+	printf("NegInfs: %d\n", s.neginfs());
+	if (s.neginfs() != 0) continue;
+	
+	printf("covariance matrix:\n%f %f\n%f %f\n",
+	       s.covariance(0, 0), s.covariance(1, 0),
+	       s.covariance(0, 1), s.covariance(1, 1));
+	// variance of a uniform distribution is (b - a)^2 / 12
+	if (!nearly_equal(s.covariance(0, 0), 2*100/12.0f)) continue;
+	if (!nearly_equal(s.covariance(1, 1), 2*100/12.0f)) continue;
+	if (!nearly_equal(s.covariance(0, 1), 0)) continue;
+	if (!nearly_equal(s.covariance(1, 0), 0)) continue;
+	
+	printf("skew: %f\n", s.skew());
+	// A tent is symmetric about the mean
+	if (!nearly_equal(s.skew(), 0)) continue;
+	
+	printf("kurtosis: %f\n", s.kurtosis());
+	// Kurtosis of uniform is -1.2. 
+	// Kurtosis of sum of n vars = 1/n^2 * sum of kurtosis
+	// So kurtosis of tent = 1/4 * (-1.2 + -1.2) = -0.6
+	if (!nearly_equal(s.kurtosis(), -0.6)) continue;
+	
+	printf("barycenter: %f %f\n", s.barycenterX(0), s.barycenterY(0));
+	printf("barycenter: %f %f\n", s.barycenterX(1), s.barycenterY(1));
+	if (!nearly_equal(s.barycenterX(0), 79.5f)) continue;
+	if (!nearly_equal(s.barycenterY(0), 149.5f)) continue;
+	if (!nearly_equal(s.barycenterX(1), 79.5f)) continue;
+	if (!nearly_equal(s.barycenterY(1), 149.5f)) continue;
+	
+	printf("spatial variance: %f %f\n", s.spatialVarianceX(1), s.spatialVarianceY(1));
+	// What should the spatial variance be?
+	
+	return true;
+    }
+    
+    return false;
+
+}
+
+
 
 void Statistics::parse(vector<string> args) {
     assert(args.size() == 0, "-statistics takes no arguments");
@@ -231,13 +309,13 @@ void Statistics::apply(Image im) {
 
     printf("Spatial variance (X):\t");
     for (int i = 0; i < im.channels; i++) {
-        printf("%3.6f\t", stats.spatialvarianceX(i));
+        printf("%3.6f\t", stats.spatialVarianceX(i));
     }
     printf("\n");
 
     printf("Spatial variance (Y):\t");
     for (int i = 0; i < im.channels; i++) {
-        printf("%3.6f\t", stats.spatialvarianceY(i));
+        printf("%3.6f\t", stats.spatialVarianceY(i));
     }
     printf("\n");
     printf("\n");
@@ -255,6 +333,11 @@ void Noise::help() {
             " lower value is assumed to be zero. With no arguments, the range is assumed"
             " to be [0, 1]\n\n"
             "Usage: ImageStack -load a.tga -push -noise -add -save anoisy.tga\n\n");
+}
+
+bool Noise::test() {
+    // Tested by stats
+    return true;
 }
 
 void Noise::parse(vector<string> args) {
@@ -295,6 +378,10 @@ void Histogram::help() {
             "Usage: ImageStack -load a.tga -histogram -normalize -plot 256 256 3 -display\n");
 }
 
+bool Histogram::test() {
+    // TODO
+    return true;
+}
 
 void Histogram::parse(vector<string> args) {
     assert(args.size() < 4, "-histogram takes three or fewer arguments\n");
@@ -359,6 +446,11 @@ void Equalize::help() {
             "Usage: ImageStack -load a.tga -equalize 0.2 0.8 -save out.tga\n\n");
 }
 
+bool Equalize::test() {
+    // TODO
+    return true;
+}
+
 void Equalize::parse(vector<string> args) {
     assert(args.size() < 3, "-equalize takes zero, one, or two arguments\n");
     float lower = 0, upper = 1;
@@ -414,6 +506,11 @@ void HistogramMatch::help() {
             " monotonic operation to an image, and then histogram matching it to"
             " its original should revert it to its original.\n\n"
             "Usage: ImageStack -load a.tga -load b.tga -histogrammatch -save ba.tga\n\n");
+}
+
+bool HistogramMatch::test() {
+    // TODO
+    return true;
 }
 
 void HistogramMatch::parse(vector<string> args) {
@@ -503,6 +600,11 @@ void Shuffle::help() {
             "Usage: ImageStack -load a.tga -shuffle -save shuffled.tga\n\n");
 }
 
+bool Shuffle::test() {
+    //TODO
+    return true;
+}
+
 void Shuffle::parse(vector<string> args) {
     assert(args.size() == 0, "-shuffle takes no arguments\n");
     apply(stack(0));
@@ -538,6 +640,11 @@ void KMeans::help() {
     printf("-kmeans clusters the image into a number of clusters given by the"
            " single integer argument.\n\n"
            "Usage: ImageStack -load in.jpg -kmeans 3 -save out.jpg\n\n");
+}
+
+bool KMeans::test() {
+    // TODO
+    return true;
 }
 
 void KMeans::parse(vector<string> args) {
@@ -658,6 +765,11 @@ void Sort::help() {
             "ImageStack -loadframes frame*.jpg -sort t -crop frames/2 1 -save median.jpg\n\n");
 }
 
+bool Sort::test() {
+    // TODO
+    return true;
+}
+
 void Sort::parse(vector<string> args) {
     assert(args.size() == 1, "-sort takes one argument\n");
     apply(stack(0), readChar(args[0]));
@@ -741,6 +853,11 @@ void DimensionReduction::help() {
             " orthogonal to that dimension are unwanted (eg chromatic"
             " abberation).\n\n"
             "Usage: ImageStack -load sunset.jpg -dimensionreduction 2 -save fixed.jpg\n\n");
+}
+
+bool DimensionReduction::test() {
+    // TODO
+    return true;
 }
 
 void DimensionReduction::parse(vector<string> args) {
@@ -868,6 +985,11 @@ void LocalMaxima::help() {
             " distance which must separate adjacent local maxima.\n"
             "\n"
             "Usage: ImageStack -load stack.tmp -localmaxima txy 0.01 5 output.txt\n");
+}
+
+bool LocalMaxima::test() {
+    // TODO
+    return true;
 }
 
 void LocalMaxima::parse(vector<string> args) {
@@ -1107,6 +1229,11 @@ void Printf::help() {
             "Usage: ImageStack -load foo.jpg -printf \"Mean  =  %%f\" \"mean()\"\n\n");
 }
 
+bool Printf::test() {
+    // TODO
+    return true;
+}
+
 void Printf::parse(vector<string> args) {
     assert(args.size() > 0, "-printf requires at least one argument\n");
     vector<float> fargs;
@@ -1141,6 +1268,11 @@ void FPrintf::help() {
             " format string. The remaining arguments are all evaluated as floats,"
             " so use %%d, %%i, and other non-float formats with caution.\n\n"
             "Usage: ImageStack -load foo.jpg -fprintf results.txt \"Mean  =  %%f\" \"mean()\"");
+}
+
+bool FPrintf::test() {
+    // TODO
+    return true;
 }
 
 void FPrintf::parse(vector<string> args) {
@@ -1182,6 +1314,11 @@ void PCA::help() {
     pprintf("-pca reduces the number of channels in the image to the given"
             " parameter, using principal components analysis (PCA).\n\n"
             "Usage: ImageStack -load a.jpg -pca 1 -save gray.png\n");
+}
+
+bool PCA::test() {
+    // TODO
+    return true;
 }
 
 void PCA::parse(vector<string> args) {
@@ -1239,6 +1376,10 @@ void PatchPCA::help() {
             " -pull 1 -convolve zero inner -save reduced.tmp\n");
 }
 
+bool PatchPCA::test() {
+    // TODO
+    return true;
+}
 
 void PatchPCA::parse(vector<string> args) {
     assert(args.size() == 2, "-patchpca takes two arguments\n");
@@ -1317,6 +1458,10 @@ void PatchPCA3D::help() {
             " -pull 1 -convolve zero inner -save reduced.tmp\n");
 }
 
+bool PatchPCA3D::test() {
+    // TODO
+    return true;
+}
 
 void PatchPCA3D::parse(vector<string> args) {
     assert(args.size() == 2, "-patchpca3d takes two arguments\n");
