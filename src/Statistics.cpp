@@ -91,6 +91,8 @@ void Stats::computeBasicStats() {
 }
 
 void Stats::computeMoments() {
+    if (!basicStatsComputed) computeBasicStats();
+    
     // figure out variance, skew, and kurtosis
     vector<int> counts(im_.channels, 0);
     int count = 0;
@@ -654,7 +656,26 @@ void Shuffle::help() {
 }
 
 bool Shuffle::test() {
-    //TODO
+    Image a(123, 456, 2, 1);
+    Image sum(123, 456, 2, 1);
+    for (int i = 0; i < 100; i++) {
+	for (int t = 0; t < a.frames; t++) {
+	    for (int y = 0; y < a.height; y++) {
+		for (int x = 0; x < a.width; x++) {
+		    a(x, y, t, 0) = ((t * a.height + y) * a.width + x);
+		}
+	    }
+	}
+
+	Shuffle::apply(a);	
+	sum += a;
+    }
+
+    // sum should be pretty uniform
+    sum /= (100 * a.width * a.height * a.frames);
+    Stats stats(sum);
+    if (!nearly_equal(stats.mean(), 0.5)) return false;
+    if (!nearly_equal(stats.variance(), 0)) return false;
     return true;
 }
 
@@ -664,23 +685,17 @@ void Shuffle::parse(vector<string> args) {
 }
 
 void Shuffle::apply(Image im) {
+    int maxIdx = im.width * im.height * im.frames - 1;
+    int idx = 0;
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
             for (int x = 0; x < im.width; x++) {
                 // pick a random new location after this one
-                int ot, ox, oy;
-                ot = randomInt(t, im.frames-1);
-                if (ot > t) {
-                    oy = randomInt(0, im.height-1);
-                } else {
-                    oy = randomInt(y, im.height-1);
-                }
-                if (oy > y || ot > t) {
-                    ox = randomInt(0, im.width-1);
-                } else {
-                    ox = randomInt(x+1, im.width-1);
-                }
-
+		idx++;
+		int idx2 = randomInt(idx, maxIdx);
+		int ot = idx2 / (im.width * im.height);
+		int oy = (idx2 % (im.width * im.height)) / im.width;
+		int ox = idx2 % im.width;
                 for (int c = 0; c < im.channels; c++) {
 		    swap(im(x, y, t, c), im(ox, oy, ot, c));
                 }
@@ -696,13 +711,63 @@ void KMeans::help() {
 }
 
 bool KMeans::test() {
+    // Make 3 clusters;
+    Image a(101, 102, 10, 3);
+    Image b(101, 102, 10, 3);
+    Noise::apply(a, -0.5, 0.5);
+    Noise::apply(a, -0.5, 0.5);
+    Noise::apply(a, -0.5, 0.5);
+
+    for (int t = 0; t < a.frames; t++) {
+	for (int y = 0; y < a.height; y++) {
+	    for (int x = 0; x < a.width; x++) {
+		switch (randomInt(0, 2)) {
+		case 0:
+		    b(x, y, t, 0) = 1;
+		    b(x, y, t, 1) = 5;
+		    b(x, y, t, 2) = 4;
+		    break;
+		case 1:
+		    b(x, y, t, 0) = 5;
+		    b(x, y, t, 1) = 2;
+		    b(x, y, t, 2) = -4;
+		    break;
+		case 2:
+		    b(x, y, t, 0) = 2;
+		    b(x, y, t, 1) = 2;
+		    b(x, y, t, 2) = 2;
+		    break;
+		}
+	    }
+	}
+    }
+
+    a += b;
+
+    KMeans::apply(a, 3);
+    
+    for (int t = 0; t < a.frames; t++) {
+	for (int y = 0; y < a.height; y++) {
+	    for (int x = 0; x < a.width; x++) {
+		float r = a(x, y, t, 0), g = a(x, y, t, 1), b = a(x, y, t, 2);
+		bool ok = ((nearly_equal(r, 1) && nearly_equal(g, 5) && nearly_equal(b, 4)) ||
+			   (nearly_equal(r, 5) && nearly_equal(g, 2) && nearly_equal(b, -4)) ||
+			   (nearly_equal(r, 2) && nearly_equal(g, 2) && nearly_equal(b, 2)));
+		if (!ok) {
+		    printf("%d %d %f %f %f\n", x, y, r, g, b);
+		    return false;
+		}
+	    }
+	}
+    }
+    
     // TODO
     return true;
 }
 
 void KMeans::parse(vector<string> args) {
     assert(args.size() == 1, "-kmeans takes one argument\n");
-    apply(stack(0), readInt(args[0]));
+    apply(stack(0), readInt(args[0]));			       	  
 }
 
 void KMeans::apply(Image im, int clusters) {
@@ -716,25 +781,80 @@ void KMeans::apply(Image im, int clusters) {
         newCluster.push_back(vector<float>(clusters, 0));
     }
 
-    // initialize the clusters to randomly selected pixels
-    for (int i = 0; i < clusters; i++) {
+
+    // Initialization is super-important for k-means. We initialize
+    // using k-means++ on a subset of the data
+    Image subset(1000 + clusters, 1, 1, im.channels); 
+    for (int i = 0; i < subset.width; i++) {
 	int x = randomInt(0, im.width-1);
 	int y = randomInt(0, im.height-1);
 	int t = randomInt(0, im.frames-1);
-        for (int c = 0; c < im.channels; c++) {
-            cluster[c][i] = im(x, y, t, c) + randomFloat(-0.0001f, 0.0001f);
-        }
+	for (int c = 0; c < im.channels; c++) {
+	    subset(i, 0, 0, c) = im(x, y, t, c);
+	}
     }
 
-    while (1) {
-        // wipe the newCluster
-        for (int i = 0; i < clusters; i++) {
+    // Initialize the first cluster to a randomly selected pixel
+    for (int c = 0; c < im.channels; c++) {
+	cluster[c][0] = subset(0, 0, 0, c);
+    }    
+
+    Image distance(subset.width, 1, 1, 1);
+    for (int i = 1; i < clusters; i++) {
+	// For each pixel, find the square distance to the nearest cluster already defined
+	double sum = 0;
+	for (int x = 0; x < subset.width; x++) {
+	    float bestDistance = 1e20;
+	    for (int j = 0; j < i; j++) {
+		float distance = 0;
+		for (int c = 0; c < im.channels; c++) {
+		    float delta = subset(x, 0, 0, c) - cluster[c][j];
+		    distance += delta*delta;
+		}
+		if (distance < bestDistance) bestDistance = distance;
+	    }
+	    distance(x, 0) = bestDistance;
+	    sum += bestDistance;
+	}
+	distance /= sum;
+	
+	// Compute cdf
+	for (int x = 1; x < subset.width; x++) {
+	    distance(x, 0) += distance(x-1, 0);
+	}
+	
+	// Now select one with probability proportional to the square distance
+	int x;
+	float choice = randomFloat(0, 1);
+	for (x = 0; x < subset.width; x++) {	
+	    if (choice < distance(x, 0)) break;
+	}
+	for (int c = 0; c < im.channels; c++) {
+	    cluster[c][i] = subset(x, 0, 0, c);
+	}    
+    }
+    
+    for (int iter = 0;; iter++) {
+
+	// print the clusters
+	/*
+	for (int i = 0; i < clusters; i++) {
+	    printf("cluster %d: ", i);
+            for (int c = 0; c < im.channels; c++) {
+		printf(" %f", cluster[c][i]);
+            }
+	    printf("\n");
+        }
+	*/
+
+	// wipe the newCluster
+	for (int i = 0; i < clusters; i++) {
             newClusterMembers[i] = 0;
             for (int c = 0; c < im.channels; c++) {
                 newCluster[c][i] = 0;
             }
         }
-
+	
         for (int t = 0; t < im.frames; t++) {
             for (int y = 0; y < im.height; y++) {
                 for (int x = 0; x < im.width; x++) {
@@ -768,7 +888,7 @@ void KMeans::apply(Image im, int clusters) {
 		int y = randomInt(0, im.height-1);
 		int t = randomInt(0, im.frames-1);
                 for (int c = 0; c < im.channels; c++) {
-                    newCluster[c][i] = im(x, y, t, c) + randomFloat(-0.0001f, 0.0001f);
+                    newCluster[c][i] = im(x, y, t, c) + randomFloat(-0.1, 0.1);
                 }
             } else {
                 for (int c = 0; c < im.channels; c++) {
