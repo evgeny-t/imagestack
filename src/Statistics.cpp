@@ -939,7 +939,76 @@ void Sort::help() {
 }
 
 bool Sort::test() {
-    // TODO
+    { // test x
+	Image a(12, 34, 2, 7);
+	Noise::apply(a, -5, 5);
+	Image h1 = Histogram::apply(a, 32, -5, 5);
+	Sort::apply(a, 'x');
+	Image h2 = Histogram::apply(a, 32, -5, 5);
+	for (int i = 0; i < 100; i++) {
+	    int x1 = randomInt(1, a.width-1);
+	    int x2 = randomInt(0, x1-1);
+	    int y = randomInt(0, a.height-1);
+	    int t = randomInt(0, a.frames-1);
+	    int c = randomInt(0, a.channels-1);
+	    if (a(x1, y, t, c) < a(x2, y, t, c)) return false;
+	}
+	for (int x = 0; x < h1.width; x++) {
+	    for (int c = 0; c < h1.channels; c++) {
+		if (!nearly_equal(h1(x, 0, 0, c), h2(x, 0, 0, c))) return false;
+	    }
+	}
+    } { // test y
+	Image a(12, 34, 2, 7);
+	Noise::apply(a, -5, 5);
+	Image h1 = Histogram::apply(a, 32, -5, 5);
+	Sort::apply(a, 'y');
+	Image h2 = Histogram::apply(a, 32, -5, 5);
+	for (int i = 0; i < 100; i++) {
+	    int x = randomInt(0, a.width-1);
+	    int y1 = randomInt(1, a.height-1);
+	    int y2 = randomInt(0, y1-1);
+	    int t = randomInt(0, a.frames-1);
+	    int c = randomInt(0, a.channels-1);
+	    if (a(x, y1, t, c) < a(x, y2, t, c)) return false;
+	}
+	for (int x = 0; x < h1.width; x++) {
+	    for (int c = 0; c < h1.channels; c++) {
+		if (!nearly_equal(h1(x, 0, 0, c), h2(x, 0, 0, c))) return false;
+	    }
+	}
+    } { // test t
+	Image a(12, 34, 2, 7);
+	Noise::apply(a, -5, 5);
+	Image h1 = Histogram::apply(a, 32, -5, 5);
+	Sort::apply(a, 't');
+	Image h2 = Histogram::apply(a, 32, -5, 5);
+	for (int i = 0; i < 100; i++) {
+	    int x = randomInt(0, a.width-1);
+	    int y = randomInt(0, a.height-1);
+	    int t1 = randomInt(1, a.frames-1);
+	    int t2 = randomInt(0, t1-1);
+	    int c = randomInt(0, a.channels-1);
+	    if (a(x, y, t1, c) < a(x, y, t2, c)) return false;
+	}
+	for (int x = 0; x < h1.width; x++) {
+	    for (int c = 0; c < h1.channels; c++) {
+		if (!nearly_equal(h1(x, 0, 0, c), h2(x, 0, 0, c))) return false;
+	    }
+	}
+    } { // test c
+	Image a(12, 34, 2, 7);
+	Noise::apply(a, -5, 5);
+	Sort::apply(a, 'c');
+	for (int i = 0; i < 100; i++) {
+	    int x = randomInt(0, a.width-1);
+	    int y = randomInt(0, a.height-1);
+	    int t = randomInt(0, a.frames-1);
+	    int c1 = randomInt(1, a.channels-1);
+	    int c2 = randomInt(0, c1-1);
+	    if (a(x, y, t, c1) < a(x, y, t, c2)) return false;
+	}
+    }
     return true;
 }
 
@@ -1024,12 +1093,33 @@ void DimensionReduction::help() {
             " dimensions. It is useful if you know an image should be low"
             " dimensional (eg a sunset is mostly shades or red), and components"
             " orthogonal to that dimension are unwanted (eg chromatic"
-            " abberation).\n\n"
+            " aberration).\n\n"
             "Usage: ImageStack -load sunset.jpg -dimensionreduction 2 -save fixed.jpg\n\n");
 }
 
 bool DimensionReduction::test() {
-    // TODO
+    Image a(2000, 2000, 1, 3);
+    Noise::apply(a, 0, 1);
+    for (int y = 0; y < a.height; y++) {
+	for (int x = 0; x < a.width; x++) {
+	    float alpha = a(x, y, 0);
+	    float beta = a(x, y, 1);
+	    a(x, y, 0) = 7 * alpha + 4 * beta;
+	    a(x, y, 1) = 2 * alpha + 9 * beta;
+	    a(x, y, 2) = 6 * a(x, y, 0) + 2 * a(x, y, 1);
+	}
+    }
+    Image b = a.copy();
+    Noise::apply(b, -0.1, 0.1);
+    DimensionReduction::apply(b, 2);
+    for (int y = 0; y < a.height; y++) {
+	for (int x = 0; x < a.width; x++) {
+	    // Check b belongs to the correct subspace.	    
+	    //printf("%f %f %f %f\n", b(x, y, 0), b(x, y, 1), 6*b(x, y, 0) + 2 * b(x, y, 1), b(x, y, 2));
+	    if (!nearly_equal(b(x, y, 2), 6 * b(x, y, 0) + 2 * b(x, y, 1))) return false;
+	}
+    }
+    
     return true;
 }
 
@@ -1161,7 +1251,33 @@ void LocalMaxima::help() {
 }
 
 bool LocalMaxima::test() {
-    // TODO
+    Image a(100, 100, 100, 1);
+    Noise::apply(a, -0.1, 0.1);
+
+    a(15, 15, 19, 0) = 90; // local maximum
+    a(17, 17, 17, 0) = 100; // large but not a local maximum
+    a(17, 17, 18, 0) = 101; // largest but only one larger than neighbor
+
+    a(4, 6, 2, 0) = 80;
+    a(90, 90, 2, 0) = 70;
+
+    vector<Maximum> results = apply(a, true, true, true, 5, 10);
+    ::std::sort(results.begin(), results.end());
+
+    if (results.size() != 3) return false;
+
+    if (!nearly_equal(results[0].x, 90)) return false;
+    if (!nearly_equal(results[0].y, 90)) return false;
+    if (!nearly_equal(results[0].t, 2)) return false;    
+
+    if (!nearly_equal(results[1].x, 4)) return false;
+    if (!nearly_equal(results[1].y, 6)) return false;
+    if (!nearly_equal(results[1].t, 2)) return false;
+
+    if (!nearly_equal(results[2].x, 15)) return false;
+    if (!nearly_equal(results[2].y, 15)) return false;
+    if (!nearly_equal(results[2].t, 19)) return false;
+
     return true;
 }
 
@@ -1216,7 +1332,8 @@ struct LocalMaximaCollision {
     }
 };
 
-vector<LocalMaxima::Maximum> LocalMaxima::apply(Image im, bool tCheck, bool xCheck, bool yCheck, float threshold, float minDistance) {
+vector<LocalMaxima::Maximum> LocalMaxima::apply(Image im, bool tCheck, bool xCheck, bool yCheck,
+						float threshold, float minDistance) {
 
     vector<LocalMaxima::Maximum> results;
 
@@ -1403,7 +1520,7 @@ void Printf::help() {
 }
 
 bool Printf::test() {
-    // TODO
+    // No real way to test this automatically
     return true;
 }
 
@@ -1444,7 +1561,7 @@ void FPrintf::help() {
 }
 
 bool FPrintf::test() {
-    // TODO
+    // Not worth testing
     return true;
 }
 
