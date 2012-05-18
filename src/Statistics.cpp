@@ -1324,7 +1324,6 @@ struct LocalMaximaCollision {
 
     float disparity;
 
-
     // define an operator so that std::sort will sort them from
     // maximum strength disparity to minimum strength disparity
     bool operator<(const LocalMaximaCollision &other) const {
@@ -1607,7 +1606,35 @@ void PCA::help() {
 }
 
 bool PCA::test() {
-    // TODO
+    // construct an image that roughly lies in a 2d subspace
+    Image a(1000, 1000, 1, 3);
+    Noise::apply(a, -1, 1);
+    a.channel(2) = 0;
+    a.channel(2) *= a.channel(1);
+    a.channel(2) *= 4;
+    a.channel(2) -= a.channel(0);
+    Noise::apply(a, -0.01, 0.01);
+
+    // PCA-reduce it to 2d
+    Image b = PCA::apply(a, 2);
+    
+    // check that distance before == distance after
+    for (int i = 0; i < 1000; i++) {
+	int x1 = randomInt(0, a.width-1);
+	int y1 = randomInt(0, a.height-1);
+	int x2 = randomInt(0, a.width-1);
+	int y2 = randomInt(0, a.height-1);
+	float da0 = a(x1, y1, 0) - a(x2, y2, 0);
+	float da1 = a(x1, y1, 1) - a(x2, y2, 1);
+	float da2 = a(x1, y1, 2) - a(x2, y2, 2);
+	float db0 = b(x1, y1, 0) - b(x2, y2, 0);
+	float db1 = b(x1, y1, 1) - b(x2, y2, 1);	
+	float dist_a = da0*da0 + da1*da1 + da2*da2;
+	if (dist_a < 0.1) continue;
+	float dist_b = db0*db0 + db1*db1;
+	if (!nearly_equal(dist_a, dist_b)) return false;
+    }
+
     return true;
 }
 
