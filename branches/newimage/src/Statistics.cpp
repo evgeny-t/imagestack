@@ -761,7 +761,6 @@ bool KMeans::test() {
 	}
     }
     
-    // TODO
     return true;
 }
 
@@ -1694,8 +1693,12 @@ void PatchPCA::help() {
 }
 
 bool PatchPCA::test() {
-    // TODO
-    return true;
+    // Can only really test this by eyeballing the result. Just make
+    // sure it doesn't crash
+    Image a(100, 100, 2, 3);
+    Noise::apply(a, 0, 1);
+    Image filters = PatchPCA::apply(a, 1, 8);
+    return filters.channels == 8*a.channels;
 }
 
 void PatchPCA::parse(vector<string> args) {
@@ -1776,8 +1779,10 @@ void PatchPCA3D::help() {
 }
 
 bool PatchPCA3D::test() {
-    // TODO
-    return true;
+    Image a(50, 50, 50, 3);
+    Noise::apply(a, 0, 1);
+    Image filters = PatchPCA3D::apply(a, 0.5, 8);
+    return filters.channels == 8*a.channels;
 }
 
 void PatchPCA3D::parse(vector<string> args) {
@@ -1791,7 +1796,7 @@ Image PatchPCA3D::apply(Image im, float sigma, int newChannels) {
 
     int patchSize = ((int)(sigma*6+1)) | 1;
 
-    printf("Using %dx%d patches\n", patchSize, patchSize);
+    printf("Using %dx%dx%d patches\n", patchSize, patchSize, patchSize);
 
     vector<float> mask(patchSize);
     float sum = 0;
