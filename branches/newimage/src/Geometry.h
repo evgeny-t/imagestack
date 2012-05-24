@@ -5,6 +5,7 @@
 class Upsample : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, int boxWidth, int boxHeight, int boxFrames = 1);
 };
@@ -12,6 +13,7 @@ public:
 class Downsample : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, int boxWidth, int boxHeight, int boxFrames = 1);
 };
@@ -19,6 +21,7 @@ public:
 class Subsample : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, int boxWidth, int boxHeight, int boxFrames,
                        int offsetX, int offsetY, int offsetT);
@@ -30,6 +33,7 @@ public:
 class Interleave : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im, int rx, int ry, int rt = 1);
 };
@@ -37,6 +41,7 @@ public:
 class Deinterleave : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im, int ix, int iy, int it = 1);
 };
@@ -44,6 +49,7 @@ public:
 class Resample : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, int width, int height);
     static Image apply(Image im, int width, int height, int frames);
@@ -57,6 +63,7 @@ private:
 class Rotate : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, float degrees);
 };
@@ -64,6 +71,7 @@ public:
 class AffineWarp : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, vector<double> warp);
 };
@@ -71,6 +79,7 @@ public:
 class Crop : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, int minX, int minY, int width, int height);
     static Image apply(Image im, int minX, int minY, int minT, int width, int height, int frames);
@@ -80,6 +89,7 @@ public:
 class Flip : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im, char dimension);
 };
@@ -87,6 +97,7 @@ public:
 class Adjoin : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image a, Image b, char dimension);
 };
@@ -94,6 +105,7 @@ public:
 class Transpose : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, char arg1, char arg2);
 };
@@ -101,6 +113,7 @@ public:
 class Translate : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, float xoff, float yoff, float toff = 0);
 private:
@@ -112,6 +125,7 @@ private:
 class Paste : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image into, Image from,
                       int xdst, int ydst,
@@ -130,6 +144,7 @@ public:
 class Tile : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, int xTiles, int yTiles, int tTiles = 1);
 };
@@ -137,6 +152,7 @@ public:
 class TileFrames : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, int xTiles, int yTiles);
 };
@@ -144,6 +160,7 @@ public:
 class FrameTiles : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, int xTiles, int yTiles);
 };
@@ -151,6 +168,7 @@ public:
 class Warp : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image coords, Image source);
 };
@@ -158,6 +176,7 @@ public:
 class Reshape : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, int newWidth, int newHeight, int newFrames, int newChannels);
 };
