@@ -2,6 +2,7 @@
 #include "Geometry.h"
 #include "Stack.h"
 #include "Arithmetic.h"
+#include "Statistics.h"
 #include "header.h"
 
 void Upsample::help() {
@@ -13,6 +14,24 @@ void Upsample::help() {
             "-upsample x is interpreted as -upsample x x 1\n"
             "-upsample is interpreted as -upsample 2 2 1\n\n"
             "Usage: ImageStack -load a.tga -upsample 3 2 -save b.tga\n\n");
+}
+
+bool Upsample::test() {
+    Image a(12, 23, 34, 2);
+    Noise::apply(a, -2, 3);
+    Image b = Upsample::apply(a, 2, 3, 4);
+    if (b.width != a.width*2) return false;
+    if (b.height != a.height*3) return false;
+    if (b.frames != a.frames*4) return false;
+    if (b.channels != a.channels) return false;
+    for (int i = 0; i < 10; i++) {
+        int x = randomInt(0, b.width-1);
+        int y = randomInt(0, b.height-1);
+        int t = randomInt(0, b.frames-1);
+        int c = randomInt(0, a.channels-1);
+        if (b(x, y, t, c) != a(x/2, y/3, t/4, c)) return false;
+    }
+    return true;
 }
 
 void Upsample::parse(vector<string> args) {
@@ -63,6 +82,25 @@ void Downsample::help() {
             "-downsample x is interpreted as -downsample x x 1\n"
             "-downsample is interpreted as -downsample 2 2 1\n\n"
             "Usage: ImageStack -load a.tga -downsample 3 2 -save b.tga\n\n");
+}
+
+bool Downsample::test() {
+    Image a(12, 23, 34, 2);
+    Noise::apply(a, -2, 3);
+    Image b = Upsample::apply(a, 2, 3, 4);
+    Image a2 = Downsample::apply(b, 2, 3, 4);
+    if (a.width != a2.width) return false;
+    if (a.height != a2.height) return false;
+    if (a.frames != a2.frames) return false;
+    if (a.channels != a2.channels) return false;
+    for (int i = 0; i < 10; i++) {
+        int x = randomInt(0, a2.width-1);
+        int y = randomInt(0, a2.height-1);
+        int t = randomInt(0, a2.frames-1);
+        int c = randomInt(0, a2.channels-1);
+        if (a(x, y, t, c) != a2(x, y, t, c)) return false;
+    }
+    return true;
 }
 
 void Downsample::parse(vector<string> args) {
@@ -124,6 +162,26 @@ void Resample::help() {
            " height, and frames. When given two arguments, it produces a new volume"
            " of the given width and height, with the same number of frames.\n\n"
            "Usage: ImageStack -loadframes f*.tga -resample 20 50 50 -saveframes f%%03d.tga\n\n");
+}
+
+bool Resample::test() {
+    Image a(23, 11, 3, 3);
+    Noise::apply(a, -2, 2);
+    Image b = Resample::apply(a, 102, 24, 30);
+    if (b.width != 102 || b.height != 24 || b.frames != 30) return false;
+    Stats sa(a), sb(b);
+    if (!nearly_equal(sa.mean(), sb.mean())) return false;
+    Image a2 = Resample::apply(b, 23, 11, 3);
+    for (int c = 0; c < a.channels; c++) {
+        for (int t = 0; t < a.frames; t++) {
+            for (int y = 0; y < a.height; y++) {
+                for (int x = 0; x < a.width; x++) {
+                    if (fabs(a(x, y, t, c) - a2(x, y, t, c)) > 0.1) return false;
+                }
+            }
+        }
+    }
+    return true;
 }
 
 void Resample::parse(vector<string> args) {
@@ -273,7 +331,29 @@ void Interleave::help() {
     pprintf("-interleave divides the image into n equally sized volumes and interleaves"
             " them. When given two arguments it operates on columns and rows. When"
             " given three arguments, it operates on columns, rows, and frames.\n\n"
-            "Usage: ImageStack -load deck.exr -interleave 2 -save shuffled.exr\n\n");
+            "Usage: ImageStack -load deck.jpg -interleave 2 2 -save shuffled.jpg\n\n");
+}
+
+bool Interleave::test() {
+    Image a(120, 30, 20, 2);
+    Noise::apply(a, -1, 1);
+    Image b = a.copy();
+    Interleave::apply(b, 2, 3, 4);
+    for (int i = 0; i < 10; i++) {
+        int tx = randomInt(0, 1);
+        int ty = randomInt(0, 2);
+        int tt = randomInt(0, 3);
+        int x = randomInt(0, 59);
+        int y = randomInt(0, 9);
+        int t = randomInt(0, 4);
+        for (int c = 0; c < a.channels; c++) {
+            if (a(tx*2+x, ty*3+y, tt*4+t, c) != 
+                b(x*2+tx, y*3+ty, t*4+tt)) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 void Interleave::parse(vector<string> args) {
@@ -364,6 +444,28 @@ void Deinterleave::help() {
             " operates on columns and rows. When given three arguments, it operates"
             " on all columns, rows, and frames.\n\n"
             "Usage: ImageStack -load lf.exr -deinterleave 16 16 -save lftranspose.exr\n\n");
+}
+
+bool Deinterleave::test() {
+    Image a(120, 30, 20, 2);
+    Noise::apply(a, -1, 1);
+    Image b = a.copy();
+    Deinterleave::apply(b, 2, 3, 4);
+    for (int i = 0; i < 10; i++) {
+        int tx = randomInt(0, 1);
+        int ty = randomInt(0, 2);
+        int tt = randomInt(0, 3);
+        int x = randomInt(0, 59);
+        int y = randomInt(0, 9);
+        int t = randomInt(0, 4);
+        for (int c = 0; c < a.channels; c++) {
+            if (b(tx*2+x, ty*3+y, tt*4+t, c) != 
+                a(x*2+tx, y*3+ty, t*4+tt)) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 void Deinterleave::parse(vector<string> args) {
@@ -457,6 +559,28 @@ void Rotate::help() {
            "Usage: ImageStack -load a.tga -rotate 45 -save b.tga\n\n");
 }
 
+bool Rotate::test() {
+    Image a(12, 13, 3, 2);
+    Noise::apply(a, 4, 10);
+    a = Resample::apply(a, 24, 26, 3, 2);
+    Image b = Rotate::apply(a, 70);
+    b = Rotate::apply(b, 20);
+    b = Rotate::apply(b, 80);
+    b = Rotate::apply(b, 10);
+    for (int i = 0; i < 10; i++) {
+        int x = randomInt(5, a.width-6);
+        int y = randomInt(5, a.height-6);
+        int t = randomInt(5, a.frames-6);
+        for (int c = 0; c < a.channels; c++) {
+            if (!nearly_equal(a(x, y, t, c),
+                              b(a.width-1-x, a.height-1-y, t, c))) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 
 void Rotate::parse(vector<string> args) {
     assert(args.size() == 1, "-rotate takes one argument\n");
@@ -515,6 +639,23 @@ void AffineWarp::help() {
            "Usage: ImageStack -load a.jpg -affinewarp 0.9 0.1 0 0.1 0.9 0 -save out.jpg\n\n");
 }
 
+bool AffineWarp::test() {
+    Image a(12, 13, 3, 2);
+    Noise::apply(a, 4, 10);
+    a = Resample::apply(a, 24, 26, 3, 2);
+    float xorigin = (a.width-1) * 0.5;
+    float yorigin = (a.height-1) * 0.5;
+    float degrees = 37;
+    float radians = degrees * M_PI / 180;
+    float c = cosf(radians), s = sinf(radians);
+    vector<double> matrix = {c, s, 0,
+                             -s, c, 0};
+    matrix[2] = xorigin;
+    matrix[5] = ;
+    Image b = AffineWarp::apply(a, 
+    
+}
+
 void AffineWarp::parse(vector<string> args) {
     assert(args.size() == 6, "-affinewarp takes six arguments\n");
     vector<double> matrix(6);
@@ -533,8 +674,8 @@ Image AffineWarp::apply(Image im, vector<double> matrix) {
         for (int y = 0; y < im.height; y++) {
             for (int x = 0; x < im.width; x++) {
                 // figure out the sample location
-                float fx = matrix[0] * x + matrix[1] * y + matrix[2] * im.width;
-                float fy = matrix[3] * x + matrix[4] * y + matrix[5] * im.height;
+                float fx = matrix[0] * x + matrix[1] * y + matrix[2];
+                float fy = matrix[3] * x + matrix[4] * y + matrix[5];
                 // don't sample outside the image
                 if (fx < 0 || fx > im.width || fy < 0 || fy > im.height) {
                     for (int c = 0; c < im.channels; c++) 
