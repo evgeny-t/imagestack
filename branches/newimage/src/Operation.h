@@ -8,8 +8,8 @@ public:
     virtual void parse(vector<string>) = 0;
     virtual void help() = 0;
     virtual bool test() {
-	printf("This operation has no test suite\n");
-	return false;
+	printf("Warning: This operation has no test suite\n");
+	return true;
     }
 };
 

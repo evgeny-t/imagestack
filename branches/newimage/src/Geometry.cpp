@@ -98,7 +98,7 @@ bool Downsample::test() {
         int y = randomInt(0, a2.height-1);
         int t = randomInt(0, a2.frames-1);
         int c = randomInt(0, a2.channels-1);
-        if (a(x, y, t, c) != a2(x, y, t, c)) return false;
+        if (!nearly_equal(a(x, y, t, c), a2(x, y, t, c))) return false;
     }
     return true;
 }
@@ -347,8 +347,8 @@ bool Interleave::test() {
         int y = randomInt(0, 9);
         int t = randomInt(0, 4);
         for (int c = 0; c < a.channels; c++) {
-            if (a(tx*2+x, ty*3+y, tt*4+t, c) != 
-                b(x*2+tx, y*3+ty, t*4+tt)) {
+            if (a(tx*60+x, ty*10+y, tt*5+t, c) != 
+                b(x*2+tx, y*3+ty, t*4+tt, c)) {
                 return false;
             }
         }
@@ -448,7 +448,7 @@ void Deinterleave::help() {
 
 bool Deinterleave::test() {
     Image a(120, 30, 20, 2);
-    Noise::apply(a, -1, 1);
+    Noise::apply(a, -1, 1);    
     Image b = a.copy();
     Deinterleave::apply(b, 2, 3, 4);
     for (int i = 0; i < 10; i++) {
@@ -459,8 +459,8 @@ bool Deinterleave::test() {
         int y = randomInt(0, 9);
         int t = randomInt(0, 4);
         for (int c = 0; c < a.channels; c++) {
-            if (b(tx*2+x, ty*3+y, tt*4+t, c) != 
-                a(x*2+tx, y*3+ty, t*4+tt)) {
+            if (b(tx*60+x, ty*10+y, tt*5+t, c) != 
+                a(x*2+tx, y*3+ty, t*4+tt, c)) {
                 return false;
             }
         }
@@ -562,7 +562,7 @@ void Rotate::help() {
 bool Rotate::test() {
     Image a(12, 13, 3, 2);
     Noise::apply(a, 4, 10);
-    a = Resample::apply(a, 24, 26, 3, 2);
+    a = Resample::apply(a, 24, 26, 3);
     Image b = Rotate::apply(a, 70);
     b = Rotate::apply(b, 20);
     b = Rotate::apply(b, 80);
@@ -596,40 +596,13 @@ Image Rotate::apply(Image im, float degrees) {
     float radians = degrees * M_PI / 180;
     float cosine = cosf(radians);
     float sine = sinf(radians);
-    float m00 = cosine;
-    float m01 = sine;
-    float m10 = -sine;
-    float m11 = cosine;
-
     // locate the origin
     float xorigin = (im.width-1) * 0.5;
     float yorigin = (im.height-1) * 0.5;
 
-    Image out(im.width, im.height, im.frames, im.channels);
-
-    vector<float> sample(im.channels);
-
-    for (int t = 0; t < im.frames; t++) {
-        for (int y = 0; y < im.height; y++) {
-            for (int x = 0; x < im.width; x++) {
-                // figure out the sample location
-                float fx = m00 * (x - xorigin) + m01 * (y - yorigin) + xorigin;
-                float fy = m10 * (x - xorigin) + m11 * (y - yorigin) + yorigin;
-                // don't sample outside the image
-                if (fx < 0 || fx > im.width || fy < 0 || fy > im.height) {
-                    for (int c = 0; c < im.channels; c++) 
-                        out(x, y, t, c) = 0;
-                } else {
-                    im.sample2D(fx, fy, t, sample);
-                    for (int c = 0; c < im.channels; c++) 
-                        out(x, y, t, c) = sample[c];
-                }
-            }
-        }
-    }
-
-    return out;
-
+    vector<double> matrix = {cosine, sine, xorigin - (cosine * xorigin + sine * yorigin),
+			     -sine, cosine, yorigin - (-sine * xorigin + cosine * yorigin)};
+    return AffineWarp::apply(im, matrix);
 }
 
 
@@ -640,20 +613,8 @@ void AffineWarp::help() {
 }
 
 bool AffineWarp::test() {
-    Image a(12, 13, 3, 2);
-    Noise::apply(a, 4, 10);
-    a = Resample::apply(a, 24, 26, 3, 2);
-    float xorigin = (a.width-1) * 0.5;
-    float yorigin = (a.height-1) * 0.5;
-    float degrees = 37;
-    float radians = degrees * M_PI / 180;
-    float c = cosf(radians), s = sinf(radians);
-    vector<double> matrix = {c, s, 0,
-                             -s, c, 0};
-    matrix[2] = xorigin;
-    matrix[5] = ;
-    Image b = AffineWarp::apply(a, 
-    
+    // already tested by rotate
+    return true;
 }
 
 void AffineWarp::parse(vector<string> args) {
@@ -706,6 +667,31 @@ void Crop::help() {
             "       ImageStack -load a.tga -crop 100 100 200 200 -save cropped.tga\n"
             "       ImageStack -loadframes f*.tga -crop 100 100 10 200 200 1\n"
             "                  -save frame10cropped.tga\n\n");
+}
+
+bool Crop::test() {
+    Image a(123, 234, 43, 2);
+    Noise::apply(a, 0, 1);
+
+    // within
+    Image b = Crop::apply(a, 2, 3, 4, 100, 200, 30);
+    b -= a.region(2, 3, 4, 0, 100, 200, 30, 2);
+    Stats sb(b);
+    if (sb.mean() != 0 || sb.variance() != 0) return false;
+    
+    // off the top left
+     b = Crop::apply(a, -5, -5, -5, 100, 200, 30);
+    b.region(5, 5, 5, 0, 100-5, 200-5, 30-5, 2) -= a.region(0, 0, 0, 0, 100-5, 200-5, 30-5, 2);
+    sb = Stats(b);
+    if (sb.mean() != 0 || sb.variance() != 0) return false;
+
+    // bottom right
+    b = Crop::apply(a, 50, 50, 10, 100, 200, 40);
+    b.region(0, 0, 0, 0, 123-50, 234-50, 43-10, 2) -= a.region(50, 50, 10, 0, 123-50, 234-50, 43-10, 2);
+    sb = Stats(b);
+    if (sb.mean() != 0 || sb.variance() != 0) return false;
+
+    return true;
 }
 
 void Crop::parse(vector<string> args) {
@@ -849,6 +835,27 @@ void Flip::help() {
            "Usage: ImageStack -load a.tga -flip x -save reversed.tga\n\n");
 }
 
+bool Flip::test() {
+    Image a(123, 234, 43, 3);
+    Noise::apply(a, -4, 3);
+    Image fx = a.copy();
+    Flip::apply(fx, 'x');
+    Image fy = a.copy();
+    Flip::apply(fy, 'y');
+    Image ft = a.copy();
+    Flip::apply(ft, 't');
+    for (int i = 0; i < 10; i++) {
+	int x = randomInt(0, a.width-1);
+	int y = randomInt(0, a.height-1);
+	int t = randomInt(0, a.frames-1);
+	int c = randomInt(0, a.channels-1);
+	if (a(x, y, t, c) != fx(a.width-1-x, y, t, c)) return false;
+	if (a(x, y, t, c) != fy(x, a.height-1-y, t, c)) return false;
+	if (a(x, y, t, c) != ft(x, y, a.frames-1-t, c)) return false;
+    }
+    return true;
+}
+
 void Flip::parse(vector<string> args) {
     assert(args.size() == 1, "-flip takes exactly one argument\n");
     char dimension = readChar(args[0]);
@@ -896,6 +903,41 @@ void Adjoin::help() {
     printf("\n-adjoin takes 'x', 'y', 't', or 'c' as the argument, and joins the top two\n"
            "images along that dimension. The images must match in the other dimensions.\n\n"
            "Usage: ImageStack -load a.tga -load b.tga -adjoin x -save ab.tga\n\n");
+}
+
+bool Adjoin::test() {
+    Image a(32, 43, 23, 3);
+    Noise::apply(a, 0, 1);
+
+    Image fx(2, 43, 23, 3);
+    Image fy(32, 2, 23, 3);
+    Image ft(32, 43, 2, 3);
+    Image fc(32, 43, 23, 2);
+    Noise::apply(fx, 0, 1);
+    Noise::apply(fy, 0, 1);
+    Noise::apply(ft, 0, 1);
+    Noise::apply(fc, 0, 1);
+    Image afx = Adjoin::apply(fx, a, 'x');
+    Image afy = Adjoin::apply(fy, a, 'y');
+    Image aft = Adjoin::apply(ft, a, 't');
+    Image afc = Adjoin::apply(fc, a, 'c');
+
+    for (int i = 0; i < 10; i++) {
+	int x = randomInt(0, a.width-1);
+	int y = randomInt(0, a.height-1);
+	int t = randomInt(0, a.frames-1);
+	int c = randomInt(0, a.channels-1);
+	int j = randomInt(0, 1);
+	if (fx(j, y, t, c) != afx(j, y, t, c)) return false;
+	if (fy(x, j, t, c) != afy(x, j, t, c)) return false;
+	if (ft(x, y, j, c) != aft(x, y, j, c)) return false;
+	if (fc(x, y, t, j) != afc(x, y, t, j)) return false;
+	if (a(x, y, t, c) != afx(x+2, y, t, c)) return false;	
+	if (a(x, y, t, c) != afy(x, y+2, t, c)) return false;
+	if (a(x, y, t, c) != aft(x, y, t+2, c)) return false;
+	if (a(x, y, t, c) != afc(x, y, t, c+2)) return false;
+    }
+    return true;
 }
 
 void Adjoin::parse(vector<string> args) {
@@ -991,6 +1033,25 @@ void Transpose::parse(vector<string> args) {
     }
 }
 
+bool Transpose::test() {
+    Image a(12, 23, 4, 2);
+    Noise::apply(a, 12, 17);
+    Image a1 = a;                        // 12 23 4 2
+    a1 = Transpose::apply(a1, 'c', 'y'); // 12 2 4 23 
+    a1 = Transpose::apply(a1, 'x', 't'); // 4 2 12 23
+    a1 = Transpose::apply(a1, 'c', 't'); // 4 2 23 12
+    a1 = Transpose::apply(a1, 'y', 'x'); // 2 4 23 12
+
+    Image a2 = a;                        // 12 23 4 2
+    a2 = Transpose::apply(a2, 'x', 'c'); // 2 23 4 12
+    a2 = Transpose::apply(a2, 'y', 't'); // 2 4 23 12
+
+    a2 -= a1;
+    Stats s(a2);
+    if (s.mean() != 0 || s.variance() != 0) return false;
+
+    return true;
+}
 
 Image Transpose::apply(Image im, char arg1, char arg2) {
 
@@ -1081,7 +1142,7 @@ Image Transpose::apply(Image im, char arg1, char arg2) {
 }
 
 void Translate::help() {
-    pprintf("\n-translate moves the image data, leaving black borders. It takes two"
+    pprintf("-translate moves the image data, leaving black borders. It takes two"
             " or three arguments. Two arguments are interpreted as a shift in x and"
             " a shift in y. Three arguments indicates a shift in x, y, and"
             " t. Negative values shift to the top left and positive ones to the"
@@ -1089,6 +1150,21 @@ void Translate::help() {
             " used in this case.\n\n"
             "Usage: ImageStack -load in.jpg -translate -10 -10 -translate 20 20\n"
             "                  -translate -10 -10 -save in_border.jpg\n\n");
+}
+
+bool Translate::test() {
+    Image a(2, 2, 2, 4);
+    Noise::apply(a, 0, 1);
+    a = Resample::apply(a, 120, 100, 20);
+    Image b = a;
+    b = Translate::apply(b, -17.5, 2.5, 0.5);
+    b = Translate::apply(b, 10.0, -1.25, -0.25);
+    b = Translate::apply(b, 7.5, -1.25, -0.25);
+    
+    b -= a;
+    Stats s(b.region(40, 10, 10, 0, 
+		     40, 80, 1, 4));
+    return (nearly_equal(s.mean(), 0) && nearly_equal(s.variance(), 0));
 }
 
 void Translate::parse(vector<string> args) {
@@ -1143,6 +1219,9 @@ Image Translate::applyX(Image im, float xoff) {
     kernel[3] = lanczos_3(0 + fx);
     kernel[4] = lanczos_3(1 + fx);
     kernel[5] = lanczos_3(2 + fx);
+    double sum = 0;
+    for (int i = 0; i < 6; i++) sum += kernel[i];
+    for (int i = 0; i < 6; i++) kernel[i] /= sum;
 
     Image out(im.width, im.height, im.frames, im.channels);
     for (int t = 0; t < im.frames; t++) {
@@ -1174,6 +1253,9 @@ Image Translate::applyY(Image im, float yoff) {
     kernel[3] = lanczos_3(0 + fy);
     kernel[4] = lanczos_3(1 + fy);
     kernel[5] = lanczos_3(2 + fy);
+    double sum = 0;
+    for (int i = 0; i < 6; i++) sum += kernel[i];
+    for (int i = 0; i < 6; i++) kernel[i] /= sum;
 
     Image out(im.width, im.height, im.frames, im.channels);
     for (int t = 0; t < im.frames; t++) {
@@ -1205,6 +1287,9 @@ Image Translate::applyT(Image im, float toff) {
     kernel[3] = lanczos_3(0 + ft);
     kernel[4] = lanczos_3(1 + ft);
     kernel[5] = lanczos_3(2 + ft);
+    double sum = 0;
+    for (int i = 0; i < 6; i++) sum += kernel[i];
+    for (int i = 0; i < 6; i++) kernel[i] /= sum;
 
     Image out(im.width, im.height, im.frames, im.channels);
     for (int t = 0; t < im.frames; t++) {
@@ -1236,6 +1321,18 @@ void Paste::help() {
            "the size of the region to paste.\n\n"
            "The format is thus: -paste [desination origin] [source origin] [size]\n\n"
            "Usage: ImageStack -load a.jpg -push 820 820 1 3 -paste 10 10 -save border.jpg\n\n");
+}
+
+bool Paste::test() {
+    Image a(100, 100, 20, 3);
+    Noise::apply(a, 0, 12);
+    Image orig = a.copy();
+    Image b(20, 20, 10, 3);
+    Noise::apply(b, 0, 12);
+    Paste::apply(a, b, 10, 10, 5);
+    b -= a.region(10, 10, 5, 0, 20, 20, 10, 3);
+    Stats s(b);
+    return (s.variance() == 0 && s.mean() == 0);
 }
 
 void Paste::parse(vector<string> args) {
@@ -1340,6 +1437,15 @@ void Tile::help() {
            "Usage: ImageStack -load a.tga -tile 2 2 -save b.tga\n\n");
 }
 
+bool Tile::test() {
+    Image a(20, 20, 3, 2);
+    Noise::apply(a, 0, 1);
+    Image b = Tile::apply(a, 5, 4, 3);
+    Stats sa(a), sb(b);
+    return (nearly_equal(sa.mean(), sb.mean()) && 
+	    nearly_equal(sa.variance(), sb.variance()));
+}
+
 void Tile::parse(vector<string> args) {
     int tRepeat = 1, xRepeat = 1, yRepeat = 1;
     if (args.size() == 2) {
@@ -1385,6 +1491,15 @@ void Subsample::help() {
            "(c, d). Given six arguments, a, b, c, d, e, f, it selects one pixel from every\n"
            "axbxc volume, in the order width, height, frames starting at pixel (d, e, f).\n\n"
            "Usage: ImageStack -load in.jpg -subsample 2 2 0 0 -save smaller.jpg\n\n");
+}
+
+bool Subsample::test() {
+    Image a(200, 200, 33, 2);
+    Noise::apply(a, 0, 1);
+    Image b = Subsample::apply(a, 2, 3, 1, 0, 1, 0);
+    Stats sa(a), sb(b);
+    return (nearly_equal(sa.mean(), sb.mean()) && 
+	    nearly_equal(sa.variance(), sb.variance()));
 }
 
 void Subsample::parse(vector<string> args) {
@@ -1451,6 +1566,15 @@ void TileFrames::help() {
            "Usage: ImageStack -loadframes frame*.tif -tileframes 5 5 -saveframes sheet%%d.tif\n\n");
 }
 
+bool TileFrames::test() {
+    Image a(20, 20, 20, 2);
+    Noise::apply(a, 0, 1);
+    Image b = TileFrames::apply(a, 5, 4);
+    Stats sa(a), sb(b);
+    return (nearly_equal(sa.mean(), sb.mean()) && 
+	    nearly_equal(sa.variance(), sb.variance()));
+}
+
 void TileFrames::parse(vector<string> args) {
     assert(args.size() == 2, "-tileframes takes two arguments\n");
 
@@ -1497,6 +1621,17 @@ void FrameTiles::help() {
            "Usage: ImageStack -loadframes sheet*.tif -frametiles 5 5 -saveframes frame%%d.tif\n\n");
 }
 
+bool FrameTiles::test() {
+    Image a(20, 20, 20, 2);
+    Noise::apply(a, -3, 3);
+    Image b = TileFrames::apply(a, 5, 4);
+    Image c = FrameTiles::apply(b, 5, 4);
+    a -= c;
+    Stats s(a);
+    return (s.mean() == 0  && s.variance() == 0);
+}
+
+
 void FrameTiles::parse(vector<string> args) {
     assert(args.size() == 2, "-frametiles takes two arguments\n");
 
@@ -1541,11 +1676,33 @@ Image FrameTiles::apply(Image im, int xTiles, int yTiles) {
 
 
 void Warp::help() {
-    printf("\n-warp treats the top image of the stack as indices (within [0, 1]) into the\n"
-           "second image, and samples the second image accordingly. It takes no arguments.\n"
-           "The number of channels in the top image is the dimensionality of the warp, and\n"
-           "should be three or less.\n\n"
-           "Usage: ImageStack -load in.jpg -push -evalchannels \"X+Y\" \"Y\" -warp -save out.jpg\n\n");
+    pprintf("-warp treats the top image of the stack as coordinates in the second"
+	    " image, and samples the second image accordingly. It takes no"
+	    " arguments. The number of channels in the top image is the"
+	    " dimensionality of the warp, and should be three or less.\n"
+	    "\n"
+	    "Usage: ImageStack -load in.jpg -push -evalchannels \"x+y\" \"y\" -warp -save out.jpg\n\n");
+}
+
+bool Warp::test() {
+    Image a(100, 100, 1, 3);
+    Noise::apply(a, 0, 1);
+    // Do an affine warp in two ways
+    vector<double> matrix = {0.9, 0.1, 3, 
+			     -0.2, 0.8, 3};
+    Image warped = AffineWarp::apply(a, matrix);
+    Image warpField(100, 100, 1, 2);
+    for (int y = 0; y < 100; y++) {
+	for (int x = 0; x < 100; x++) {
+	    warpField(x, y, 0, 0) = matrix[0] * x + matrix[1] * y + matrix[2];
+	    warpField(x, y, 0, 1) = matrix[3] * x + matrix[4] * y + matrix[5];	    
+	}
+    }
+    Image warped2 = Warp::apply(warpField, a);
+    warped2 -= warped;
+    Stats s(warped2);
+    return (nearly_equal(s.mean(), 0) && 
+	    nearly_equal(s.variance(), 0));
 }
 
 void Warp::parse(vector<string> args) {
@@ -1565,9 +1722,9 @@ Image Warp::apply(Image coords, Image source) {
         for (int t = 0; t < coords.frames; t++) {
             for (int y = 0; y < coords.height; y++) {
                 for (int x = 0; x < coords.width; x++) {
-                    source.sample3D(coords(x, y, t, 0)*source.width,
-                                    coords(x, y, t, 1)*source.height,
-                                    coords(x, y, t, 2)*source.frames,
+                    source.sample3D(coords(x, y, t, 0),
+                                    coords(x, y, t, 1),
+                                    coords(x, y, t, 2),
                                     sample);
                     for (int c = 0; c < out.channels; c++) 
                         out(x, y, t, c) = sample[c];
@@ -1578,8 +1735,8 @@ Image Warp::apply(Image coords, Image source) {
         for (int t = 0; t < coords.frames; t++) {
             for (int y = 0; y < coords.height; y++) {
                 for (int x = 0; x < coords.width; x++) {
-                    source.sample2D(coords(x, y, t, 0)*source.width,
-                                    coords(x, y, t, 1)*source.height,
+                    source.sample2D(coords(x, y, t, 0),
+                                    coords(x, y, t, 1),
                                     t, sample);
                     for (int c = 0; c < out.channels; c++) 
                         out(x, y, t, c) = sample[c];
@@ -1599,6 +1756,15 @@ void Reshape::help() {
            "integer arguments specify a new width, height, frames, and channels.\n\n"
            "Usage: ImageStack -load movie.tmp -reshape width height*frames 1 channels\n"
            "                  -save filmstrip.tmp\n");
+}
+
+bool Reshape::test() {
+    Image a(123, 23, 23, 2);
+    Noise::apply(a, -4, 2);
+    Image b = Reshape::apply(a, 2, 23, 123, 23);
+    Stats sa(a), sb(b);
+    return (nearly_equal(sa.mean(), sb.mean()) &&
+	    nearly_equal(sa.variance(), sb.variance()));	    
 }
 
 void Reshape::parse(vector<string> args) {
