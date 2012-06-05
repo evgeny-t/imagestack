@@ -8,6 +8,7 @@
 #include "File.h"
 #include "Display.h"
 #include "LAHBPCG.h"
+#include "Statistics.h"
 #include "header.h"
 
 void Gradient::help() {
@@ -19,6 +20,27 @@ void Gradient::help() {
            "Warning: Don't expect to differentiate more than twice and be able to get back\n"
            "the image by integrating. Numerical errors will dominate.\n\n"
            "Usage: ImageStack -load a.tga -gradient x y -save out.tga\n\n");
+}
+
+bool Gradient::test() {
+    Image a(16, 14, 18, 3);
+    Noise::apply(a, 0, 1);
+    Image dx = a.copy();
+    Gradient::apply(dx, 'x');
+    Image dy = a.copy();
+    Gradient::apply(dy, 'y');
+    Image dt = a.copy();
+    Gradient::apply(dt, 't');
+    for (int i = 0; i < 10; i++) {
+	int x = randomInt(1, a.width-1);
+	int y = randomInt(1, a.height-1);
+	int t = randomInt(1, a.frames-1);
+	int c = randomInt(1, a.channels-1);
+	if (dx(x, y, t, c) != a(x, y, t, c) - a(x-1, y, t, c)) return false;
+	if (dy(x, y, t, c) != a(x, y, t, c) - a(x, y-1, t, c)) return false;
+	if (dt(x, y, t, c) != a(x, y, t, c) - a(x, y, t-1, c)) return false;
+    }
+    return true;
 }
 
 void Gradient::parse(vector<string> args) {
@@ -75,6 +97,18 @@ void Integrate::help() {
            "Usage: ImageStack -load a.tga -gradient x y -integrate y x -save a.tga\n\n");
 }
 
+bool Integrate::test() {
+    Image a(23, 13, 32, 3);
+    Noise::apply(a, 0, 1);
+    Image b = a.copy();
+    Gradient::apply(b, "xyt");
+    Integrate::apply(b, "xty");
+    a -= b;
+    Stats s(a);
+    return (nearly_equal(s.mean(), 0) &&
+	    nearly_equal(s.variance(), 0));
+}
+
 void Integrate::parse(vector<string> args) {
     assert(args.size() > 0, "-integrate requires at least one argument\n");
     for (size_t i = 0; i < args.size(); i++) {
@@ -129,6 +163,24 @@ void GradMag::help() {
 
 }
 
+bool GradMag::test() {
+    Image a(233, 123, 1, 5);
+    Noise::apply(a, 0, 1);
+    Image dx = a.copy();
+    Gradient::apply(dx, 'x');
+    Image dy = a.copy();
+    Gradient::apply(dy, 'y');
+    dx *= dx;
+    dy *= dy;
+    GradMag::apply(a);
+    a -= dx;
+    a -= dy;
+    Stats s(a);
+    return (nearly_equal(s.mean(), 0) &&
+	    nearly_equal(s.variance(), 0));    
+}
+
+
 void GradMag::parse(vector<string> args) {
     assert(args.size() == 0, "-gradmag takes no arguments\n");
     apply(stack(0));
@@ -158,6 +210,20 @@ void Poisson::help() {
             "\n"
             "Usage: ImageStack -load dx.tmp -load dy.tmp \n"
             "                  -poisson 0.0001 -save out.tga\n\n");
+}
+
+bool Poisson::test() {
+    Image a(233, 123, 1, 5);
+    Noise::apply(a, 0, 1);
+    Image dx = a.copy();
+    Gradient::apply(dx, 'x');
+    Image dy = a.copy();
+    Gradient::apply(dy, 'y');
+    Image b = Poisson::apply(dx, dy, 0.00001);
+    a -= b;
+    Stats s(a);
+    return (nearly_equal(s.mean(), 0) &&
+	    nearly_equal(s.variance(), 0));    
 }
 
 void Poisson::parse(vector<string> args) {
