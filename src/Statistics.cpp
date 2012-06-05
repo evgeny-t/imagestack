@@ -556,9 +556,9 @@ bool HistogramMatch::test() {
     Gamma::apply(a, 2);
     Noise::apply(b, 123, 234);
     Stats sa(a);
-    Image ha = Histogram::apply(a, 10, sa.minimum(), sa.maximum());
+    Image ha = Histogram::apply(a, 4, sa.minimum(), sa.maximum());
     HistogramMatch::apply(b, a);
-    Image hb = Histogram::apply(b, 10, sa.minimum(), sa.maximum());
+    Image hb = Histogram::apply(b, 4, sa.minimum(), sa.maximum());
 
     for (int c = 0; c < a.channels; c++) {
 	for (int x = 0; x < ha.width; x++) {

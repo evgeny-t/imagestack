@@ -5,6 +5,7 @@
 class GaussianBlur : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, float filterWidth, float filterHeight, float filterFrames);
 };
@@ -12,6 +13,7 @@ public:
 class FastBlur : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im, float filterWidth, float filterHeight, float filterFrames, bool addMargin = true);
 private:
@@ -28,6 +30,7 @@ private:
 class RectFilter : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im, int filterWidth, int filterHeight, int filterFrames, int iterations = 1);
 
@@ -42,6 +45,7 @@ private:
 class LanczosBlur : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, float filterWidth, float filterHeight, float filterFrames);
 };
@@ -49,6 +53,7 @@ public:
 class MedianFilter : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, int radius);
 };
@@ -56,6 +61,7 @@ public:
 class MinFilter : public Operation {
   public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im, int radius);
 };
@@ -63,6 +69,7 @@ class MinFilter : public Operation {
 class MaxFilter : public Operation {
   public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im, int radius);
 };
@@ -70,6 +77,7 @@ class MaxFilter : public Operation {
 class PercentileFilter : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, int radius, float percentile);
 };
@@ -77,6 +85,7 @@ public:
 class CircularFilter : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, int radius);
 };
@@ -85,6 +94,7 @@ public:
 class Envelope : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     enum Mode {Lower = 0, Upper};
     static void apply(Image im, Mode m, int radius);
@@ -93,6 +103,7 @@ public:
 class HotPixelSuppression : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im);
 };

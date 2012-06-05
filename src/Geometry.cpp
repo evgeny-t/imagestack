@@ -165,18 +165,21 @@ void Resample::help() {
 }
 
 bool Resample::test() {
-    Image a(23, 11, 3, 3);
-    Noise::apply(a, -2, 2);
-    Image b = Resample::apply(a, 102, 24, 30);
-    if (b.width != 102 || b.height != 24 || b.frames != 30) return false;
-    Stats sa(a), sb(b);
-    if (!nearly_equal(sa.mean(), sb.mean())) return false;
-    Image a2 = Resample::apply(b, 23, 11, 3);
+    Image a(4, 8, 3, 3);
+    Noise::apply(a, 0, 1);
+    a = Resample::apply(a, 50, 50, 3); 
+    Image b = Resample::apply(a, 225, 175, 3);
+    if (b.width != 225 || b.height != 175 || b.frames != 3) return false;
+    Image a2 = Resample::apply(b, 50, 50, 3);
+    Stats s1(a), s2(a2);
+    if (!nearly_equal(s1.mean(), s2.mean())) return false;
+    if (!nearly_equal(s1.variance(), s2.variance())) return false;
+    
     for (int c = 0; c < a.channels; c++) {
         for (int t = 0; t < a.frames; t++) {
-            for (int y = 0; y < a.height; y++) {
-                for (int x = 0; x < a.width; x++) {
-                    if (fabs(a(x, y, t, c) - a2(x, y, t, c)) > 0.1) return false;
+            for (int y = 6; y < a.height-7; y++) {
+                for (int x = 6; x < a.width-7; x++) {
+                    if (fabs(a(x, y, t, c) - a2(x, y, t, c)) > 0.01) return false;
                 }
             }
         }
@@ -256,7 +259,6 @@ void Resample::computeWeights(int oldSize, int newSize, vector<vector<pair<int, 
 }
 
 Image Resample::resampleX(Image im, int width) {
-
     vector<vector<pair<int, float> > > matrix;
     computeWeights(im.width, width, matrix);
 
@@ -562,15 +564,15 @@ void Rotate::help() {
 bool Rotate::test() {
     Image a(12, 13, 3, 2);
     Noise::apply(a, 4, 10);
-    a = Resample::apply(a, 24, 26, 3);
+    a = Resample::apply(a, 48, 52, 3);
     Image b = Rotate::apply(a, 70);
     b = Rotate::apply(b, 20);
     b = Rotate::apply(b, 80);
     b = Rotate::apply(b, 10);
     for (int i = 0; i < 10; i++) {
-        int x = randomInt(5, a.width-6);
-        int y = randomInt(5, a.height-6);
-        int t = randomInt(5, a.frames-6);
+        int x = randomInt(10, a.width-11);
+        int y = randomInt(10, a.height-11);
+        int t = randomInt(0, a.frames-1);
         for (int c = 0; c < a.channels; c++) {
             if (!nearly_equal(a(x, y, t, c),
                               b(a.width-1-x, a.height-1-y, t, c))) {

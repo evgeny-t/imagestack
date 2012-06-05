@@ -45,7 +45,7 @@ inline T clamp(const T &a, const T &b, const T &c) {
 
 // Equal to within 1/100. Useful for testing
 static inline bool nearly_equal(float a, float b) {
-    if (b == 0) return fabs(a < 0.01);
+    if (fabs(b) < 1) return fabs(a-b) < 0.01;
     return fabs(a/b - 1.0) < 0.01;
 }
 
@@ -58,6 +58,10 @@ static inline bool nearly_equal(float a, float b) {
 #endif
 
 #define INF (std::numeric_limits<float>::infinity())
+
+static inline float sinc(float x) {
+    return x == 0 ? 1 : sinf(M_PI * x) / (M_PI * x);
+}
 
 // Map high dynamic range values to [0, 255], so that 0->0, and 1->255
 static inline unsigned char HDRtoLDR(float x) {
