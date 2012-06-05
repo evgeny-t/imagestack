@@ -5,6 +5,7 @@
 class Gradient : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im, string dimensions);
     static void apply(Image im, char dimension);
@@ -13,6 +14,7 @@ public:
 class Integrate : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im, string dimensions);
     static void apply(Image im, char dimension);
@@ -21,6 +23,7 @@ public:
 class GradMag : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im);
 };
@@ -28,6 +31,7 @@ public:
 class Poisson : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image dx, Image dy, float termination = 0.01);
 };
