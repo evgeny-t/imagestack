@@ -4,6 +4,7 @@
 #include "Color.h"
 #include "Geometry.h"
 #include "Arithmetic.h"
+#include "Statistics.h"
 #include "header.h"
 
 void GaussianBlur::help() {
@@ -15,6 +16,29 @@ void GaussianBlur::help() {
             " height.\n"
             "\n"
             "Usage: ImageStack -load in.jpg -gaussianblur 5 -save blurry.jpg\n\n");
+}
+
+bool GaussianBlur::test() {
+    Image impulse(21, 21, 21, 3);
+    impulse(10, 10, 10, 0) = 1;
+    impulse(10, 10, 10, 1) = 2;
+    impulse(10, 10, 10, 2) = 3;
+    Image blurry = GaussianBlur::apply(impulse, 0.7, 0.8, 0.5);
+    float ratio = blurry(10, 10, 10, 0);
+    for (int t = 0; t < 21; t++) {
+	float ft = (t - 10.0f)/0.5f;
+	for (int y = 0; y < 21; y++) {
+	    float fy = (y - 10.0f)/0.8f;
+	    for (int x = 0; x < 21; x++) {		
+		float fx = (x - 10.0f)/0.7f;
+		float correct = expf(-0.5f*(fx*fx + fy*fy + ft*ft))*ratio;
+		if (!nearly_equal(blurry(x, y, t, 0), correct*1)) return false;
+		if (!nearly_equal(blurry(x, y, t, 1), correct*2)) return false;
+		if (!nearly_equal(blurry(x, y, t, 2), correct*3)) return false;
+	    }
+	}
+    }
+    return nearly_equal(Stats(blurry).sum(), 6);
 }
 
 void GaussianBlur::parse(vector<string> args) {
@@ -60,7 +84,7 @@ Image GaussianBlur::apply(Image im, float filterWidth, float filterHeight, float
             filter(i, 0, 0, 0) /= sum;
         }
 
-        out = Convolve::apply(out, filter);
+        out = Convolve::apply(out, filter, Convolve::Homogeneous);
     }
 
     if (filterHeight != 0) {
@@ -83,7 +107,7 @@ Image GaussianBlur::apply(Image im, float filterWidth, float filterHeight, float
             filter(0, i, 0, 0) /= sum;
         }
 
-        out = Convolve::apply(out, filter);
+        out = Convolve::apply(out, filter, Convolve::Homogeneous);
     }
 
     if (filterFrames != 0) {
@@ -106,7 +130,7 @@ Image GaussianBlur::apply(Image im, float filterWidth, float filterHeight, float
             filter(0, 0, i, 0) /= sum;
         }
 
-        out = Convolve::apply(out, filter);
+        out = Convolve::apply(out, filter, Convolve::Homogeneous);
     }
 
     return out;
@@ -117,8 +141,8 @@ Image GaussianBlur::apply(Image im, float filterWidth, float filterHeight, float
 // to be much faster than other IIRs, filtering by resampling,
 // iterated rect filters, and polynomial integral images. The method
 // was modified by Andrew Adams to be more ImageStacky (i.e. use
-// structures more idiomatic to ImageStack like pointer marching), to
-// work for larger sized blurs, and to cover more unusual cases.
+// structures more idiomatic to ImageStack), to work for larger sized
+// blurs, and to cover more unusual cases.
 
 void FastBlur::help() {
     pprintf("-fastblur takes a floating point width, height, and frames, and"
@@ -129,6 +153,17 @@ void FastBlur::help() {
             " height.\n"
             "\n"
             "Usage: ImageStack -load in.jpg -fastblur 5 -save blurry.jpg\n\n");
+}
+
+bool FastBlur::test() {
+    Image a(100, 80, 40, 4);
+    Noise::apply(a, 0, 1);
+    Image b = GaussianBlur::apply(a, 2.3, 1.3, 1.2);
+    FastBlur::apply(a, 2.3, 1.3, 1.2);
+    a -= b;
+    Stats s(a);
+    return (nearly_equal(s.mean(), 0) &&
+	    nearly_equal(s.variance(), 0));
 }
 
 void FastBlur::parse(vector<string> args) {
@@ -440,6 +475,28 @@ void RectFilter::help() {
             "Usage: ImageStack -load in.jpg -rectfilter 1 10 10 -save out.jpg\n\n");
 }
 
+bool RectFilter::test() {
+    Image impulse(21, 21, 21, 3);
+    impulse(10, 10, 10, 0) = 1;
+    impulse(10, 10, 10, 1) = 2;
+    impulse(10, 10, 10, 2) = 3;
+    RectFilter::apply(impulse, 3, 5, 7, 1);
+    for (int t = 0; t < 21; t++) {
+	for (int y = 0; y < 21; y++) {
+	    for (int x = 0; x < 21; x++) {
+		bool inside = (x > 8 && x < 12 &&
+			       y > 7 && y < 13 && 
+			       t > 6 && t < 14);
+		float correct = inside ? 1.0f/(3*5*7) : 0.0f;
+		if (!nearly_equal(impulse(x, y, t, 0), correct*1)) return false;
+		if (!nearly_equal(impulse(x, y, t, 1), correct*2)) return false;
+		if (!nearly_equal(impulse(x, y, t, 2), correct*3)) return false;
+	    }
+	}
+    }
+    return true;    
+}
+
 void RectFilter::parse(vector<string> args) {
     int iterations = 1, frames = 1, width = 1, height = 1;
     if (args.size() == 1) {
@@ -467,9 +524,9 @@ void RectFilter::apply(Image im, int filterWidth, int filterHeight, int filterFr
     assert(filterFrames & filterWidth & filterHeight & 1, "filter shape must be odd\n");
     assert(iterations >= 1, "iterations must be at least one\n");
 
-    if (filterFrames != 1) { blurT(im, filterFrames, iterations); }
-    if (filterWidth  != 1) { blurX(im, filterWidth, iterations); }
-    if (filterHeight != 1) { blurY(im, filterHeight, iterations); }
+    if (filterFrames != 1) blurT(im, filterFrames, iterations);
+    if (filterWidth  != 1) blurX(im, filterWidth, iterations);
+    if (filterHeight != 1) blurY(im, filterHeight, iterations);
 }
 
 void RectFilter::blurXCompletely(Image im) {
@@ -619,7 +676,7 @@ void RectFilter::blurT(Image im, int width, int iterations) {
                 if (x + chunk.height >= im.width) { size = im.width-x; }
 
                 // read into the chunk in a transposed fashion
-                for (int t = 0; y < im.frames; t++) {
+                for (int t = 0; t < im.frames; t++) {
                     for (int j = 0; j < size; j++) {
                         chunk(t, j) = im(x+j, y, t, c);
                     }
@@ -648,6 +705,32 @@ void LanczosBlur::help() {
             "\n"
             "Usage: ImageStack -load big.jpg -lanczosblur 2 -subsample 2 2 0 0 -save small.jpg\n\n");
 
+}
+
+bool LanczosBlur::test() {
+    Image impulse(21, 21, 21, 3);
+    impulse(10, 10, 10, 0) = 1;
+    impulse(10, 10, 10, 1) = 2;
+    impulse(10, 10, 10, 2) = 3;
+    Image blurry = LanczosBlur::apply(impulse, 1.7, 1.8, 1.5);
+    float ratio = blurry(10, 10, 10, 0);
+    for (int t = 0; t < 21; t++) {
+	float ft = (t - 10.0f)/1.5f;
+	ft = (ft == 0) ? 1 : (sinc(ft) * sinc(ft/3));
+	for (int y = 0; y < 21; y++) {
+	    float fy = (y - 10.0f)/1.8f;
+	    fy = (fy == 0) ? 1 : (sinc(fy) * sinc(fy/3));
+	    for (int x = 0; x < 21; x++) {		
+		float fx = (x - 10.0f)/1.7f;
+		fx = (fx == 0) ? 1 : (sinc(fx) * sinc(fx/3));
+		float correct = fx*fy*ft*ratio;
+		if (!nearly_equal(blurry(x, y, t, 0), correct*1)) return false;
+		if (!nearly_equal(blurry(x, y, t, 1), correct*2)) return false;
+		if (!nearly_equal(blurry(x, y, t, 2), correct*3)) return false;
+	    }
+	}
+    }
+    return nearly_equal(Stats(blurry).sum(), 6);
 }
 
 void LanczosBlur::parse(vector<string> args) {
@@ -689,7 +772,7 @@ Image LanczosBlur::apply(Image im, float filterWidth, float filterHeight, float 
             filter(0, 0, i, 0) /= sum;
         }
 
-        out = Convolve::apply(out, filter);
+        out = Convolve::apply(out, filter, Convolve::Homogeneous);
     }
 
     if (filterWidth != 0) {
@@ -708,7 +791,7 @@ Image LanczosBlur::apply(Image im, float filterWidth, float filterHeight, float 
             filter(i, 0, 0, 0) /= sum;
         }
 
-        out = Convolve::apply(out, filter);
+        out = Convolve::apply(out, filter, Convolve::Homogeneous);
     }
 
     if (filterHeight != 0) {
@@ -727,7 +810,7 @@ Image LanczosBlur::apply(Image im, float filterWidth, float filterHeight, float 
             filter(0, i, 0, 0) /= sum;
         }
 
-        out = Convolve::apply(out, filter);
+        out = Convolve::apply(out, filter, Convolve::Homogeneous);
     }
 
     return out;
@@ -741,6 +824,16 @@ void MinFilter::help() {
             "-percentilefilter.\n"
             "\n"
             "Usage: ImageStack -load input.jpg -minfilter 10 -save output.jpg\n");
+}
+
+bool MinFilter::test() {
+    // check it's less than the input, but touches the input in some places
+    Image a(123, 234, 2, 3);
+    Noise::apply(a, 0, 1);
+    Image b = a.copy();
+    MinFilter::apply(b, 3);
+    a -= b;
+    return nearly_equal(Stats(a).minimum(), 0);
 }
 
 void MinFilter::parse(vector<string> args) {
@@ -827,6 +920,15 @@ void MaxFilter::help() {
             "Usage: ImageStack -load input.jpg -maxfilter 10 -save output.jpg\n");
 }
 
+bool MaxFilter::test() {
+    Image a(123, 234, 2, 3);
+    Noise::apply(a, 0, 1);
+    Image b = a.copy();
+    MaxFilter::apply(b, 3);
+    b -= a;
+    return nearly_equal(Stats(b).minimum(), 0);
+}
+
 void MaxFilter::parse(vector<string> args) {
     assert(args.size() == 1, "-maxfilter takes on argument\n");
     int radius = readInt(args[0]);
@@ -911,6 +1013,11 @@ void MedianFilter::help() {
             "Usage: ImageStack -load input.jpg -medianfilter 10 -save output.jpg\n");
 }
 
+bool MedianFilter::test() {
+    // tested by percentile filter
+    return true;
+}
+
 void MedianFilter::parse(vector<string> args) {
     assert(args.size() == 1, "-medianfilter takes one argument\n");
     int radius = readInt(args[0]);
@@ -930,6 +1037,14 @@ void PercentileFilter::help() {
            "A percentile argument of 0.5 gives a median filter, whereas 0 or 1 give min or\n"
            "max filters.\n\n"
            "Usage: ImageStack -load input.jpg -percentilefilter 10 0.25 -save dark.jpg\n\n");
+}
+
+bool PercentileFilter::test() {
+    Image a(1024, 1024, 1, 1);
+    Noise::apply(a, 0, 2);
+    Image b = PercentileFilter::apply(a, 5, 0.75);
+    Stats s(b);    
+    return nearly_equal(s.mean(), 1.5) && nearly_equal(s.variance(), 0);
 }
 
 void PercentileFilter::parse(vector<string> args) {
@@ -1182,6 +1297,26 @@ void CircularFilter::help() {
           "Usage: ImageStack -load in.jpg -circularfilter 10 -save out.jpg\n\n");
 }
 
+bool CircularFilter::test() {
+    Image impulse(21, 21, 1, 3);
+    impulse(10, 10, 0, 0) = 1;
+    impulse(10, 10, 0, 1) = 2;
+    impulse(10, 10, 0, 2) = 3;
+    Image blurry = CircularFilter::apply(impulse, 5);
+    float ratio = blurry(10, 10, 0, 0);
+    for (int y = 0; y < 21; y++) {
+	float fy = (y - 10.0f)/5;
+	for (int x = 0; x < 21; x++) {		
+	    float fx = (x - 10.0f)/5;
+	    float correct = (fx*fx + fy*fy) <= 1 ? ratio : 0;
+	    if (!nearly_equal(blurry(x, y, 0, 0), correct*1)) return false;
+	    if (!nearly_equal(blurry(x, y, 0, 1), correct*2)) return false;
+	    if (!nearly_equal(blurry(x, y, 0, 2), correct*3)) return false;
+	}
+    }
+    return nearly_equal(Stats(blurry).sum(), 6);
+}
+
 void CircularFilter::parse(vector<string> args) {
     assert(args.size() == 1, "-circularfilter takes one argument\n");
 
@@ -1259,6 +1394,28 @@ void Envelope::help() {
             "Usage: ImageStack -load a.jpg -envelope upper 50 -display\n");
 }
 
+bool Envelope::test() {
+    {
+	Image a(123, 234, 2, 3);
+	Noise::apply(a, 0, 1);
+	Image b = a.copy();
+	Envelope::apply(b, Upper, 3);
+	b -= a;
+	if (!nearly_equal(Stats(b).minimum(), 0)) return false;
+    }
+
+    {
+	Image a(123, 234, 2, 3);
+	Noise::apply(a, 0, 1);
+	Image b = a.copy();
+	Envelope::apply(b, Lower, 3);
+	a -= b;
+	if (!nearly_equal(Stats(a).minimum(), 0)) return false;
+    }
+    
+    return true;
+}
+
 void Envelope::parse(vector<string> args) {
     assert(args.size() == 2, "-envelope takes two arguments\n");
     Mode m;
@@ -1294,6 +1451,24 @@ void HotPixelSuppression::help() {
             "Usage: ImageStack -load noisy.jpg -hotpixelsuppression -save denoised.jpg\n");
 }
 
+bool HotPixelSuppression::test() {
+    Image a(100, 100, 1, 1);
+    Noise::apply(a, -4, 12);
+    Image b = HotPixelSuppression::apply(a);
+    for (int y = 1; y < 99; y++) {
+	for (int x = 1; x < 99; x++) {
+	    if (b(x, y) > a(x-1, y) && 
+		b(x, y) > a(x+1, y) && 
+		b(x, y) > a(x, y-1) && 
+		b(x, y) > a(x, y+1)) return false;
+	    if (b(x, y) < a(x-1, y) && 
+		b(x, y) < a(x+1, y) && 
+		b(x, y) < a(x, y-1) && 
+		b(x, y) < a(x, y+1)) return false;
+	}
+    }
+    return true;
+}
 
 void HotPixelSuppression::parse(vector<string> args) {
     assert(args.size() == 0, 
@@ -1307,16 +1482,28 @@ Image HotPixelSuppression::apply(Image im) {
     Image out(im.width, im.height, im.frames, im.channels);
 
     for (int t = 0; t < im.frames; t++) {
-        for (int y = 1; y < im.height-1; y++) {
-            for (int x = 1; x < im.width-1; x++) {
+        for (int y = 0; y < im.height; y++) {
+            for (int x = 0; x < im.width; x++) {
                 for (int c = 0; c < im.channels; c++) {
-                    float n1 = im(x-1, y, t, c);
-                    float n2 = im(x+1, y, t, c);
-                    float n3 = im(x, y-1, t, c);
-                    float n4 = im(x, y+1, t, c);
+		    float maxn = -INF;
+		    float minn = INF;
+		    if (x > 0) {
+			maxn = max(maxn, im(x-1, y, t, c));
+			minn = min(minn, im(x-1, y, t, c));
+		    }
+		    if (x < im.width-1) {
+			maxn = max(maxn, im(x+1, y, t, c));
+			minn = min(minn, im(x+1, y, t, c));
+		    }
+		    if (y > 0) {
+			maxn = max(maxn, im(x, y-1, t, c));
+			minn = min(minn, im(x, y-1, t, c));
+		    }
+		    if (y < im.height-1) {
+			maxn = max(maxn, im(x, y+1, t, c));
+			minn = min(minn, im(x, y+1, t, c));
+		    }
                     float here = im(x, y, t, c);
-                    float maxn = max(max(n1, n2), max(n3, n4));
-                    float minn = min(min(n1, n2), min(n3, n4));
                     if (here > maxn) here = maxn;
                     if (here < minn) here = minn;
                     out(x, y, t, c) = here;
