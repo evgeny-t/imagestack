@@ -20,6 +20,39 @@ void WLS::help() {
             "Usage: ImageStack -load in.jpg -wls 1.2 0.25 -save blurry.jpg\n");
 }
 
+bool WLS::test() {
+    // make a synthetic noisy image with an edge
+    Image a(400, 300, 1, 3);
+    for (int y = 0; y < 300; y++) {
+	for (int x = 0; x < 300; x++) {
+	    float dy = (y-150)/100.0;
+	    float dx = (x-200)/100.0;
+	    float r = dx*dx + dy*dy;
+	    a(x, y, 0) = (r < 1) ? 1.0 : 0;
+	    a(x, y, 1) = (r < 1) ? 0.5 : 0;
+	    a(x, y, 2) = (r < 1) ? 0.25 : 0;
+	}
+    }
+    Noise::apply(a, -0.2, 0.2);
+
+    a = WLS::apply(a, 1.0, 0.5, 0.01);
+
+    // Make sure wls cleaned it up
+    for (int i = 0; i < 100; i++) {
+	int x = randomInt(0, a.width-1);
+	int y = randomInt(0, a.height-1);
+	float dy = (y-150)/100.0;
+	float dx = (x-200)/100.0;
+	float r = dx*dx + dy*dy;
+	if (r > 0.9 && r < 1.1) continue;
+	float correct = (r < 1) ? 1 : 0;
+	if (fabs(a(x, y, 0) - correct) > 0.1) return false;
+	if (fabs(a(x, y, 1) - correct*0.5) > 0.1) return false;
+	if (fabs(a(x, y, 2) - correct*0.25) > 0.1) return false;
+    }
+    
+    return true;
+}
 
 void WLS::parse(vector<string> args) {
     float alpha = 0, lambda = 0;
