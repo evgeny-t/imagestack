@@ -29,7 +29,6 @@
 #include "Prediction.h"
 #include "Wavelet.h"
 #include "Filter.h"
-#include "Projection.h"
 #include "HDR.h"
 #include "PatchMatch.h"
 #include "GaussTransform.h"
@@ -228,9 +227,6 @@ void loadOperations() {
     operationMap["-wls"] = new WLS();
 
     operationMap["-locallaplacian"] = new LocalLaplacian();
-
-    // projection stuff
-    operationMap["-sinugram"] = new Sinugram();
 
     // HDR stuff
     operationMap["-assemblehdr"] = new AssembleHDR();
