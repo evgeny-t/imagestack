@@ -386,7 +386,6 @@ void BidirectionalSimilarity::apply(Image source, Image target,
         printf("."); fflush(stdout);
 
         int patchSize = 5;
-        Image completeMatch, coherentMatch;
 
         // The homogeneous output for this iteration
         Image out(target.width, target.height, target.frames, target.channels+1);
@@ -394,7 +393,7 @@ void BidirectionalSimilarity::apply(Image source, Image target,
         if (alpha != 0) {
 
             // COMPLETENESS TERM
-            Image completeMatch = PatchMatch::apply(source, target, targetMask, numIterPM, patchSize);
+	    Image completeMatch = PatchMatch::apply(source, target, targetMask, numIterPM, patchSize);
 
             // For every patch in the source, splat it onto the
             // nearest match in the target, weighted by the source
@@ -434,7 +433,7 @@ void BidirectionalSimilarity::apply(Image source, Image target,
         if (alpha != 1) {
             // COHERENCE TERM
             Image coherentMatch = PatchMatch::apply(target, source, sourceMask,
-						       numIterPM, patchSize);
+						    numIterPM, patchSize);
             // For every patch in the target, pull from the nearest match in the source
             for (int t = 0; t < target.frames; t++) {
                 for (int y = 0; y < target.height; y++) {

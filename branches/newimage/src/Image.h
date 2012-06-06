@@ -77,8 +77,8 @@ class Image {
     }
 
     Image region(int x, int y, int t, int c,
-		 int width, int height, int frames, int channels) {
-        return Image(*this, x, y, t, c, width, height, frames, channels);
+		 int xs, int ys, int ts, int cs) {
+        return Image(*this, x, y, t, c, xs, ys, ts, cs);
     }
 
     Image column(int x) {
@@ -521,7 +521,7 @@ class Image {
 
   private:
 
-    float *compute_base(std::shared_ptr<vector<float> > data) {
+    static float *compute_base(std::shared_ptr<vector<float> > data) {
 	float *base = &((*data)[0]);
 	while (((size_t)base) & 0xf) base++;    
 	return base;
@@ -529,8 +529,8 @@ class Image {
 
     // Region constructor
     Image(Image im, int x, int y, int t, int c,
-	  int width, int height, int frames, int channels) :
-	width(width), height(height), frames(frames), channels(channels),
+	  int xs, int ys, int ts, int cs) :
+	width(xs), height(ys), frames(ts), channels(cs),
 	ystride(im.ystride), tstride(im.tstride), cstride(im.cstride),
 	data(im.data), base(&im(x, y, t, c)) {	
     }

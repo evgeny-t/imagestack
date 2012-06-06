@@ -537,10 +537,6 @@ public:
         Image gray = ColorMatrix::apply(im, grayMatrix);
 
         // Gaussian Pyramid
-        // k1: first sigma, k: scale factor between each level
-        // GAUSSIAN_LEVELS: number of pyramid levels
-        float k1 = 1.6f, k = sqrtf(2.0f);
-
         const int gaussianLevels = 5;
 
         vector<float> sigma;
@@ -548,11 +544,11 @@ public:
         Image ornPyramid[gaussianLevels-3];
         Image gPyramid = Upsample::apply(gray, 1, 1, gaussianLevels);
 
-        float sig = k1;
+        float sig = 1.6f, sigScale = sqrtf(2.0f);
         for (int i = 0; i < gaussianLevels; i++) {
             sigma.push_back(sig);
             FastBlur::apply(gPyramid.frame(i), sig, sig, 0);
-            sig *= k;
+            sig *= sigScale;
         }
 
         // Magnitude and phase of gradient images
@@ -606,8 +602,8 @@ public:
             }
 
 	    vector<float> sample(1);
-            for (int y=-1; y<=1; y++) {
-                for (int x=-1; x<=1; x++) {		    
+            for (int y = -1; y <= 1; y++) {
+                for (int x = -1; x <= 1; x++) {		    
                     dogPyramid.sample2DLinear(mx+x, my+y, mt, sample);
 		    patch(x+1, y+1) = sample[0];
                 }
@@ -628,7 +624,7 @@ public:
             // Assign multiple descriptors if has multiple major orientations
             vector<float> orientations;
             findOrientations(maxima[i], magPyramid, ornPyramid, &sigma, &orientations);
-            for (int k=0; k<(int)orientations.size(); k++) {
+            for (int k = 0; k < (int)orientations.size(); k++) {
                 corners.push_back(Feature(maxima[i], magPyramid, ornPyramid, &sigma, orientations[k]));
             }
 

@@ -65,137 +65,137 @@ public:
     };
 
     struct Negation : public Unary {
-        Negation(Node *arg) : Unary(arg) {}
+	Negation(Node *a) : Unary(a) {}
         float eval(State &state) {return -arg->eval(state);}
     };
 
     struct IfThenElse : public Ternary {
-        IfThenElse(Node *left, Node *middle, Node *right) : Ternary(left, middle, right) {}
+        IfThenElse(Node *l, Node *m, Node *r) : Ternary(l, m, r) {}
         float eval(State &state) {return left->eval(state) ? middle->eval(state) : right->eval(state);}
     };
 
     struct LTE : public Binary {
-        LTE(Node *left, Node *right) : Binary(left, right) {}
+        LTE(Node *l, Node *r) : Binary(l, r) {}
         float eval(State &state) {return left->eval(state) <= right->eval(state) ? 1 : 0;}
     };
 
     struct GTE : public Binary {
-        GTE(Node *left, Node *right) : Binary(left, right) {}
+        GTE(Node *l, Node *r) : Binary(l, r) {}
         float eval(State &state) {return left->eval(state) >= right->eval(state) ? 1 : 0;}
     };
 
     struct LT : public Binary {
-        LT(Node *left, Node *right) : Binary(left, right) {}
+        LT(Node *l, Node *r) : Binary(l, r) {}
         float eval(State &state) {return left->eval(state) < right->eval(state) ? 1 : 0;}
     };
 
     struct GT : public Binary {
-        GT(Node *left, Node *right) : Binary(left, right) {}
+        GT(Node *l, Node *r) : Binary(l, r) {}
         float eval(State &state) {return left->eval(state) > right->eval(state) ? 1 : 0;}
     };
 
     struct EQ : public Binary {
-        EQ(Node *left, Node *right) : Binary(left, right) {}
+        EQ(Node *l, Node *r) : Binary(l, r) {}
         float eval(State &state) {return left->eval(state) == right->eval(state) ? 1 : 0;}
     };
 
     struct NEQ : public Binary {
-        NEQ(Node *left, Node *right) : Binary(left, right) {}
+        NEQ(Node *l, Node *r) : Binary(l, r) {}
         float eval(State &state) {return left->eval(state) != right->eval(state) ? 1 : 0;}
     };
 
     struct Plus : public Binary {
-        Plus(Node *left, Node *right) : Binary(left, right) {}
+        Plus(Node *l, Node *r) : Binary(l, r) {}
         float eval(State &state) {return left->eval(state) + right->eval(state);}
     };
 
     struct Minus : public Binary {
-        Minus(Node *left, Node *right) : Binary(left, right) {}
+        Minus(Node *l, Node *r) : Binary(l, r) {}
         float eval(State &state) {return left->eval(state) - right->eval(state);}
     };
 
     struct Mod : public Binary {
-        Mod(Node *left, Node *right) : Binary(left, right) {}
+        Mod(Node *l, Node *r) : Binary(l, r) {}
         float eval(State &state) {return fmod(left->eval(state), right->eval(state));}
     };
 
     struct Times : public Binary {
-        Times(Node *left, Node *right) : Binary(left, right) {}
+        Times(Node *l, Node *r) : Binary(l, r) {}
         float eval(State &state) {return left->eval(state) * right->eval(state);}
     };
 
     struct Divide : public Binary {
-        Divide(Node *left, Node *right) : Binary(left, right) {}
+        Divide(Node *l, Node *r) : Binary(l, r) {}
         float eval(State &state) {return left->eval(state) / right->eval(state);}
     };
 
     struct Power : public Binary {
-        Power(Node *left, Node *right) : Binary(left, right) {}
+        Power(Node *l, Node *r) : Binary(l, r) {}
         float eval(State &state) {return powf(left->eval(state), right->eval(state));}
     };
 
     struct Funct_sin : public Unary {
-        Funct_sin(Node *arg) : Unary(arg) {}
+        Funct_sin(Node *a) : Unary(a) {}
         float eval(State &state) {return sinf(arg->eval(state));}
     };
 
     struct Funct_cos : public Unary {
-        Funct_cos(Node *arg) : Unary(arg) {}
+        Funct_cos(Node *a) : Unary(a) {}
         float eval(State &state) {return cosf(arg->eval(state));}
     };
 
     struct Funct_tan : public Unary {
-        Funct_tan(Node *arg) : Unary(arg) {}
+        Funct_tan(Node *a) : Unary(a) {}
         float eval(State &state) {return tanf(arg->eval(state));}
     };
 
     struct Funct_atan : public Unary {
-        Funct_atan(Node *arg) : Unary(arg) {}
+        Funct_atan(Node *a) : Unary(a) {}
         float eval(State &state) {return atanf(arg->eval(state));}
     };
 
     struct Funct_asin : public Unary {
-        Funct_asin(Node *arg) : Unary(arg) {}
+        Funct_asin(Node *a) : Unary(a) {}
         float eval(State &state) {return asinf(arg->eval(state));}
     };
 
     struct Funct_acos : public Unary {
-        Funct_acos(Node *arg) : Unary(arg) {}
+        Funct_acos(Node *a) : Unary(a) {}
         float eval(State &state) {return acosf(arg->eval(state));}
     };
 
     struct Funct_atan2 : public Binary {
-        Funct_atan2(Node *left, Node *right) : Binary(left, right) {}
+        Funct_atan2(Node *l, Node *r) : Binary(l, r) {}
         float eval(State &state) {return atan2f(left->eval(state), right->eval(state));}
     };
 
     struct Funct_abs : public Unary {
-        Funct_abs(Node *arg) : Unary(arg) {}
+        Funct_abs(Node *a) : Unary(a) {}
         float eval(State &state) {return fabsf(arg->eval(state));}
     };
 
     struct Funct_floor : public Unary {
-        Funct_floor(Node *arg) : Unary(arg) {}
+        Funct_floor(Node *a) : Unary(a) {}
         float eval(State &state) {return floorf(arg->eval(state));}
     };
 
     struct Funct_ceil : public Unary {
-        Funct_ceil(Node *arg) : Unary(arg) {}
+        Funct_ceil(Node *a) : Unary(a) {}
         float eval(State &state) {return ceilf(arg->eval(state));}
     };
 
     struct Funct_round : public Unary {
-        Funct_round(Node *arg) : Unary(arg) {}
+        Funct_round(Node *a) : Unary(a) {}
         float eval(State &state) {return roundf(arg->eval(state));}
     };
 
     struct Funct_log : public Unary {
-        Funct_log(Node *arg) : Unary(arg) {}
+        Funct_log(Node *a) : Unary(a) {}
         float eval(State &state) {return logf(arg->eval(state));}
     };
 
     struct Funct_exp : public Unary {
-        Funct_exp(Node *arg) : Unary(arg) {}
+        Funct_exp(Node *a) : Unary(a) {}
         float eval(State &state) {return expf(arg->eval(state));}
     };
 
@@ -204,7 +204,7 @@ public:
     };
 
     struct Funct_mean1 : public Unary {
-        Funct_mean1(Node *arg) : Unary(arg) {}
+        Funct_mean1(Node *a) : Unary(a) {}
         float eval(State &state) {return state.stats.mean((int)(arg->eval(state) + 0.5));}
     };
 
@@ -213,7 +213,7 @@ public:
     };
 
     struct Funct_sum1 : public Unary {
-        Funct_sum1(Node *arg) : Unary(arg) {}
+        Funct_sum1(Node *a) : Unary(a) {}
         float eval(State &state) {return state.stats.sum((int)(arg->eval(state) + 0.5));}
     };
 
@@ -222,7 +222,7 @@ public:
     };
 
     struct Funct_max1 : public Unary {
-        Funct_max1(Node *arg) : Unary(arg) {}
+        Funct_max1(Node *a) : Unary(a) {}
         float eval(State &state) {return state.stats.maximum((int)(arg->eval(state) + 0.5));}
     };
 
@@ -231,7 +231,7 @@ public:
     };
 
     struct Funct_min1 : public Unary {
-        Funct_min1(Node *arg) : Unary(arg) {}
+        Funct_min1(Node *a) : Unary(a) {}
         float eval(State &state) {return state.stats.minimum((int)(arg->eval(state) + 0.5));}
     };
 
@@ -240,7 +240,7 @@ public:
     };
 
     struct Funct_variance1 : public Unary {
-        Funct_variance1(Node *arg) : Unary(arg) {}
+        Funct_variance1(Node *a) : Unary(a) {}
         float eval(State &state) {return state.stats.variance((int)(arg->eval(state) + 0.5));}
     };
 
@@ -249,7 +249,7 @@ public:
     };
 
     struct Funct_stddev1 : public Unary {
-        Funct_stddev1(Node *arg) : Unary(arg) {}
+        Funct_stddev1(Node *a) : Unary(a) {}
         float eval(State &state) {return sqrtf(state.stats.variance((int)(arg->eval(state) + 0.5)));}
     };
 
@@ -258,7 +258,7 @@ public:
     };
 
     struct Funct_skew1 : public Unary {
-        Funct_skew1(Node *arg) : Unary(arg) {}
+        Funct_skew1(Node *a) : Unary(a) {}
         float eval(State &state) {return state.stats.skew((int)(arg->eval(state) + 0.5));}
     };
 
@@ -267,7 +267,7 @@ public:
     };
 
     struct Funct_kurtosis1 : public Unary {
-        Funct_kurtosis1(Node *arg) : Unary(arg) {}
+        Funct_kurtosis1(Node *a) : Unary(a) {}
         float eval(State &state) {return state.stats.kurtosis((int)(arg->eval(state) + 0.5));}
     };
 
@@ -277,7 +277,7 @@ public:
     };
 
     struct SampleHere : public Unary {
-        SampleHere(Node *arg) : Unary(arg) {}
+        SampleHere(Node *a) : Unary(a) {}
         float eval(State &state) {
             int c = (int)(arg->eval(state) + 0.5);
             return state.im(state.x, state.y, state.t, c);

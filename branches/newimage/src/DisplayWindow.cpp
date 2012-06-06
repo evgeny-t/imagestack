@@ -54,7 +54,7 @@ DisplayWindow::~DisplayWindow() {
     SDL_Quit();
 }
 
-void DisplayWindow::setMode(int width, int height, bool fullscreen, bool cursorVisible,
+void DisplayWindow::setMode(int w, int h, bool f, bool cursorVisible,
                             float bgRed, float bgGreen, float bgBlue) {
 
     cursorVisible_ = cursorVisible;
@@ -63,17 +63,20 @@ void DisplayWindow::setMode(int width, int height, bool fullscreen, bool cursorV
     bgGreen_ = (unsigned char)(bgGreen * 255 + 0.499);
     bgBlue_  = (unsigned char)(bgBlue  * 255 + 0.499);
 
-    if (width == width_ && height == height_ && fullscreen == fullscreen_) { return; }
+    if (w == width_ && h == height_ && f == fullscreen_) { return; }
 
-    width_ = width;
-    height_ = height;
-    fullscreen_ = fullscreen;
+    width_ = w;
+    height_ = h;
+    fullscreen_ = f;
 
     modeChange = true;
 
     // wait on the thread
-    if (thread)
-        while (modeChange) { SDL_Delay(1); }
+    if (thread) {
+        while (modeChange) { 
+	  SDL_Delay(1); 
+	}
+    }
 }
 
 void DisplayWindow::handleModeChange() {
@@ -182,10 +185,10 @@ void DisplayWindow::renderSurface() {
     SDL_UnlockSurface(surface);
 }
 
-void DisplayWindow::setOffset(int tOffset, int xOffset, int yOffset) {
-    tOffset_ = tOffset;
-    xOffset_ = xOffset;
-    yOffset_ = yOffset;
+void DisplayWindow::setOffset(int tOff, int xOff, int yOff) {
+    tOffset_ = tOff;
+    xOffset_ = xOff;
+    yOffset_ = yOff;
 }
 
 void DisplayWindow::redraw() {

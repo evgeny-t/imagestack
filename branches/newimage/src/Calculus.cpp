@@ -12,14 +12,17 @@
 #include "header.h"
 
 void Gradient::help() {
-    printf("\n-gradient takes the backward differences in the dimension specified by the\n"
-           "argument. Values outside the image are assumed to be zero, so the first row,\n"
-           "or column, or frame, will not change, effectively storing the initial value\n"
-           "to make later integration easy. Multiple arguments can be given to differentiate\n"
-           "with respect to multiple dimensions in order (although the order does not matter).\n\n"
-           "Warning: Don't expect to differentiate more than twice and be able to get back\n"
-           "the image by integrating. Numerical errors will dominate.\n\n"
-           "Usage: ImageStack -load a.tga -gradient x y -save out.tga\n\n");
+    pprintf("-gradient takes the backward differences in the dimension specified by"
+	    " the argument. Values outside the image are assumed to be zero, so the"
+	    " first row, or column, or frame, will not change, effectively storing"
+	    " the initial value to make later integration easy. Multiple arguments"
+	    " can be given to differentiate with respect to multiple dimensions in"
+	    " order (although the order does not matter).\n"
+	    "\n"
+	    "Warning: Don't expect to differentiate more than twice and be able to"
+	    " get back the image by integrating. Numerical errors will dominate.\n"
+	    "\n"
+	    "Usage: ImageStack -load a.jpg -gradient x y -save out.jpg\n");
 }
 
 bool Gradient::test() {
@@ -88,13 +91,15 @@ void Gradient::apply(Image im, char dimension) {
 
 
 void Integrate::help() {
-    printf("\n-integrate computes partial sums along the given dimension. It is the\n"
-           "of the -gradient operator. Multiply dimensions can be given as arguments,\n"
-           "for example -integrate x y will produce a summed area table of an image.\n"
-           "Allowed dimensions are x, y, or t.\n\n"
-           "Warning: Don't expect to integrate more than twice and be able to get back\n"
-           "the image by differentiating. Numerical errors will dominate.\n\n"
-           "Usage: ImageStack -load a.tga -gradient x y -integrate y x -save a.tga\n\n");
+    pprintf("-integrate computes partial sums along the given dimension. It is the"
+	    " inverse of the -gradient operator. Multiply dimensions can be given"
+	    " as arguments, for example -integrate x y will produce a summed area"
+	    " table of an image. Allowed dimensions are x, y, or t.\n"
+	    "\n"
+	    "Warning: Don't expect to integrate more than twice and be able to get"
+	    " back the image by differentiating. Numerical errors will dominate.\n"
+	    "\n"
+	    "Usage: ImageStack -load a.jpg -gradient x y -integrate y x -save a.jpg\n");
 }
 
 bool Integrate::test() {
@@ -155,12 +160,12 @@ void Integrate::apply(Image im, char dimension) {
 
 
 void GradMag::help() {
-    printf("-gradmag computes the square gradient magnitude at each pixel in x and\n"
-           "y. Temporal gradients are ignored. The gradient is estimated using\n"
-           "backward differences, and the image is assumed to be zero outside its\n"
-           "bounds.\n\n"
-           "Usage: ImageStack -load input.jpg -gradmag -save out.jpg\n");
-
+    pprintf("-gradmag computes the square gradient magnitude at each pixel in x and"
+	    " y. Temporal gradients are ignored. The gradient is estimated using"
+	    " backward differences, and the image is assumed to be zero outside its"
+	    " bounds.\n"
+	    "\n"
+	    "Usage: ImageStack -load input.jpg -gradmag -save out.jpg\n");
 }
 
 bool GradMag::test() {
@@ -209,7 +214,7 @@ void Poisson::help() {
             " result. This defaults to 0.01 if not given.\n"
             "\n"
             "Usage: ImageStack -load dx.tmp -load dy.tmp \n"
-            "                  -poisson 0.0001 -save out.tga\n\n");
+            "                  -poisson 0.0001 -save out.jpg\n\n");
 }
 
 bool Poisson::test() {

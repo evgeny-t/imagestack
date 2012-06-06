@@ -418,44 +418,47 @@ Image Deconvolve::applyPadding(Image B) {
                     ret(x+x_padding, y+B.height+y_padding, t, c) = ret(x+x_padding, y, t, c);
                 }
             }
-            // Populate the left 'C-B-C' region
-            for (int y = 0; y < B.height + y_padding * 2; y++) {
-                for (int x = 0; x < alpha; x++) {
-                    for (int c = 0; c < B.channels; c++) {
-                        ret(x, y, t, c) = ret(B.width + x_padding - alpha + x, y, t, c);
-                        ret(x_padding - alpha + x, y, t, c) = ret(x_padding + x, y, t, c);
-                    }
-                }
-            }
-            for (int x = alpha; x < x_padding - alpha; x++) {
-                // interpolate towards the right boundary.
-                float weight = 1.f / (x_padding - alpha - (x-1));
-                for (int y = 0; y < B.height + y_padding * 2; y++) {
-                    for (int c = 0; c < B.channels; c++) {
-                        ret(x, y, t, c) = ret(x-1, y, t, c) * (1.f - weight) + ret(x_padding - alpha, y, t, c) * weight;
-                    }
-                }
-                // Blur with neighbors, more increasingly at the center.
-                for (int c = 0; c < B.channels; c++)
-                    prev[c] = ret(x, 0, t, c);
-                float wing = 0.1f + 0.2f * (1.f - fabs(x_padding * 0.5f - x) / (x_padding * 0.5f));
-                float center = 1.f - wing * 2.f;
-                for (int y = 0; y < B.height + y_padding * 2 - 1; y++) {
-                    for (int c = 0; c < B.channels; c++) {
-                        float tmp = ret(x, y, t, c);
-                        ret(x, y, t, c) = prev[c] * wing + ret(x, y+1, t, c) * wing + tmp * center;
-                        prev[c] = tmp;
-                    }
-                }
-            }
-            // Populate the right 'C-B-C' region
-            for (int y = 0; y < B.height + y_padding * 2; y++) {
-                for (int c = 0; c < B.channels; c++) {
-                    for (int x = 0; x < x_padding; x++) {
-                        ret(x + B.width + x_padding, y, t, c) = ret(x, y, t, c);
-                    }
-                }
-            }
+	}
+
+	// Populate the left 'C-B-C' region
+	for (int y = 0; y < B.height + y_padding * 2; y++) {
+	    for (int x = 0; x < alpha; x++) {
+		for (int c = 0; c < B.channels; c++) {
+		    ret(x, y, t, c) = ret(B.width + x_padding - alpha + x, y, t, c);
+		    ret(x_padding - alpha + x, y, t, c) = ret(x_padding + x, y, t, c);
+		}
+	    }
+	}
+
+	for (int x = alpha; x < x_padding - alpha; x++) {
+	    // interpolate towards the right boundary.
+	    float weight = 1.f / (x_padding - alpha - (x-1));
+	    for (int y = 0; y < B.height + y_padding * 2; y++) {
+		for (int c = 0; c < B.channels; c++) {
+		    ret(x, y, t, c) = ret(x-1, y, t, c) * (1.f - weight) + ret(x_padding - alpha, y, t, c) * weight;
+		}
+	    }
+	    // Blur with neighbors, more increasingly at the center.
+	    for (int c = 0; c < B.channels; c++) {
+		prev[c] = ret(x, 0, t, c);
+	    }
+	    float wing = 0.1f + 0.2f * (1.f - fabs(x_padding * 0.5f - x) / (x_padding * 0.5f));
+	    float center = 1.f - wing * 2.f;
+	    for (int y = 0; y < B.height + y_padding * 2 - 1; y++) {
+		for (int c = 0; c < B.channels; c++) {
+		    float tmp = ret(x, y, t, c);
+		    ret(x, y, t, c) = prev[c] * wing + ret(x, y+1, t, c) * wing + tmp * center;
+		    prev[c] = tmp;
+		}
+	    }
+	}
+	// Populate the right 'C-B-C' region
+	for (int y = 0; y < B.height + y_padding * 2; y++) {
+	    for (int c = 0; c < B.channels; c++) {
+		for (int x = 0; x < x_padding; x++) {
+		    ret(x + B.width + x_padding, y, t, c) = ret(x, y, t, c);
+		}
+	    }
         }
     }
     ret = Crop::apply(ret, x_padding/2, y_padding/2, 0, B.width + x_padding, B.height + y_padding, B.frames);

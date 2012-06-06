@@ -1,6 +1,9 @@
 #include "main.h"
 #include "Wavelet.h"
 #include "Geometry.h"
+#include "Statistics.h"
+#include "Calculus.h"
+#include "Convolve.h"
 #include "header.h"
 
 void Haar::help() {
@@ -9,6 +12,31 @@ void Haar::help() {
             " recurses k times, and the image size must be a multiple of 2^k.\n"
             "\n"
             "Usage: ImageStack -load in.jpg -haar 1 -save out.jpg\n\n");
+}
+
+bool Haar::test() {
+    Image a(256, 256, 3, 1);
+    Noise::apply(a, -34, 23);
+    Image b = a.copy();
+    Haar::apply(b, 4);
+
+    // Top left 16x16 should be a downsampled version of the original
+    Image small = Downsample::apply(a, 16, 16, 1);
+    small -= b.region(0, 0, 0, 0, 16, 16, 3, 1);
+    Stats s(small);
+    if (!nearly_equal(s.mean()*100, 0)) return false;
+    if (!nearly_equal(s.variance()*100, 0)) return false;
+
+    // Bottom right 128x128 should be a subsampled derivative
+    Image deriv = a.copy();
+    Gradient::apply(deriv, "xy");
+    deriv = Subsample::apply(deriv, 2, 2, 1, 1);
+    deriv -= b.region(128, 128, 0, 0, 128, 128, 3, 1);
+    s = Stats(deriv);
+    if (!nearly_equal(s.mean()*100, 0)) return false;
+    if (!nearly_equal(s.variance()*100, 0)) return false;
+
+    return true;
 }
 
 void Haar::parse(vector<string> args) {
@@ -24,7 +52,7 @@ void Haar::parse(vector<string> args) {
 void Haar::apply(Image im, int times) {
 
     if (times <= 0) {
-        assert(im.width == im.height, "to perform a full haar transorm, the image must be square.\n");
+        assert(im.width == im.height, "to perform a full haar transform, the image must be square.\n");
         times = 0;
         int w = im.width >> 1;
         while (w) {
@@ -44,8 +72,8 @@ void Haar::apply(Image im, int times) {
 	    for (int t = 0; t < win.frames; t++) {
 		for (int y = 0; y < win.height; y++) {
 		    for (int x = 0; x < win.width; x+=2) {
-			float a = win(x, y, t);
-			float b = win(x+1, y, t);
+			float a = win(x, y, t, c);
+			float b = win(x+1, y, t, c);
                         win(x, y, t, c) = (a+b)/2;
                         win(x+1, y, t, c) = b-a;
                     }
@@ -82,9 +110,22 @@ void Haar::apply(Image im, int times) {
 
 
 void InverseHaar::help() {
-    printf("-inversehaar inverts the haar transformation with the same argument. See\n"
-           "-help haar for detail.\n\n");
+    pprintf("-inversehaar inverts the haar transformation with the same"
+	    " argument. See -help haar for detail.\n");
 
+}
+
+bool InverseHaar::test() {
+    Image a(256, 256, 3, 3);
+    Noise::apply(a, 0, 1);
+    Image b = a.copy();
+    Haar::apply(b, 3);
+    InverseHaar::apply(b, 3);
+    b -= a;
+    Stats s(b);
+    if (!nearly_equal(s.mean(), 0)) return false;
+    if (!nearly_equal(s.variance(), 0)) return false;    
+    return true;
 }
 
 void InverseHaar::parse(vector<string> args) {
@@ -172,9 +213,31 @@ void InverseHaar::apply(Image im, int times) {
 #define DAUB3 -0.12940952255126034
 
 void Daubechies::help() {
-    printf("-daubechies performs the standard 2D daubechies 4 wavelet transform of an image. \n"
-           "The image size must be a power of two.\n\n"
-           "Usage: ImageStack -load in.jpg -daubechies -save out.jpg\n\n");
+    pprintf("-daubechies performs the standard 2D daubechies 4 wavelet transform of"
+	    " an image. The image size must be a power of two.\n"
+	    "\n"
+	    "Usage: ImageStack -load in.jpg -daubechies -save out.jpg\n\n");
+}
+
+bool Daubechies::test() {
+    Image a(256, 256, 3, 3);
+    Noise::apply(a, 0, 1);
+    Image filter(7, 1, 1, 1);
+    filter(0, 0) = 0;
+    filter(1, 0) = 0;
+    filter(2, 0) = 0;
+    filter(3, 0) = DAUB3;
+    filter(4, 0) = -DAUB2;
+    filter(5, 0) = DAUB1;
+    filter(6, 0) = -DAUB0;
+    Image b = Convolve::apply(a, filter);
+    b = Convolve::apply(b, Transpose::apply(filter, 'x', 'y'));
+    b = Subsample::apply(b, 2, 2, 0, 0);
+    Daubechies::apply(a);
+    b -= a.region(128, 128, 0, 0, 128, 128, 3, 3);
+    Stats s(b.region(0, 0, 0, 0, 100, 100, 3, 3));
+    return (nearly_equal(s.mean(), 0) &&
+	    nearly_equal(s.variance(), 0));
 }
 
 void Daubechies::parse(vector<string> args) {
@@ -185,88 +248,93 @@ void Daubechies::parse(vector<string> args) {
 void Daubechies::apply(Image im) {
 
     int i;
-    for (i = 1; i < im.width; i <<= 1) { ; }
+    for (i = 1; i < im.width; i <<= 1);
     assert(i == im.width, "Image width must be a power of two\n");
-    for (i = 1; i < im.height; i <<= 1) { ; }
+    for (i = 1; i < im.height; i <<= 1);
     assert(i == im.height, "Image height must be a power of two\n");
 
     // transform in x
-    Image win = im;
-    while (1) {
-	for (int c = 0; c < win.channels; c++) {
-	    for (int t = 0; t < win.frames; t++) {
-		for (int y = 0; y < win.height; y++) {
-		    float saved1st = win(0, y, t, c);
-		    float saved2nd = win(1, y, t, c);
-
-		    for (int x = 0; x < win.width-2; x+=2) {
-			float a = win(x, y, t, c);
-			float b = win(x+1, y, t, c);
-			float c = win(x+2, y, t, c);
-			float d = win(x+3, y, t, c);
-			win(x, y, t, c) = DAUB0 * a + DAUB1 * b + DAUB2 * c + DAUB3 * d;
-			win(x+1, y, t, c) = DAUB3 * a - DAUB2 * b + DAUB1 * c - DAUB0 * d;
+    for (int width = im.width; width > 1; width /= 2) {
+	for (int c = 0; c < im.channels; c++) {
+	    for (int t = 0; t < im.frames; t++) {
+		for (int y = 0; y < im.height; y++) {
+		    float saved1st = im(0, y, t, c);
+		    float saved2nd = im(1, y, t, c);
+		    
+		    for (int x = 0; x < width-2; x+=2) {
+			float v0 = im(x, y, t, c);
+			float v1 = im(x+1, y, t, c);
+			float v2 = im(x+2, y, t, c);
+			float v3 = im(x+3, y, t, c);
+			im(x, y, t, c) = DAUB0 * v0 + DAUB1 * v1 + DAUB2 * v2 + DAUB3 * v3;
+			im(x+1, y, t, c) = DAUB3 * v0 - DAUB2 * v1 + DAUB1 * v2 - DAUB0 * v3;
 		    }
 		    // special case the last two elements using rotation
-		    float a = win(win.width-2, y, t, c);
-		    float b = win(win.width-1, y, t, c);
-		    float c = saved1st;
-		    float d = saved2nd;
-		    win(win.width-2, y, t, c) = DAUB0 * a + DAUB1 * b + DAUB2 * c + DAUB3 * d;
-		    win(win.width-1, y, t, c) = DAUB3 * a - DAUB2 * b + DAUB1 * c - DAUB0 * d;
+		    float v0 = im(width-2, y, t, c);
+		    float v1 = im(width-1, y, t, c);
+		    float v2 = saved1st;
+		    float v3 = saved2nd;
+		    im(width-2, y, t, c) = DAUB0 * v0 + DAUB1 * v1 + DAUB2 * v2 + DAUB3 * v3;
+		    im(width-1, y, t, c) = DAUB3 * v0 - DAUB2 * v1 + DAUB1 * v2 - DAUB0 * v3;
 		}
             }
         }
         // separate into averages and differences
-        Deinterleave::apply(win, 2, 1, 1);
-
-        if (win.width == 2) { break; }
-
-        // repeat on the averages
-        win = win.region(0, 0, 0, 0, win.width/2, win.height, win.frames, win.channels);
+        Deinterleave::apply(im.region(0, 0, 0, 0, 
+				      width, im.height, im.frames, im.channels), 
+			    2, 1, 1);
     }
 
     // transform in y
-    win = im.region(0, 0, 0, 0, im.width, im.height, im.frames, im.channels);
-    while (1) {
-	for (int c = 0; c < win.channels; c++) {
-	    for (int t = 0; t < win.frames; t++) {
-		for (int x = 0; x < win.width; x++) {
-		    float saved1st = win(x, 0, t, c);
-		    float saved2nd = win(x, 1, t, c);
-		    for (int y = 0; y < win.height-2; y+=2) {
-			float a = win(x, y, t, c);
-			float b = win(x, y+1, t, c);
-			float c = win(x, y+2, t, c);
-			float d = win(x, y+3, t, c);
-                        win(x, y, t, c) = DAUB0 * a + DAUB1 * b + DAUB2 * c + DAUB3 * d;
-                        win(x, y+1, t, c) = DAUB3 * a - DAUB2 * b + DAUB1 * c - DAUB0 * d;
+    for (int height = im.height; height > 1; height /= 2) {
+	for (int c = 0; c < im.channels; c++) {
+	    for (int t = 0; t < im.frames; t++) {
+		for (int x = 0; x < im.width; x++) {
+		    float saved1st = im(x, 0, t, c);
+		    float saved2nd = im(x, 1, t, c);
+		    for (int y = 0; y < height-2; y+=2) {
+			float v0 = im(x, y, t, c);
+			float v1 = im(x, y+1, t, c);
+			float v2 = im(x, y+2, t, c);
+			float v3 = im(x, y+3, t, c);
+                        im(x, y, t, c) = DAUB0 * v0 + DAUB1 * v1 + DAUB2 * v2 + DAUB3 * v3;
+                        im(x, y+1, t, c) = DAUB3 * v0 - DAUB2 * v1 + DAUB1 * v2 - DAUB0 * v3;
                     }
 		    // special case the last two elements using rotation
-		    float a = win(x, win.height-2, t, c);
-		    float b = win(x, win.height-1, t, c);
-		    float c = saved1st;
-		    float d = saved2nd;
-                    win(x, win.height-2, t, c) = DAUB0 * a + DAUB1 * b + DAUB2 * c + DAUB3 * d;
-                    win(x, win.height-1, t, c) = DAUB3 * a - DAUB2 * b + DAUB1 * c - DAUB0 * d;
+		    float v0 = im(x, height-2, t, c);
+		    float v1 = im(x, height-1, t, c);
+		    float v2 = saved1st;
+		    float v3 = saved2nd;
+                    im(x, height-2, t, c) = DAUB0 * v0 + DAUB1 * v1 + DAUB2 * v2 + DAUB3 * v3;
+                    im(x, height-1, t, c) = DAUB3 * v0 - DAUB2 * v1 + DAUB1 * v2 - DAUB0 * v3;
                 }
             }
         }
         // separate into averages and differences
-        Deinterleave::apply(win, 1, 2, 1);
-
-        if (win.height == 2) { break; }
-
-        // repeat on the averages
-        win = win.region(0, 0, 0, 0, win.width, win.height/2, win.frames, win.channels);
+        Deinterleave::apply(im.region(0, 0, 0, 0, 
+				      im.width, height, im.frames, im.channels),
+			    1, 2, 1);
     }
 }
 
 
 void InverseDaubechies::help() {
-    printf("-inversedaubechies performs the standard 2D daubechies 4 wavelet transform of an image. \n"
-           "The image size must be a power of two.\n\n"
-           "Usage: ImageStack -load in.jpg -inversedaubechies -save out.jpg\n\n");
+    pprintf("-inversedaubechies performs the standard 2D daubechies 4 wavelet "
+	    " transform of an image. The image size must be a power of two.\n"
+	    "\n"
+	    "Usage: ImageStack -load in.jpg -inversedaubechies -save out.jpg\n");
+}
+
+bool InverseDaubechies::test() {
+    Image a(256, 256, 3, 3);
+    Noise::apply(a, -5, 12);
+    Image b = a.copy();
+    Daubechies::apply(b);
+    InverseDaubechies::apply(b);
+    b -= a;
+    Stats s(b);
+    return (nearly_equal(s.mean(), 0) &&
+	    nearly_equal(s.variance(), 0));    
 }
 
 void InverseDaubechies::parse(vector<string> args) {
@@ -284,80 +352,72 @@ void InverseDaubechies::apply(Image im) {
 
 
     // transform in x
-    Image win = im.region(0, 0, 0, 0, 2, im.height, im.frames, im.channels);
-    while (1) {
+    for (int width = 2; width <= im.width; width *= 2) {
         // Collect averages and differences
-        Interleave::apply(win, 2, 1, 1);
+        Interleave::apply(im.region(0, 0, 0, 0, 
+				    width, im.height, im.frames, im.channels), 
+			  2, 1, 1);
 
-	for (int c = 0; c < win.channels; c++) {
-	    for (int t = 0; t < win.frames; t++) {
-		for (int y = 0; y < win.height; y++) {
-		    float saved1st = win(win.width-1, y, t, c);
-		    float saved2nd = win(win.width-2, y, t, c);
+	for (int c = 0; c < im.channels; c++) {
+	    for (int t = 0; t < im.frames; t++) {
+		for (int y = 0; y < im.height; y++) {
+		    float saved1st = im(width-1, y, t, c);
+		    float saved2nd = im(width-2, y, t, c);
 
-		    for (int x = win.width-4; x >= 0; x-=2) {
-			float a = win(x, y, t, c);
-			float b = win(x+1, y, t, c);
-			float c = win(x+2, y, t, c);
-			float d = win(x+3, y, t, c);
-		        win(x+2, y, t, c) = DAUB2 * a + DAUB1 * b + DAUB0 * c + DAUB3 * d;
-			win(x+3, y, t, c) = DAUB3 * a - DAUB0 * b + DAUB1 * c - DAUB2 * d;
+		    for (int x = width-4; x >= 0; x-=2) {
+			float v0 = im(x, y, t, c);
+			float v1 = im(x+1, y, t, c);
+			float v2 = im(x+2, y, t, c);
+			float v3 = im(x+3, y, t, c);
+		        im(x+2, y, t, c) = DAUB2 * v0 + DAUB1 * v1 + DAUB0 * v2 + DAUB3 * v3;
+			im(x+3, y, t, c) = DAUB3 * v0 - DAUB0 * v1 + DAUB1 * v2 - DAUB2 * v3;
 		    }
 
 		    
 		    // special case the first two elements using rotation
-		    float a = saved2nd;
-		    float b = saved1st;
-		    float c = win(0, y, t, c);
-		    float d = win(1, y, t, c);
-                    win(0, y, t, c) = DAUB2 * a + DAUB1 * b + DAUB0 * c + DAUB3 * d;
-                    win(1, y, t, c) = DAUB3 * a - DAUB0 * b + DAUB1 * c - DAUB2 * d;
+		    float v0 = saved2nd;
+		    float v1 = saved1st;
+		    float v2 = im(0, y, t, c);
+		    float v3 = im(1, y, t, c);
+                    im(0, y, t, c) = DAUB2 * v0 + DAUB1 * v1 + DAUB0 * v2 + DAUB3 * v3;
+                    im(1, y, t, c) = DAUB3 * v0 - DAUB0 * v1 + DAUB1 * v2 - DAUB2 * v3;
                 }
             }
         }
-
-        if (win.width == im.width) { break; }
-	
-        // repeat on the averages
-        win = im.region(0, 0, 0, 0, win.width*2, win.height, win.frames, win.channels);
     }
 
     // transform in y
-    win = im.region(0, 0, 0, 0, im.width, 2, im.frames, im.channels);
-    while (1) {
+    for (int height = 2; height <= im.height; height *= 2) {
         // Collect averages and differences
-        Interleave::apply(win, 1, 2, 1);
+        Interleave::apply(im.region(0, 0, 0, 0,
+				    im.width, height, im.frames, im.channels),
+			  1, 2, 1);
 
-	for (int c = 0; c < win.channels; c++) {
-	    for (int t = 0; t < win.frames; t++) {
-		for (int x = 0; x < win.width; x++) {
-		    float saved1st = win(x, win.height-1, t, c);
-		    float saved2nd = win(x, win.height-2, t, c);
+	for (int c = 0; c < im.channels; c++) {
+	    for (int t = 0; t < im.frames; t++) {
+		for (int x = 0; x < im.width; x++) {
+		    float saved1st = im(x, height-1, t, c);
+		    float saved2nd = im(x, height-2, t, c);
 
-		    for (int y = win.height-4; y >= 0; y-=2) {
-			float a = win(x, y, t, c);
-			float b = win(x, y+1, t, c);
-			float c = win(x, y+2, t, c);
-			float d = win(x, y+3, t, c);
-                        win(x, y+2, t, c) = DAUB2 * a + DAUB1 * b + DAUB0 * c + DAUB3 * d;
-                        win(x, y+3, t, c) = DAUB3 * a - DAUB0 * b + DAUB1 * c - DAUB2 * d;
+		    for (int y = height-4; y >= 0; y-=2) {
+			float v0 = im(x, y, t, c);
+			float v1 = im(x, y+1, t, c);
+			float v2 = im(x, y+2, t, c);
+			float v3 = im(x, y+3, t, c);
+                        im(x, y+2, t, c) = DAUB2 * v0 + DAUB1 * v1 + DAUB0 * v2 + DAUB3 * v3;
+                        im(x, y+3, t, c) = DAUB3 * v0 - DAUB0 * v1 + DAUB1 * v2 - DAUB2 * v3;
                     }
 
 		    // special case the first two elements using rotation
-		    float a = saved2nd;
-		    float b = saved1st;
-		    float c = win(x, 0, t, c);
-		    float d = win(x, 1, t, c);
-                    win(x, 0, t, c) = DAUB2 * a + DAUB1 * b + DAUB0 * c + DAUB3 * d;
-                    win(x, 1, t, c) = DAUB3 * a - DAUB0 * b + DAUB1 * c - DAUB2 * d;
+		    float v0 = saved2nd;
+		    float v1 = saved1st;
+		    float v2 = im(x, 0, t, c);
+		    float v3 = im(x, 1, t, c);
+                    im(x, 0, t, c) = DAUB2 * v0 + DAUB1 * v1 + DAUB0 * v2 + DAUB3 * v3;
+                    im(x, 1, t, c) = DAUB3 * v0 - DAUB0 * v1 + DAUB1 * v2 - DAUB2 * v3;
                 }
             }
         }
-
-        if (win.height == im.height) { break; }
-
-        // repeat on the averages
-        win = im.region(0, 0, 0, 0, win.width, win.height*2, win.frames, win.channels);
     }
 }
 

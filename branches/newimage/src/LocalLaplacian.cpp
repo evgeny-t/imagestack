@@ -193,12 +193,12 @@ Image LocalLaplacian::apply(Image im, float alpha, float beta) {
 
                     int K1 = K0+1;
 
-                    float alpha = luminance - K0;
+                    float interp = luminance - K0;
 
                     for (int c = 0; c < im.channels; c++) {
                         float modified = 
-                            alpha * pyramid[K1][j](x, y, t, c) +
-                            (1 - alpha) * pyramid[K0][j](x, y, t, c);
+                            interp * pyramid[K1][j](x, y, t, c) +
+                            (1 - interp) * pyramid[K0][j](x, y, t, c);
 
                         imLPyramid[j](x, y, t, c) = 
                             (1-scale) * imLPyramid[j](x, y, t, c) + scale * modified;

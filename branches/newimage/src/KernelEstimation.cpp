@@ -172,11 +172,13 @@ Image KernelEstimation::apply(Image B, int kernel_size) {
 
     /******************************* Compute Kernel Sizes */
     std::vector<int> kernel_scale;
-    int tmp = kernel_size;
-    kernel_scale.push_back(tmp);
-    while (tmp != 3) {
-        tmp = ((int)((float)tmp / 1.6f) / 2) * 2 + 1;
-        kernel_scale.push_back(tmp);
+    {
+	int tmp = kernel_size;
+	kernel_scale.push_back(tmp);
+	while (tmp != 3) {
+	    tmp = ((int)((float)tmp / 1.6f) / 2) * 2 + 1;
+	    kernel_scale.push_back(tmp);
+	}
     }
 
     /******************************* Declare Local Variables */
@@ -392,7 +394,7 @@ Image KernelEstimation::apply(Image B, int kernel_size) {
             // In subsequent iterations, Ri = CoeffB - CoeffA * (K{i-1} + delta) = R{i-1} - CoeffA * Di * coeff
             Ri[i] = Image(padded_width, padded_height, 1, 1);
             if (i == 0) {
-                Image tmp = K.copy();
+		Image tmp = K.copy();
                 FourierTransform(tmp);  // tmp = F{K}
                 ComplexMultiply::apply(tmp, CoeffA, false); // tmp =  F{CoeffA} F{K}
                 InverseFourierTransform(tmp); // tmp = CoeffA * K
