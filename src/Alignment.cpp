@@ -639,19 +639,19 @@ public:
     // least squares
     Transform *align(Digest &other, Align::Mode m, int *inliers) {
         Transform *transform = NULL, *refined = NULL;
-        if (m == Align::TRANSLATE) {
+        if (m == Align::Translate) {
             transform = new Translation();
             refined   = new Translation();
-        } else if (m == Align::SIMILARITY) {
+        } else if (m == Align::Similarity) {
             transform = new Similarity();
             refined   = new Similarity();
-        } else if (m == Align::RIGID) {
+        } else if (m == Align::Rigid) {
             transform = new Rigid();
             refined   = new Rigid();
-        } else if (m == Align::AFFINE) {
+        } else if (m == Align::Affine) {
             transform = new Affine();
             refined   = new Affine();
-        } else if (m == Align::PERSPECTIVE) {
+        } else if (m == Align::Perspective) {
             transform = new Perspective();
             refined   = new Perspective();
         } else {
@@ -860,21 +860,32 @@ void Align::help() {
            "                  -add -save ab.jpg\n\n");
 }
 
+bool Align::test() {
+    Image a = Load::apply("pics/dog1.jpg");
+    Image b = Rotate::apply(a, 37);
+    b *= 0.9;
+    Image result = Align::apply(a, b, Perspective);
+    Image correct = Rotate::apply(b, -37);
+    result -= correct;
+    Stats s(result);
+    return (nearly_equal(s.mean(), 0) && nearly_equal(s.variance(), 0));
+}
+
 void Align::parse(vector<string> args) {
     assert(args.size() == 1, "-align takes one argument\n");
 
     Image result;
 
     if (args[0] == "translate") {
-        result = apply(stack(1), stack(0), TRANSLATE);
+        result = apply(stack(1), stack(0), Translate);
     } else if (args[0] == "similarity") {
-        result = apply(stack(1), stack(0), SIMILARITY);
+        result = apply(stack(1), stack(0), Similarity);
     } else if (args[0] == "affine") {
-        result = apply(stack(1), stack(0), AFFINE);
+        result = apply(stack(1), stack(0), Affine);
     } else if (args[0] == "rigid") {
-        result = apply(stack(1), stack(0), RIGID);
+        result = apply(stack(1), stack(0), Rigid);
     } else if (args[0] == "perspective") {
-        result = apply(stack(1), stack(0), PERSPECTIVE);
+        result = apply(stack(1), stack(0), Perspective);
     } else {
         panic("Unknown alignment type: %s. Must be translate, rigid, similarity, affine, or perspective.\n", args[0].c_str());
     }
@@ -954,22 +965,29 @@ Image Align::apply(Image a, Image b, Mode m) {
 
 
 void AlignFrames::help() {
+    pprintf("-alignframes uses -align to align all frames in a volume to match.\n"
+	    "\n"
+	    "Usage: ImageStack -loadframes *.jpg -alignframes -downsample 1 1 frames -save average.jpg\n");
+}
 
+bool AlignFrames::test() {
+    // This just calls -align repeatedly
+    return true;
 }
 
 void AlignFrames::parse(vector<string> args) {
     assert(args.size() == 1, "-alignframes takes one argument\n");
 
     if (args[0] == "translate") {
-        apply(stack(0), Align::TRANSLATE);
+        apply(stack(0), Align::Translate);
     } else if (args[0] == "similarity") {
-        apply(stack(0), Align::SIMILARITY);
+        apply(stack(0), Align::Similarity);
     } else if (args[0] == "affine") {
-        apply(stack(0), Align::AFFINE);
+        apply(stack(0), Align::Affine);
     } else if (args[0] == "rigid") {
-        apply(stack(0), Align::RIGID);
+        apply(stack(0), Align::Rigid);
     } else if (args[0] == "perspective") {
-        apply(stack(0), Align::PERSPECTIVE);
+        apply(stack(0), Align::Perspective);
     } else {
         panic("Unknown alignment type: %s. Must be translate, rigid, similarity, affine, or perspective.\n", args[0].c_str());
     }
