@@ -41,7 +41,6 @@ IMAGESTACK_OBJECTS = \
 	Parser.o \
         Plugin.o \
 	Prediction.o \
-	Projection.o \
 	Stack.o \
 	Statistics.o \
 	Wavelet.o \
