@@ -749,12 +749,12 @@ bool KMeans::test() {
     for (int t = 0; t < a.frames; t++) {
 	for (int y = 0; y < a.height; y++) {
 	    for (int x = 0; x < a.width; x++) {
-		float r = a(x, y, t, 0), g = a(x, y, t, 1), b = a(x, y, t, 2);
-		bool ok = ((nearly_equal(r, 1) && nearly_equal(g, 5) && nearly_equal(b, 4)) ||
-			   (nearly_equal(r, 5) && nearly_equal(g, 2) && nearly_equal(b, -4)) ||
-			   (nearly_equal(r, 2) && nearly_equal(g, 2) && nearly_equal(b, 2)));
+		float R = a(x, y, t, 0), G = a(x, y, t, 1), B = a(x, y, t, 2);
+		bool ok = ((nearly_equal(R, 1) && nearly_equal(G, 5) && nearly_equal(B, 4)) ||
+			   (nearly_equal(R, 5) && nearly_equal(G, 2) && nearly_equal(B, -4)) ||
+			   (nearly_equal(R, 2) && nearly_equal(G, 2) && nearly_equal(B, 2)));
 		if (!ok) {
-		    printf("%d %d %f %f %f\n", x, y, r, g, b);
+		    printf("%d %d %f %f %f\n", x, y, R, G, B);
 		    return false;
 		}
 	    }
@@ -805,12 +805,12 @@ void KMeans::apply(Image im, int clusters) {
 	for (int x = 0; x < subset.width; x++) {
 	    float bestDistance = 1e20;
 	    for (int j = 0; j < i; j++) {
-		float distance = 0;
+		float dist = 0;
 		for (int c = 0; c < im.channels; c++) {
 		    float delta = subset(x, 0, 0, c) - cluster[c][j];
-		    distance += delta*delta;
+		    dist += delta*delta;
 		}
-		if (distance < bestDistance) bestDistance = distance;
+		if (dist < bestDistance) bestDistance = dist;
 	    }
 	    distance(x, 0) = bestDistance;
 	    sum += bestDistance;
@@ -861,14 +861,14 @@ void KMeans::apply(Image im, int clusters) {
                     int bestCluster = 0;
                     float bestDistance = 1e10;
                     for (int i = 0; i < clusters; i++) {
-                        float distance = 0;
+                        float dist = 0;
                         for (int c = 0; c < im.channels; c++) {
                             float d = cluster[c][i] - im(x, y, t, c);
-                            distance += d*d;
+                            dist += d*d;
                         }
-                        if (distance < bestDistance) {
+                        if (dist < bestDistance) {
                             bestCluster = i;
-                            bestDistance = distance;
+                            bestDistance = dist;
                         }
                     }
 
@@ -911,14 +911,14 @@ void KMeans::apply(Image im, int clusters) {
                 int bestCluster = 0;
                 float bestDistance = 1e10;
                 for (int i = 0; i < clusters; i++) {
-                    float distance = 0;
+                    float dist = 0;
                     for (int c = 0; c < im.channels; c++) {
                         float d = cluster[c][i] - im(x, y, t, c);
-                        distance += d*d;
+                        dist += d*d;
                     }
-                    if (distance < bestDistance) {
+                    if (dist < bestDistance) {
                         bestCluster = i;
-                        bestDistance = distance;
+                        bestDistance = dist;
                     }
                 }
 

@@ -502,13 +502,13 @@ public:
         for (int j = 0; j <= d; j++) {
             // For each vertex in the lattice,
             for (int i = 0; i < hashTable.size(); i++) { // blur point i in dimension j
-                short *key    = hashTable.getKeys() + i*(d); // keys to current vertex
+		short *currentKey = hashTable.getKeys() + i*(d); // keys to current vertex
                 for (int k = 0; k < d; k++) {
-                    neighbor1[k] = key[k] + 1;
-                    neighbor2[k] = key[k] - 1;
+                    neighbor1[k] = currentKey[k] + 1;
+                    neighbor2[k] = currentKey[k] - 1;
                 }
-                neighbor1[j] = key[j] - d;
-                neighbor2[j] = key[j] + d; // keys to the neighbors along the given axis.
+                neighbor1[j] = currentKey[j] - d;
+                neighbor2[j] = currentKey[j] + d; // keys to the neighbors along the given axis.
 
                 float *oldVal = oldValue + i*vd;
                 float *newVal = newValue + i*vd;

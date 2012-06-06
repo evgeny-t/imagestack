@@ -24,12 +24,12 @@ class PCG {
         float SW;
     };
 public:
-    PCG(Image d, Image gx, Image gy, Image w, Image sx, Image sy)
-        : AW(d.width, d.height, 1, 1),
+    PCG(Image d, Image gx, Image gy, Image w_, Image sx_, Image sy_)
+	: AW(d.width, d.height, 1, 1),
           AN(d.width, d.height, 1, 1),
-          w(w),
-          sx(sx),
-          sy(sy),
+          w(w_),
+          sx(sx_),
+          sy(sy_),
           b(d.width, d.height, 1, d.channels),
           f(d.width, d.height, 1, d.channels),
           hbRes(d.width, d.height, 1, d.channels),
@@ -271,11 +271,13 @@ void PCG::constructPreconditioner() {
         vector< float > AD_old; // retain old values of AD
 
         //printf("dn1 %d, dn2 %d\n", dn1, dn2);
-        S_elems elems;// = {0, 0, 0, 0};
+
         // on this level, we use the indices in index_map[k]
         for (vector<unsigned int>::iterator idx = index_map[k].begin();
              idx != index_map[k].end(); ++idx) {
             //int x, y, x1, y1;// x2, y2;
+
+	    S_elems elems;
 
             ind2xy(*idx, x, y);
 
@@ -724,15 +726,18 @@ Image PCG::hbPrecondition(Image r) {
 }
 
 // compute dot product
-float PCG::dot(Image a, Image b) {
-    assert(a.frames == b.frames && a.height == b.height && a.width == b.width && a.channels == b.channels,
+float PCG::dot(Image im1, Image im2) {
+    assert(im1.frames == im2.frames &&
+	   im1.height == im2.height &&
+	   im1.width == im2.width && 
+	   im1.channels == im2.channels,
            "a and b need to be the same size\n");
     double result = 0;
-    for (int t = 0; t < a.frames; t++) {
-        for (int y = 0; y < a.height; y++) {
-            for (int x = 0; x < a.width; x++) {
-                for (int c = 0; c < a.channels; c++) {
-                    result += a(x,y,t,c)*b(x,y,t,c);
+    for (int t = 0; t < im1.frames; t++) {
+        for (int y = 0; y < im1.height; y++) {
+            for (int x = 0; x < im1.width; x++) {
+                for (int c = 0; c < im1.channels; c++) {
+                    result += im1(x,y,t,c)*im2(x,y,t,c);
                 }
             }
         }

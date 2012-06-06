@@ -5,6 +5,7 @@
 class Haar : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im, int times = -1);
 };
@@ -12,6 +13,7 @@ public:
 class InverseHaar : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im, int times = -1);
 };
@@ -19,6 +21,7 @@ public:
 class Daubechies : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im);
 };
@@ -26,6 +29,7 @@ public:
 class InverseDaubechies : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im);
 };

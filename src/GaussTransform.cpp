@@ -260,19 +260,21 @@ Image GaussTransform::apply(Image slice, Image splat, Image values,
 	// The gkdtree requires channels to be densely packed
 	vector<float> ref(splat.channels*splat.width*splat.height*splat.frames);
         vector<float *> points(splat.width*splat.height*splat.frames);
-	int i = 0;
-        for (int t = 0; t < splat.frames; t++) {            
-	    for (int y = 0; y < splat.height; y++) {
-		for (int x = 0; x < splat.width; x++) {	      
-		    float *ptr = &ref[i*splat.channels];
-		    for (int c = 0; c < splat.channels; c++) {
-			ptr[c] = invSigma[c] * splat(x, y, t, c);
+	{
+	    int i = 0;
+	    for (int t = 0; t < splat.frames; t++) {            
+		for (int y = 0; y < splat.height; y++) {
+		    for (int x = 0; x < splat.width; x++) {	      
+			float *ptr = &ref[i*splat.channels];
+			for (int c = 0; c < splat.channels; c++) {
+			    ptr[c] = invSigma[c] * splat(x, y, t, c);
+			}
+			points[i] = ptr;
+			i++;
 		    }
-		    points[i] = ptr;
-		    i++;
-                }
-            }
-        }  
+		}
+	    }  
+	}
 
         GKDTree tree(splat.channels, &points[0], points.size(), 2*0.707107);
 
@@ -493,16 +495,11 @@ void JointBilateral::apply(Image im, Image ref,
 
         Image out(im.width, im.height, im.frames, im.channels);
 
-        // make the spatial filter
-        int filterSizeT = (int)(filterFrames * 6 + 1) | 1;
-        int filterSizeX = (int)(filterWidth * 6 + 1) | 1;
-        int filterSizeY = (int)(filterHeight * 6 + 1) | 1;
-
         Image filter(filterSizeX, filterSizeY, filterSizeT, 1);
 
         for (int t = 0; t < filter.frames; t++) {
-            for (int y = 0; y < filter.height; y++) {
-                for (int x = 0; x < filter.width; x++) {
+	    for (int y = 0; y < filter.height; y++) {
+		for (int x = 0; x < filter.width; x++) {
                     float dt = (t - filter.frames / 2) / filterFrames;
                     float dx = (x - filter.width / 2) / filterWidth;
                     float dy = (y - filter.height / 2) / filterHeight;
@@ -602,32 +599,34 @@ void JointBilateral::apply(Image im, Image ref,
 	    }
 	}
     }
-    int c = ref.channels;
-    if (filterX) {
-	for (int t = 0; t < im.frames; t++) {
-	    for (int y = 0; y < im.height; y++) {
-		for (int x = 0; x < im.width; x++) {
-		    splat(x, y, t, c) = x * invSigmaX;
+    {
+	int c = ref.channels;
+	if (filterX) {
+	    for (int t = 0; t < im.frames; t++) {
+		for (int y = 0; y < im.height; y++) {
+		    for (int x = 0; x < im.width; x++) {
+			splat(x, y, t, c) = x * invSigmaX;
+		    }
 		}
 	    }
+	    c++;
 	}
-	c++;
-    }
-    if (filterY) {
-	for (int t = 0; t < im.frames; t++) {
-	    for (int y = 0; y < im.height; y++) {
-		for (int x = 0; x < im.width; x++) {
-		    splat(x, y, t, c) = y * invSigmaY;
+	if (filterY) {
+	    for (int t = 0; t < im.frames; t++) {
+		for (int y = 0; y < im.height; y++) {
+		    for (int x = 0; x < im.width; x++) {
+			splat(x, y, t, c) = y * invSigmaY;
+		    }
 		}
 	    }
+	    c++;
 	}
-	c++;
-    }
-    if (filterT) {
-	for (int t = 0; t < im.frames; t++) {
-	    for (int y = 0; y < im.height; y++) {
-		for (int x = 0; x < im.width; x++) {
-		    splat(x, y, t, c) = t * invSigmaT;
+	if (filterT) {
+	    for (int t = 0; t < im.frames; t++) {
+		for (int y = 0; y < im.height; y++) {
+		    for (int x = 0; x < im.width; x++) {
+			splat(x, y, t, c) = t * invSigmaT;
+		    }
 		}
 	    }
 	}
