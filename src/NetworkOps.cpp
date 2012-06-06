@@ -27,29 +27,30 @@ bool Send::test() {
 }
 #else
 
-namespace Send_test {
-    int port;
-    Image image;
-    int thread(void *) {
-	Send::apply(image, "localhost", port);
+// An anonymous namespace confines these globals to this translation unit
+namespace {
+    int Send_test_port;
+    Image Send_test_image;
+    int Send_test_thread(void *) {
+	Send::apply(Send_test_image, "localhost", Send_test_port);
 	return 0;
     }
 }
 
 bool Send::test() {
-    Send_test::image = Image(123, 234, 5, 2);
-    Noise::apply(Send_test::image, 0, 1);
+    Send_test_image = Image(123, 234, 5, 2);
+    Noise::apply(Send_test_image, 0, 1);
 
-    Send_test::port = randomInt(10000, 15000);
+    Send_test_port = randomInt(10000, 15000);
 
     // Create a child thread to send myself an image
-    SDL_Thread *thread = SDL_CreateThread(Send_test::thread, NULL);
+    SDL_Thread *thread = SDL_CreateThread(Send_test_thread, NULL);
 
     // Wait to receive it
-    Image im = Receive::apply(Send_test::port);
+    Image im = Receive::apply(Send_test_port);
 
     // Check it's identical to a    
-    im -= Send_test::image;
+    im -= Send_test_image;
     Stats s(im);
 
     // Wait for the thread to terminate
