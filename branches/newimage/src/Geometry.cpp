@@ -563,13 +563,13 @@ void Rotate::help() {
 
 bool Rotate::test() {
     Image a(12, 13, 3, 2);
-    Noise::apply(a, 4, 10);
+    Noise::apply(a, 4, 5);
     a = Resample::apply(a, 48, 52, 3);
     Image b = Rotate::apply(a, 70);
     b = Rotate::apply(b, 20);
     b = Rotate::apply(b, 80);
     b = Rotate::apply(b, 10);
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 100; i++) {
         int x = randomInt(10, a.width-11);
         int y = randomInt(10, a.height-11);
         int t = randomInt(0, a.frames-1);
