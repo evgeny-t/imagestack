@@ -260,7 +260,7 @@ void DisplayWindow::show() {
     }
 }
 
-int threadFunc(void *data) {
+int DisplayWindow_showAsync_thread(void *data) {
     DisplayWindow::instance().show();
     return 0;
 }
@@ -268,7 +268,7 @@ int threadFunc(void *data) {
 void DisplayWindow::showAsync() {
     if (thread) { return; }
     terminate = false;
-    thread = SDL_CreateThread(threadFunc, NULL);
+    thread = SDL_CreateThread(DisplayWindow_showAsync_thread, NULL);
 }
 
 bool DisplayWindow::update() {
