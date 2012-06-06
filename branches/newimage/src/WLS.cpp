@@ -21,7 +21,7 @@ void WLS::help() {
 }
 
 bool WLS::test() {
-    // make a synthetic noisy image with an edge
+    // Make a synthetic noisy image with an edge
     Image a(400, 300, 1, 3);
     for (int y = 0; y < 300; y++) {
 	for (int x = 0; x < 300; x++) {
