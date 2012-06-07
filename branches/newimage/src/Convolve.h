@@ -8,6 +8,7 @@
 class Convolve : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
 
     enum BoundaryCondition {Zero = 0, Homogeneous, Clamp, Wrap};

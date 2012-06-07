@@ -4,6 +4,7 @@
 #include "Geometry.h"
 #include "DFT.h"
 #include "File.h"
+#include "Statistics.h"
 #include "header.h"
 
 void Convolve::help() {
@@ -40,6 +41,23 @@ void Convolve::help() {
             " ImageStack -load a.tga -convolve 2 1 1  -1 1 zero -save dx.tga\n"
             "Convolving by a bank of filters: \n"
             " ImageStack -load bank.tmp -load a.tga -convolve homogeneous outer\n");
+}
+
+void f(std::string) {
+}
+
+bool Convolve::test() {
+    Image impulse(32, 32, 32, 2);
+    impulse(15, 15, 15, 0) = 1;
+    impulse(15, 15, 15, 1) = 2;
+    Image kernel(5, 5, 5, 4);
+    Noise::apply(kernel, 0, 1);
+    Image correct(5, 5, 5, 2);
+    correct.channel(0) = 1*kernel.channel(0) + 2.0f*kernel.channel(1);
+    correct.channel(1) = 1*kernel.channel(2) + 2*kernel.channel(3);
+    Image result = Convolve::apply(impulse, kernel, Zero, Multiply::Inner);
+
+    return false;
 }
 
 void Convolve::parse(vector<string> args) {

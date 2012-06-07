@@ -1,6 +1,8 @@
 #ifndef IMAGESTACK_IMAGE_H
 #define IMAGESTACK_IMAGE_H
 
+#include "Func.h"
+
 #include "tables.h"
 #include "header.h"
 
@@ -45,7 +47,7 @@ class Image {
         return (base + c*cstride + t*tstride + y*ystride)[x];
     }
 
-    float *baseAddress() {
+    float *baseAddress() const {
         return base;
     }
 
@@ -72,41 +74,56 @@ class Image {
 	}
     }
 
-    void copyTo(Image other) {
+    void copyTo(Image other) const {
 	other.copyFrom(*this);
     }
 
     Image region(int x, int y, int t, int c,
-		 int xs, int ys, int ts, int cs) {
+		 int xs, int ys, int ts, int cs) const {
         return Image(*this, x, y, t, c, xs, ys, ts, cs);
     }
 
-    Image column(int x) {
+    Image column(int x) const {
         return region(x, 0, 0, 0, 1, height, frames, channels);
     }
 
-    Image row(int y) {
+    Image row(int y) const {
         return region(0, y, 0, 0, width, 1, frames, channels);
     }
 
-    Image frame(int t) {
+    Image frame(int t) const {
         return region(0, 0, t, 0, width, height, 1, channels);
     }
     
-    Image channel(int c) {
+    Image channel(int c) const {
         return region(0, 0, 0, c, width, height, frames, 1);
     }
 
-    bool dense() {
+    bool dense() const {
         return (cstride == width*height*frames && tstride == width*height && ystride == width);
     }
+   
 
-    operator bool() {
-        return (base != NULL);
+    bool defined() const {
+	return base != NULL;
     }
 
+    bool operator==(const Image &other) {
+	return (base == other.base &&
+		ystride == other.ystride &&
+		tstride == other.tstride &&
+		cstride == other.cstride &&
+		width == other.width &&
+		height == other.height &&
+		frames == other.frames &&
+		channels == other.channels);
+    }
 
-    void operator+=(float f) {
+    bool operator!=(const Image &other) {
+	return !(*this == other);
+    }
+
+    void operator+=(const float f) {
 	for (int c = 0; c < channels; c++) {
 	    for (int t = 0; t < frames; t++) {
 		for (int y = 0; y < height; y++) {
@@ -118,7 +135,7 @@ class Image {
 	}
     }
 
-    void operator*=(float f) {
+    void operator*=(const float f) {
 	for (int c = 0; c < channels; c++) {
 	    for (int t = 0; t < frames; t++) {
 		for (int y = 0; y < height; y++) {
@@ -130,51 +147,43 @@ class Image {
 	}
     }
 
-    void operator-=(float f) {
+    void operator-=(const float f) {
 	(*this) += -f;
     }
 
-    void operator/=(float f) {
+    void operator/=(const float f) {
 	(*this) *= 1.0f/f;
     }
 
-    void operator=(float f) {
-	for (int c = 0; c < channels; c++) {
-	    for (int t = 0; t < frames; t++) {
-		for (int y = 0; y < height; y++) {
-		    for (int x = 0; x < width; x++) {
-			(*this)(x, y, t, c) = f;
-		    }
-		}
-	    }
-	}
+    void operator=(const float f) {
+	(*this) = Const(f);
     }
 
-    void operator+=(vector<float> f) {	
+    void operator+=(const vector<float> f) {	
 	for (int c = 0; c < channels; c++) {
 	    channel(c) += f[c % f.size()];
 	}
     }
 
-    void operator*=(vector<float> f) {
+    void operator*=(const vector<float> f) {
 	for (int c = 0; c < channels; c++) {
 	    channel(c) *= f[c % f.size()];
 	}
     }
 
-    void operator-=(vector<float> f) {	
+    void operator-=(const vector<float> f) {	
 	for (int c = 0; c < channels; c++) {
 	    channel(c) -= f[c % f.size()];
 	}
     }
 
-    void operator/=(vector<float> f) {
+    void operator/=(const vector<float> f) {
 	for (int c = 0; c < channels; c++) {
 	    channel(c) /= f[c % f.size()];
 	}
     }
 
-    void operator=(vector<float> f) {
+    void operator=(const vector<float> f) {
 	for (int c = 0; c < channels; c++) {
 	    channel(c) = f[c % f.size()];
 	}
@@ -507,6 +516,28 @@ class Image {
 
     }
 
+    // Evaluate a function-like object defined in Func.h
+    // The second template argument prevents instantiations from
+    // things that don't have a nested ::Func type
+
+
+
+    template<typename T, typename Enable = typename T::Func>
+    void operator=(const T func) {
+	const typename T::Func &f = func;
+	for (int c = 0; c < channels; c++) {
+	    for (int t = 0; t < frames; t++) {
+		for (int y = 0; y < height; y++) {
+		    for (int x = 0; x < width; x++) {
+			(*this)(x, y, t, c) = f(x, y, t, c);
+		    }
+		}
+	    }
+	}
+    }
+    // An image itself is one such function-like thing
+    typedef Image Func;
+    
     void operator=(const Image &other) {
 	const_cast<int *>(&width)[0] = other.width;
 	const_cast<int *>(&height)[0] = other.height;
@@ -518,6 +549,7 @@ class Image {
 	const_cast<float **>(&base)[0] = other.base;
 	const_cast<std::shared_ptr<std::vector<float> > *>(&data)[0] = other.data;
     }
+    
 
   private:
 
