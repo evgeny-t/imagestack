@@ -156,7 +156,7 @@ class Image {
     }
 
     void operator=(const float f) {
-	(*this) = Const(f);
+	(*this) = ImageStack::Func::Const(f);
     }
 
     void operator+=(const vector<float> f) {	
@@ -189,6 +189,28 @@ class Image {
 	}
     }
 
+    template<typename T, typename Enable = typename T::Func>
+    void operator+=(const T other) {
+	if (other.bounded()) {
+	    assert(width == other.getWidth() &&
+		   height == other.getHeight() &&
+		   frames == other.getFrames() &&
+		   channels == other.getChannels(), 
+		   "Can only add images of matching size\n");
+	}
+	for (int c = 0; c < channels; c++) {
+	    for (int t = 0; t < frames; t++) {
+		for (int y = 0; y < height; y++) {
+		    for (int x = 0; x < width; x++) {
+			(*this)(x, y, t, c) += other(x, y, t, c);
+		    }
+		}
+	    }
+	}
+	
+    }
+
+    /*
     void operator+=(const Image other) {
 	assert(other.width == width &&
 	       other.height == height &&
@@ -207,6 +229,7 @@ class Image {
 	    }
 	}
     }
+    */
 
     void operator*=(const Image other) {
 	assert(other.width == width &&
@@ -519,17 +542,30 @@ class Image {
     // Evaluate a function-like object defined in Func.h
     // The second template argument prevents instantiations from
     // things that don't have a nested ::Func type
-
-
-
     template<typename T, typename Enable = typename T::Func>
     void operator=(const T func) {
-	const typename T::Func &f = func;
+	if (func.bounded()) {
+	    int w = func.getWidth(), h = func.getHeight(),
+		f = func.getFrames(), c = func.getChannels();
+	    if (defined()) {
+		assert(width == w &&
+		       height == h &&
+		       frames == f &&
+		       channels == c,
+		       "Can only assign from source of matching size\n");
+	    } else {
+		(*this) = Image(w, h, f, c);
+	    }	    
+	} else {
+	    assert(defined(),
+		   "Can't assign unbounded expression to undefined image\n");
+	}
+
 	for (int c = 0; c < channels; c++) {
 	    for (int t = 0; t < frames; t++) {
 		for (int y = 0; y < height; y++) {
 		    for (int x = 0; x < width; x++) {
-			(*this)(x, y, t, c) = f(x, y, t, c);
+			(*this)(x, y, t, c) = func(x, y, t, c);
 		    }
 		}
 	    }
@@ -537,8 +573,21 @@ class Image {
     }
     // An image itself is one such function-like thing
     typedef Image Func;
-    
+    bool bounded() const {return true;}
+    int getWidth() const {return width;}
+    int getHeight() const {return height;}
+    int getFrames() const {return frames;}
+    int getChannels() const {return channels;}
+
+    // Construct an image from a function-like thing
+    template<typename T, typename Enable = typename T::Func>    
+    Image(const T func) {
+	assert(bounded(), "Can only construct an image from a bounded expression\n");
+	(*this) = func;
+    }
+
     void operator=(const Image &other) {
+	//assert(!defined(), "Can't assign to an already-defined image\n");
 	const_cast<int *>(&width)[0] = other.width;
 	const_cast<int *>(&height)[0] = other.height;
 	const_cast<int *>(&frames)[0] = other.frames;

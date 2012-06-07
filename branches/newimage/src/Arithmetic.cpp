@@ -133,76 +133,39 @@ Image Multiply::apply(const Image a, const Image b, Mode m) {
 
     Image out;
 
-    // This code is written on the assumption that this op will be
-    // memory-bandwidth limited so too much optimization is foolish
-
     if (b.channels == 1) { // scalar-vector case
         out = Image(a.width, a.height, a.frames, a.channels);
 
 	for (int c = 0; c < a.channels; c++) {
-	    for (int t = 0; t < a.frames; t++) {
-		for (int y = 0; y < a.height; y++) {
-		    for (int x = 0; x < a.width; x++) {
-			out(x, y, t, c) = a(x, y, t, c) * b(x, y, t, 0);
-                    }
-                }
-            }
+	    out.channel(c) = a.channel(c) * b;
         }
 
     } else if (m == Elementwise) {
         out = Image(a.width, a.height, a.frames, a.channels);
         if (a.channels == b.channels) {
-	    for (int c = 0; c < a.channels; c++) {		
-		for (int t = 0; t < a.frames; t++) {
-		    for (int y = 0; y < a.height; y++) {
-			for (int x = 0; x < a.width; x++) {
-                            out(x, y, t, c) = a(x, y, t, c) * b(x, y, t, c);
-                        }
-                    }
-                }
-            }
+	    out = a * b;
         } else {
             int factor = a.channels / b.channels;
 	    int oc = 0;
 	    for (int c = 0; c < factor; c++) {
 		for (int bc = 0; bc < b.channels; bc++) {		    
-		    for (int t = 0; t < a.frames; t++) {
-			for (int y = 0; y < a.height; y++) {
-			    for (int x = 0; x < a.width; x++) {
-                                out(x, y, t, oc) = a(x, y, t, oc) * b(x, y, t, bc);
-                            }
-                        }
-                    }
-		    oc++;				
+		    out.channel(oc) = a.channel(oc) * b.channel(bc);
+		    oc++;
                 }
-            }
-
+            }	    
         }
     } else if (m == Inner) {
         out = Image(a.width, a.height, a.frames, a.channels/b.channels);
         if (a.channels == b.channels) {
 	    for (int c = 0; c < a.channels; c++) {
-		for (int t = 0; t < a.frames; t++) {
-		    for (int y = 0; y < a.height; y++) {
-			for (int x = 0; x < a.width; x++) {
-			    out(x, y, t, 0) += a(x, y, t, c) * b(x, y, t, c);
-			}
-                    }
-                }
+		out += a.channel(c) * b.channel(c);
             }
         } else {
             int factor = a.channels / b.channels;
 	    int ac = 0;
 	    for (int oc = 0; oc < factor; oc++) {
 		for (int bc = 0; bc < b.channels; bc++) {
-		    for (int t = 0; t < a.frames; t++) {
-			for (int y = 0; y < a.height; y++) {
-			    for (int x = 0; x < a.width; x++) {
-                                out(x, y, t, oc) += a(x, y, t, ac) * b(x, y, t, bc);
-                            }
-                        }
-                    }
-		    ac++;
+		    out.channel(oc) += a.channel(ac++) * b.channel(bc);
                 }
             }
         }
@@ -211,14 +174,7 @@ Image Multiply::apply(const Image a, const Image b, Mode m) {
 	int oc = 0;
 	for (int ac = 0; ac < a.channels; ac++) {
 	    for (int bc = 0; bc < b.channels; bc++) {
-		for (int t = 0; t < a.frames; t++) {
-		    for (int y = 0; y < a.height; y++) {
-			for (int x = 0; x < a.width; x++) {
-                            out(x, y, t, oc) = a(x, y, t, ac) * b(x, y, t, bc);
-                        }
-                    }
-                }
-		oc++;
+		out.channel(oc++) = a.channel(ac) * b.channel(bc);
             }
         }
     } else {
@@ -777,17 +733,7 @@ void Normalize::apply(Image a) {
         }
     }    
 
-    float invDelta = 1.0f/(maxValue - minValue);
-    for (int c = 0; c < a.channels; c++) {		    
-	for (int t = 0; t < a.frames; t++) {
-	    for (int y = 0; y < a.height; y++) {
-		for (int x = 0; x < a.width; x++) {
-                    a(x, y, t, c) -= minValue;
-                    a(x, y, t, c) *= invDelta;
-                }
-            }
-        }
-    }
+    a = (a - minValue)/(maxValue - minValue);
 }
 
 
