@@ -43,9 +43,6 @@ void Convolve::help() {
             " ImageStack -load bank.tmp -load a.tga -convolve homogeneous outer\n");
 }
 
-void f(std::string) {
-}
-
 bool Convolve::test() {
     Image impulse(32, 32, 32, 2);
     impulse(15, 15, 15, 0) = 1;
@@ -53,7 +50,7 @@ bool Convolve::test() {
     Image kernel(5, 5, 5, 4);
     Noise::apply(kernel, 0, 1);
     Image correct(5, 5, 5, 2);
-    correct.channel(0) = 1*kernel.channel(0) + 2.0f*kernel.channel(1);
+    correct.channel(0) = 1*kernel.channel(0) + 2*kernel.channel(1);
     correct.channel(1) = 1*kernel.channel(2) + 2*kernel.channel(3);
     Image result = Convolve::apply(impulse, kernel, Zero, Multiply::Inner);
 

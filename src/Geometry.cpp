@@ -676,22 +676,28 @@ bool Crop::test() {
     Noise::apply(a, 0, 1);
 
     // within
-    Image b = Crop::apply(a, 2, 3, 4, 100, 200, 30);
-    b -= a.region(2, 3, 4, 0, 100, 200, 30, 2);
-    Stats sb(b);
-    if (sb.mean() != 0 || sb.variance() != 0) return false;
-    
+    {
+	Image b = Crop::apply(a, 2, 3, 4, 100, 200, 30);
+	b -= a.region(2, 3, 4, 0, 100, 200, 30, 2);
+	Stats sb(b);
+	if (sb.mean() != 0 || sb.variance() != 0) return false;
+    }
+
     // off the top left
-     b = Crop::apply(a, -5, -5, -5, 100, 200, 30);
-    b.region(5, 5, 5, 0, 100-5, 200-5, 30-5, 2) -= a.region(0, 0, 0, 0, 100-5, 200-5, 30-5, 2);
-    sb = Stats(b);
-    if (sb.mean() != 0 || sb.variance() != 0) return false;
+    {
+	Image b = Crop::apply(a, -5, -5, -5, 100, 200, 30);
+	b.region(5, 5, 5, 0, 100-5, 200-5, 30-5, 2) -= a.region(0, 0, 0, 0, 100-5, 200-5, 30-5, 2);
+	Stats sb(b);
+	if (sb.mean() != 0 || sb.variance() != 0) return false;
+    }
 
     // bottom right
-    b = Crop::apply(a, 50, 50, 10, 100, 200, 40);
-    b.region(0, 0, 0, 0, 123-50, 234-50, 43-10, 2) -= a.region(50, 50, 10, 0, 123-50, 234-50, 43-10, 2);
-    sb = Stats(b);
-    if (sb.mean() != 0 || sb.variance() != 0) return false;
+    {
+	Image b = Crop::apply(a, 50, 50, 10, 100, 200, 40);
+	b.region(0, 0, 0, 0, 123-50, 234-50, 43-10, 2) -= a.region(50, 50, 10, 0, 123-50, 234-50, 43-10, 2);
+	Stats sb(b);
+	if (sb.mean() != 0 || sb.variance() != 0) return false;
+    }
 
     return true;
 }
