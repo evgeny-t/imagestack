@@ -531,7 +531,7 @@ Image FFTPoisson::apply(Image dx, Image dy, Image target, float targetStrength) 
            dx.frames == dy.frames &&
            dx.channels == dy.channels,
            "x gradient must be same size as y gradient\n");
-    if (target) {
+    if (target.defined()) {
         assert(target.width == dx.width &&
                target.height == dx.height &&
                target.frames == dx.frames &&
@@ -578,7 +578,7 @@ Image FFTPoisson::apply(Image dx, Image dy, Image target, float targetStrength) 
                         dcMult *= 2.0f;
                     }
 
-                    if (target) {
+                    if (target.defined()) {
                         dcSum += dcMult * target(x, y, t, c);
                     } else {
                         // try to read the dc term out of the double
@@ -589,7 +589,7 @@ Image FFTPoisson::apply(Image dx, Image dy, Image target, float targetStrength) 
                     }
 
 
-                    if (target) {
+                    if (target.defined()) {
                         fftBuff(x, y) = targetStrength * target(x, y, t, c);
                     } else {
                         fftBuff(x, y) = 0;

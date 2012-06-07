@@ -61,7 +61,7 @@ Image PatchMatch::apply(Image source, Image target, int iterations, int patchSiz
 
 Image PatchMatch::apply(Image source, Image target, Image mask, int iterations, int patchSize) {
 
-    if (mask) {
+    if (mask.defined()) {
         assert(target.width == mask.width &&
                target.height == mask.height &&
                target.frames == mask.frames,
@@ -275,7 +275,7 @@ float PatchMatch::distance(Image source, Image target, Image mask,
     for (int c = 0; c < target.channels; c++) {
 	for (int y = y1; y <= y2; y++) {	   	
 	    for (int x = x1; x <= x2; x++) {
-		float w = mask ? mask(tx+x, ty+y, tt, 0) : 1;
+		float w = mask.defined() ? mask(tx+x, ty+y, tt, 0) : 1;
 		assert(w >= 0, "Negative w %f\n", w);
 		
 		float delta = source(sx+x, sy+y, st, c) - target(tx+x, ty+y, tt, c);
@@ -362,11 +362,11 @@ void BidirectionalSimilarity::apply(Image source, Image target,
 
         Image smallSourceMask;
         Image smallTargetMask;
-        if (sourceMask) {
+        if (sourceMask.defined()) {
             smallSourceMask = Downsample::apply(sourceMask, 2, 2, 1);
         }
 
-        if (targetMask) {
+        if (targetMask.defined()) {
             smallTargetMask = Downsample::apply(targetMask, 2, 2, 1);
         }
 
@@ -374,7 +374,7 @@ void BidirectionalSimilarity::apply(Image source, Image target,
 
         Image newTarget = Resample::apply(smallTarget, target.width, target.height, target.frames);
 
-        if (targetMask) {
+        if (targetMask.defined()) {
             Composite::apply(target, newTarget, targetMask);
         } else {
 	    newTarget = target.copy();
@@ -402,14 +402,14 @@ void BidirectionalSimilarity::apply(Image source, Image target,
                 for (int y = 0; y < source.height; y++) {
                     for (int x = 0; x < source.width; x++) {
 
-                        if (!sourceMask || sourceMask(x, y, t, 0) > 0) {
+                        if (!(sourceMask.defined()) || sourceMask(x, y, t, 0) > 0) {
 
                             int dstX = (int)completeMatch(x, y, t, 0);
                             int dstY = (int)completeMatch(x, y, t, 1);
                             int dstT = (int)completeMatch(x, y, t, 2);
                             float weight = 1.0f/(completeMatch(x, y, t, 3) + 1);
 
-                            if (sourceMask) { weight *= sourceMask(x, y, t, 0); }
+                            if (sourceMask.defined()) { weight *= sourceMask(x, y, t, 0); }
 
                             for (int dy = -patchSize/2; dy <= patchSize/2; dy++) {
                                 if (y+dy < 0) { continue; }
@@ -439,14 +439,14 @@ void BidirectionalSimilarity::apply(Image source, Image target,
                 for (int y = 0; y < target.height; y++) {
                     for (int x = 0; x < target.width; x++) {
 
-                        if (!targetMask || targetMask(x, y, t, 0) > 0) {
+                        if (!targetMask.defined() || targetMask(x, y, t, 0) > 0) {
 
                             int dstX = (int)coherentMatch(x, y, t, 0);
                             int dstY = (int)coherentMatch(x, y, t, 1);
                             int dstT = (int)coherentMatch(x, y, t, 2);
                             float weight = 1.0f/(coherentMatch(x, y, t, 3)+1);
 
-                            if (targetMask) { weight *= targetMask(x, y, t, 0); }
+                            if (targetMask.defined()) { weight *= targetMask(x, y, t, 0); }
 
                             for (int dy = -patchSize/2; dy <= patchSize/2; dy++) {
                                 if (y+dy < 0) { continue; }
@@ -472,7 +472,7 @@ void BidirectionalSimilarity::apply(Image source, Image target,
                 for (int x = 0; x < out.width; x++) {
                     float w = 1.0f/(out(x, y, t, target.channels));
                     float a = 1;
-                    if (targetMask) {
+                    if (targetMask.defined()) {
                         a = targetMask(x, y, t, 0);
                     }
                     if (a == 1) {

@@ -28,6 +28,10 @@ void Deconvolve::help() {
 
 }
 
+bool Deconvolve::test() {
+    return false;
+}
+
 void Deconvolve::parse(vector<string> args) {
     assert(args.size() >= 1, "-deconvolve takes at least one argument\n");
     Image kernel = stack(0);
