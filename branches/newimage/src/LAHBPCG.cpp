@@ -657,7 +657,9 @@ Image PCG::hbPrecondition(Image r) {
     }
 
     // invert the diagonal
-    hbRes /= AD;
+    for (int c = 0; c < hbRes.channels; c++) {
+	hbRes.channel(c) /= AD;
+    }
 
     // lowest level is identity matrix so it's ignored (not even stored in index_map)
     for (int k = (int) index_map.size() - 1; k >= 0; k--) {

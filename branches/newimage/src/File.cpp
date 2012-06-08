@@ -107,7 +107,7 @@ Image LoadFrames::apply(vector<string> args) {
     Image im = Load::apply(args[0]);
     assert(im.frames == 1, "-loadframes can only load many single frame images\n");
     Image result(im.width, im.height, (int)args.size(), im.channels);
-    result.frame(0).copyFrom(im);
+    result.frame(0).set(im);
 
     for (size_t i = 1; i < args.size(); i++) {
         im = Load::apply(args[i]);
@@ -117,7 +117,7 @@ Image LoadFrames::apply(vector<string> args) {
                (im.height == result.height) &&
                (im.channels == result.channels),
                "-loadframes can only load file sequences of matching width, height, and channel count\n");
-	result.frame(i).copyFrom(im);
+	result.frame(i).set(im);
     }
 
     return result;
@@ -141,7 +141,7 @@ Image LoadChannels::apply(vector<string> args) {
     Image im = Load::apply(args[0]);
     assert(im.channels == 1, "-loadchannels can only load many single channel images\n");
     Image result(im.width, im.height, im.frames, (int)args.size());
-    result.channel(0).copyFrom(im);
+    result.channel(0).set(im);
 
     for (size_t i = 1; i < args.size(); i++) {
 	im = Load::apply(args[i+1]);
@@ -151,7 +151,7 @@ Image LoadChannels::apply(vector<string> args) {
 	       (im.height == result.height) &&
 	       (im.frames == result.frames),
 	       "-loadchannels can only load file sequences of matching size\n");
-	result.channel(i).copyFrom(im);
+	result.channel(i).set(im);
     }
 
     return result;

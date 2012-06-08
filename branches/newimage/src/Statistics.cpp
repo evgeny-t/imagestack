@@ -164,11 +164,10 @@ void Statistics::help() {
 }
 
 bool Statistics::test() {
-    Image a(160, 300, 30, 2);    
 
     // You get 10 tries to pass the statistical tests
     for (int i = 0; i < 10; i++) {
-	a = 0;
+	Image a(160, 300, 30, 2);    
 	Noise::apply(a, 0, 10);
 	Noise::apply(a, 0, 10);
 	// We now expect a to have certain statistical properties. Let's check them.
@@ -470,7 +469,7 @@ void Equalize::help() {
 
 bool Equalize::test() {
     Image a(123, 346, 10, 3);
-    a.row(17) = 5000;
+    a.row(17).set(5000);
     Noise::apply(a, -3, 16);
     Noise::apply(a, 50, 80);
     Noise::apply(a, -99, 160);
@@ -1608,10 +1607,7 @@ bool PCA::test() {
     // construct an image that roughly lies in a 2d subspace
     Image a(1000, 1000, 1, 3);
     Noise::apply(a, -1, 1);
-    a.channel(2) = 0;
-    a.channel(2) *= a.channel(1);
-    a.channel(2) *= 4;
-    a.channel(2) -= a.channel(0);
+    a.channel(2).set(a.channel(1)*4 - a.channel(0));
     Noise::apply(a, -0.01, 0.01);
 
     // PCA-reduce it to 2d

@@ -19,7 +19,13 @@ bool Add::test() {
 
 void Add::parse(vector<string> args) {
     assert(args.size() == 0, "-add takes no arguments\n");
-    stack(0) += stack(1);
+    if (stack(1).channels > 1) {
+	stack(0) += stack(1);
+    } else {
+	for (int c = 0; c < stack(0).channels; c++) {
+	    stack(1).channel(c) += stack(1);
+	}
+    }
     pull(1);
     pop();
 }
@@ -137,19 +143,19 @@ Image Multiply::apply(const Image a, const Image b, Mode m) {
         out = Image(a.width, a.height, a.frames, a.channels);
 
 	for (int c = 0; c < a.channels; c++) {
-	    out.channel(c) = a.channel(c) * b;
+	    out.channel(c).set(a.channel(c) * b);
         }
 
     } else if (m == Elementwise) {
         out = Image(a.width, a.height, a.frames, a.channels);
         if (a.channels == b.channels) {
-	    out = a * b;
+	    out.set(a * b);
         } else {
             int factor = a.channels / b.channels;
 	    int oc = 0;
 	    for (int c = 0; c < factor; c++) {
 		for (int bc = 0; bc < b.channels; bc++) {		    
-		    out.channel(oc) = a.channel(oc) * b.channel(bc);
+		    out.channel(oc).set(a.channel(oc) * b.channel(bc));
 		    oc++;
                 }
             }	    
@@ -174,7 +180,7 @@ Image Multiply::apply(const Image a, const Image b, Mode m) {
 	int oc = 0;
 	for (int ac = 0; ac < a.channels; ac++) {
 	    for (int bc = 0; bc < b.channels; bc++) {
-		out.channel(oc++) = a.channel(ac) * b.channel(bc);
+		out.channel(oc++).set(a.channel(ac) * b.channel(bc));
             }
         }
     } else {
@@ -201,7 +207,13 @@ bool Subtract::test() {
 
 void Subtract::parse(vector<string> args) {
     assert(args.size() == 0, "-subtract takes no arguments\n");
-    stack(0) -= stack(1);
+    if (stack(1).channels > 0) {
+	stack(0) -= stack(1);
+    } else {
+	for (int c = 0; c < stack(0).channels; c++) {
+	    stack(0).channel(c) -= stack(1);
+	}
+    }
     pull(1);
     pop();
 }
@@ -216,13 +228,20 @@ bool Divide::test() {
     Noise::apply(a, -100, 13);
     Noise::apply(b, 17, 82);
     float before = a(10, 10, 2, 2);
-    a /= b;
+    a.channel(2) /= b;
     return a(10, 10, 2, 2) == (before / b(10, 10, 2, 0));    
 }
 
 void Divide::parse(vector<string> args) {
     assert(args.size() == 0, "-divide takes no arguments\n");
-    stack(0) /= stack(1);
+    if (stack(1).channels > 0) {
+	stack(0) /= stack(1);
+    } else {
+	for (int c = 0; c < stack(0).channels; c++) {
+	    stack(0).channel(c) /= stack(1);
+	}
+    }
+
     pull(1);
     pop();
 }
@@ -733,7 +752,7 @@ void Normalize::apply(Image a) {
         }
     }    
 
-    a = (a - minValue)/(maxValue - minValue);
+    a.set((a - minValue)/(maxValue - minValue));
 }
 
 
