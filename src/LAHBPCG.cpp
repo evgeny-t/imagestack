@@ -768,28 +768,19 @@ void PCG::solve(Image guess, int max_iter, float tol) {
         Image wr = Ax(dr);
         float alpha = delta / dot(dr,wr);
 
-        dr_tmp = dr.copy();
-
-	dr *= alpha;
-	guess += dr;
-	wr *= alpha;
-	r -= wr;
-
-        float resNorm = dot(r,r);
+	guess += dr * alpha;
+	r -= wr * alpha;
+	float resNorm = dot(r, r);
         printf("iteration %d, error %f\n", i, resNorm);
-        if (resNorm < epsilon) {
-            break;
-        }
-
-        s = hbPrecondition(r);    // precondition
+	if (resNorm < epsilon) break;
+	
+	s = hbPrecondition(r);
         float delta_old = delta;
         delta = dot(r,s);
-        float beta = delta / delta_old;
 
-	dr_tmp *= beta;
-        dr = s;
-	dr += dr_tmp;
+	dr = s + dr * (delta / delta_old);
     }
+
 }
 
 void LAHBPCG::help() {

@@ -518,7 +518,8 @@ void Gamma::parse(vector<string> args) {
         fargs.push_back(readFloat(args[i]));
     }
 
-    apply(stack(0), fargs);
+    if (args.size() == 1) apply(stack(0), fargs[0]);
+    else apply(stack(0), fargs);
 }
 
 void Gamma::apply(Image a, float gamma) {

@@ -437,6 +437,9 @@ class Image {
 
 	for (int c = 0; c < channels; c++) {
 	    for (int t = 0; t < frames; t++) {
+		#ifdef _OPENMP
+		#pragma omp parallel for
+		#endif
 		for (int y = 0; y < height; y++) {
 		    for (int x = 0; x < width; x++) {
 			(*this)(x, y, t, c) = func(x, y, t, c);
