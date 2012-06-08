@@ -53,29 +53,8 @@ class Image {
 
     Image copy() const {
         Image m(width, height, frames, channels);
-	m.copyFrom(*this);
+	m.set(*this);
         return m;
-    }
-
-    void copyFrom(Image other) {
-	assert(other.width == width &&
-	       other.height == height &&
-	       other.frames == frames &&
-	       other.channels == channels,
-	       "Can only copy from images with matching dimensions\n");	
-	for (int c = 0; c < channels; c++) {
-	    for (int t = 0; t < frames; t++) {
-		for (int y = 0; y < height; y++) {
-		    for (int x = 0; x < width; x++) {
-			(*this)(x, y, t, c) = other(x, y, t, c);
-		    }
-		}
-	    }
-	}
-    }
-
-    void copyTo(Image other) const {
-	other.copyFrom(*this);
     }
 
     Image region(int x, int y, int t, int c,
@@ -124,39 +103,19 @@ class Image {
     }
 
     void operator+=(const float f) {
-	for (int c = 0; c < channels; c++) {
-	    for (int t = 0; t < frames; t++) {
-		for (int y = 0; y < height; y++) {
-		    for (int x = 0; x < width; x++) {
-			(*this)(x, y, t, c) += f;
-		    }
-		}
-	    }
-	}
+	set((*this) + f);
     }
 
     void operator*=(const float f) {
-	for (int c = 0; c < channels; c++) {
-	    for (int t = 0; t < frames; t++) {
-		for (int y = 0; y < height; y++) {
-		    for (int x = 0; x < width; x++) {
-			(*this)(x, y, t, c) *= f;
-		    }
-		}
-	    }
-	}
+	set((*this) * f);
     }
 
     void operator-=(const float f) {
-	(*this) += -f;
+	set((*this) - f);
     }
 
     void operator/=(const float f) {
-	(*this) *= 1.0f/f;
-    }
-
-    void operator=(const float f) {
-	(*this) = ImageStack::Func::Const(f);
+	set((*this) / f);
     }
 
     void operator+=(const vector<float> f) {	
@@ -183,109 +142,24 @@ class Image {
 	}
     }
 
-    void operator=(const vector<float> f) {
-	for (int c = 0; c < channels; c++) {
-	    channel(c) = f[c % f.size()];
-	}
+    template<typename T, typename Enable = typename T::Func>
+    void operator+=(const T other) {
+	set((*this) + other);
     }
 
     template<typename T, typename Enable = typename T::Func>
-    void operator+=(const T other) {
-	if (other.bounded()) {
-	    assert(width == other.getWidth() &&
-		   height == other.getHeight() &&
-		   frames == other.getFrames() &&
-		   channels == other.getChannels(), 
-		   "Can only add images of matching size\n");
-	}
-	for (int c = 0; c < channels; c++) {
-	    for (int t = 0; t < frames; t++) {
-		for (int y = 0; y < height; y++) {
-		    for (int x = 0; x < width; x++) {
-			(*this)(x, y, t, c) += other(x, y, t, c);
-		    }
-		}
-	    }
-	}
-	
+    void operator*=(const T other) {
+	set((*this) * other);
     }
 
-    /*
-    void operator+=(const Image other) {
-	assert(other.width == width &&
-	       other.height == height &&
-	       other.frames == frames,
-	       "Can only add images with matching dimensions\n");
-	assert(other.channels == channels || other.channels == 1, 
-	       "Can only add image with matching channel count, or single channel\n");	
-	for (int c = 0; c < channels; c++) {
-	    int co = c % other.channels;
-	    for (int t = 0; t < frames; t++) {
-		for (int y = 0; y < height; y++) {
-		    for (int x = 0; x < width; x++) {
-			(*this)(x, y, t, c) += other(x, y, t, co);
-		    }
-		}
-	    }
-	}
-    }
-    */
-
-    void operator*=(const Image other) {
-	assert(other.width == width &&
-	       other.height == height &&
-	       other.frames == frames,
-	       "Can only multiply images with matching dimensions\n");
-	assert(other.channels == channels || other.channels == 1, 
-	       "Can only multiply image with matching channel count, or single channel\n");	
-	for (int c = 0; c < channels; c++) {
-	    int co = c % other.channels;
-	    for (int t = 0; t < frames; t++) {
-		for (int y = 0; y < height; y++) {
-		    for (int x = 0; x < width; x++) {
-			(*this)(x, y, t, c) *= other(x, y, t, co);
-		    }
-		}
-	    }
-	}
+    template<typename T, typename Enable = typename T::Func>
+    void operator-=(const T other) {
+	set((*this) - other);
     }
 
-    void operator-=(const Image other) {
-	assert(other.width == width &&
-	       other.height == height &&
-	       other.frames == frames,
-	       "Can only subtract images with matching dimensions\n");
-	assert(other.channels == channels || other.channels == 1, 
-	       "Can only subtract image with matching channel count, or single channel\n");	
-	for (int c = 0; c < channels; c++) {
-	    int co = c % other.channels;
-	    for (int t = 0; t < frames; t++) {
-		for (int y = 0; y < height; y++) {
-		    for (int x = 0; x < width; x++) {
-			(*this)(x, y, t, c) -= other(x, y, t, co);
-		    }
-		}
-	    }
-	}
-    }
-
-    void operator/=(const Image other) {
-	assert(other.width == width &&
-	       other.height == height &&
-	       other.frames == frames,
-	       "Can only divide images with matching dimensions\n");
-	assert(other.channels == channels || other.channels == 1, 
-	       "Can only divide image with matching channel count, or single channel\n");	
-	for (int c = 0; c < channels; c++) {
-	    int co = c % other.channels;
-	    for (int t = 0; t < frames; t++) {
-		for (int y = 0; y < height; y++) {
-		    for (int x = 0; x < width; x++) {
-			(*this)(x, y, t, c) /= other(x, y, t, co);
-		    }
-		}
-	    }
-	}
+    template<typename T, typename Enable = typename T::Func>
+    void operator/=(const T other) {
+	set((*this) / other);
     }
 
     typedef enum {ZERO = 0, NEUMANN} BoundaryCondition;
@@ -543,7 +417,7 @@ class Image {
     // The second template argument prevents instantiations from
     // things that don't have a nested ::Func type
     template<typename T, typename Enable = typename T::Func>
-    void operator=(const T func) {
+    void set(const T func) {
 	if (func.bounded()) {
 	    int w = func.getWidth(), h = func.getHeight(),
 		f = func.getFrames(), c = func.getChannels();
@@ -579,11 +453,17 @@ class Image {
     int getFrames() const {return frames;}
     int getChannels() const {return channels;}
 
+    void set(float x) {
+	set(ImageStack::Func::Const(x));
+    }
+
     // Construct an image from a function-like thing
     template<typename T, typename Enable = typename T::Func>    
-    Image(const T func) {
-	assert(bounded(), "Can only construct an image from a bounded expression\n");
-	(*this) = func;
+    Image(const T func) :
+	width(0), height(0), frames(0), channels(0), 
+	ystride(0), tstride(0), cstride(0), data(), base(NULL) {
+	assert(func.bounded(), "Can only construct an image from a bounded expression\n");
+	set(func);
     }
 
     void operator=(const Image &other) {

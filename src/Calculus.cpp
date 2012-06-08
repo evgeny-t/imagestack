@@ -252,7 +252,7 @@ Image Poisson::apply(Image dx, Image dy, float rms) {
     Image zerosc(dx.width, dx.height, dx.frames, dx.channels);
     Image zeros1(dx.width, dx.height, dx.frames, 1);
     Image ones1(dx.width, dx.height, dx.frames, 1);
-    ones1 = 1.0f;
+    ones1.set(1);
     return LAHBPCG::apply(zerosc, dx, dy, zeros1, ones1, ones1, 999999, rms);
 }
 

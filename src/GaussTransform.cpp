@@ -588,7 +588,7 @@ void JointBilateral::apply(Image im, Image ref,
 	    }
 	}
     }
-    values.channel(im.channels) = 1.0f;
+    values.channel(im.channels).set(1.0f);
 
     for (int c = 0; c < ref.channels; c++) {
 	for (int t = 0; t < im.frames; t++) {
@@ -758,7 +758,7 @@ Image ChromaBlur::apply(Image im, float spatialSigma, float colorSigma) {
     JointBilateral::apply(yuv, luminance, spatialSigma, spatialSigma, 0, colorSigma);
 
     // restore luminance
-    yuv.channel(0).copyFrom(luminance);
+    yuv.channel(0).set(luminance);
 
     return ColorConvert::yuv2rgb(yuv);
 }

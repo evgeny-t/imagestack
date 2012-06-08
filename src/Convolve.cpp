@@ -50,8 +50,8 @@ bool Convolve::test() {
     Image kernel(5, 5, 5, 4);
     Noise::apply(kernel, 0, 1);
     Image correct(5, 5, 5, 2);
-    correct.channel(0) = 1*kernel.channel(0) + 2*kernel.channel(1);
-    correct.channel(1) = 1*kernel.channel(2) + 2*kernel.channel(3);
+    correct.channel(0).set(1*kernel.channel(0) + 2*kernel.channel(1));
+    correct.channel(1).set(1*kernel.channel(2) + 2*kernel.channel(3));
     Image result = Convolve::apply(impulse, kernel, Zero, Multiply::Inner);
 
     return false;

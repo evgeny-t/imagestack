@@ -316,7 +316,7 @@ Image FFTConvolve::apply(Image im, Image filter, Convolve::BoundaryCondition b, 
     if (b == Convolve::Homogeneous) {
         Image result = apply(im, filter, Convolve::Zero, m);
         Image weight(im.width, im.height, im.frames, im.channels);
-	weight = 1.0f;
+	weight += 1.0f;
         Image resultW = apply(weight, filter, Convolve::Zero, m);
 	result /= resultW;
         return result;
