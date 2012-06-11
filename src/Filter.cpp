@@ -242,7 +242,6 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
     // blur in x
     if (filterWidth > 0) {
 	const int size = im.width + (int)(filterWidth*6);
-	vector<float> chunk(size*w, 0);
 
 	float c0, c1, c2, c3;
 	calculateCoefficients(filterWidth, &c0, &c1, &c2, &c3);
@@ -252,9 +251,11 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
 	
 	for (int c = 0; c < im.channels; c++) {
 	    for (int t = 0; t < im.frames; t++) {
+                #ifdef _OPENMP
+		#pragma omp parallel for
+		#endif
 		for (int y = 0; y < im.height; y += w) {
-		    // clear the chunk
-		    memset(&chunk[0], 0, sizeof(float)*chunk.size());
+		    vector<float> chunk(size*w, 0);
 
 		    // prepare 16 scanlines
 		    for (int x = 0; x < im.width; x++) {
@@ -283,7 +284,6 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
     // blur in y
     if (filterHeight > 0) {
 	const int size = im.height + (int)(filterHeight*6);
-	vector<float> chunk(size*w, 0);
 
 	float c0, c1, c2, c3;
 	calculateCoefficients(filterHeight, &c0, &c1, &c2, &c3);
@@ -293,9 +293,11 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
 
 	for (int c = 0; c < im.channels; c++) {
 	    for (int t = 0; t < im.frames; t++) {
+                #ifdef _OPENMP
+		#pragma omp parallel for
+		#endif
 		for (int x = 0; x < im.width; x += w) {
-		    // clear the chunk
-		    memset(&chunk[0], 0, sizeof(float)*chunk.size());
+		    vector<float> chunk(size*w, 0);
 
 		    // prepare 16 columns
 		    for (int y = 0; y < im.height; y++) {
@@ -324,7 +326,6 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
     // blur in t
     if (filterFrames > 0) {
 	const int size = im.frames + (int)(filterFrames*6);
-	vector<float> chunk(size*w, 0);
 
 	float c0, c1, c2, c3;
 	calculateCoefficients(filterFrames, &c0, &c1, &c2, &c3);
@@ -334,9 +335,11 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
 
 	for (int c = 0; c < im.channels; c++) {
 	    for (int y = 0; y < im.height; y++) {		
+                #ifdef _OPENMP
+		#pragma omp parallel for
+		#endif
 		for (int x = 0; x < im.width; x += w) {
-		    // clear the chunk
-		    memset(&chunk[0], 0, sizeof(float)*chunk.size());
+		    vector<float> chunk(size*w, 0);
 
 		    // prepare 16 scanlines
 		    for (int t = 0; t < im.frames; t++) {
