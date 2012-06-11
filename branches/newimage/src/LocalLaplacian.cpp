@@ -71,18 +71,28 @@ Image LocalLaplacian::apply(Image im, float alpha, float beta) {
     float sigma = 1.0f/(target[1] - target[0]);
     sigma = - sigma * sigma * 0.5f;
 
+    // Compute a Gaussian and Laplacian pyramid for the input
+    printf("Computing Gaussian pyramid for input\n");
+    Image imPyramid[J];
+    Image imLPyramid[J];
+    imPyramid[0] = im;
+    imLPyramid[0] = im.copy();
+    for (int j = 1; j < J; j++) {
+        int oldW = imPyramid[j-1].width;
+        int oldH = imPyramid[j-1].height;
+        int oldF = imPyramid[j-1].frames;
+        imPyramid[j] = pyramidDown(imPyramid[j-1]);
+        imLPyramid[j] = imPyramid[j].copy();
+	imLPyramid[j-1] -= pyramidUp(imPyramid[j], oldW, oldH, oldF);
+    }
+
     // Make a set of K processed images
     printf("Computing different processed images\n");
     Image processed[K];
+    Image pyramid[K][J];
     for (int i = 0; i < K; i++) {
 	Image p = im.copy();
         
-	/*
-	auto luminance = sum_c(im)/im.channels;
-	auto delta = luminance - target[i];
-	auto adjustment = alpha * delta * exp(sigma * delta * delta);
-	Image p = im + adjustment;
-	*/
 
         for (int t = 0; t < im.frames; t++) {
             for (int y = 0; y < im.height; y++) {
@@ -108,12 +118,8 @@ Image LocalLaplacian::apply(Image im, float alpha, float beta) {
             }
         }
         processed[i] = p;
-    }
 
-    // Compute a J-level laplacian pyramid per processed image
-    printf("Computing their laplacian pyramids\n");
-    Image pyramid[K][J];
-    for (int i = 0; i < K; i++) {
+	// Compute a J-level laplacian pyramid per processed image
         pyramid[i][0] = processed[i];
         for (int j = 1; j < J; j++) {
 	    int oldW = pyramid[i][j-1].width;
@@ -121,28 +127,13 @@ Image LocalLaplacian::apply(Image im, float alpha, float beta) {
             int oldF = pyramid[i][j-1].frames;
             pyramid[i][j] = pyramidDown(pyramid[i][j-1]);
 	    pyramid[i][j-1] -= pyramidUp(pyramid[i][j], oldW, oldH, oldF);
-        }
-    }
-
-    // Now compute a Gaussian and Laplacian pyramid for the input
-    printf("Computing Gaussian pyramid for input\n");
-    Image imPyramid[J];
-    Image imLPyramid[J];
-    imPyramid[0] = im;
-    imLPyramid[0] = im.copy();
-    for (int j = 1; j < J; j++) {
-        int oldW = imPyramid[j-1].width;
-        int oldH = imPyramid[j-1].height;
-        int oldF = imPyramid[j-1].frames;
-        imPyramid[j] = pyramidDown(imPyramid[j-1]);
-        imLPyramid[j] = imPyramid[j].copy();
-	imLPyramid[j-1] -= pyramidUp(imPyramid[j], oldW, oldH, oldF);
+        }	
     }
 
     // Now construct output laplacian pyramid by looking up the
     // Laplacian pyramids as a function of intensity found in the
     // Gaussian pyramid
-    printf("Computing laplacian pyramid for input\n");
+    printf("Computing laplacian pyramid for output\n");
     for (int j = 0; j < J; j++) {
 
         float scale;
