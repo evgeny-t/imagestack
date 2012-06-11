@@ -48,13 +48,18 @@ bool Convolve::test() {
     impulse(15, 15, 15, 0) = 1;
     impulse(15, 15, 15, 1) = 2;
     Image kernel(5, 5, 5, 4);
-    Noise::apply(kernel, 0, 1);
-    Image correct(5, 5, 5, 2);
-    correct.channel(0).set(1*kernel.channel(0) + 2*kernel.channel(1));
-    correct.channel(1).set(1*kernel.channel(2) + 2*kernel.channel(3));
+    Noise::apply(kernel, 0, 10);
+    Image correct(32, 32, 32, 2);   
+    correct
+	.region(13, 13, 13, 0, 5, 5, 5, 1)
+	.set(1*kernel.channel(0) + 2*kernel.channel(1));
+    correct
+	.region(13, 13, 13, 1, 5, 5, 5, 1)
+	.set(1*kernel.channel(2) + 2*kernel.channel(3));
     Image result = Convolve::apply(impulse, kernel, Zero, Multiply::Inner);
-
-    return false;
+    Stats s(result - correct);
+    return (nearly_equal(s.mean()*1000, 0) &&
+	    nearly_equal(s.variance()*1000, 0));
 }
 
 void Convolve::parse(vector<string> args) {
@@ -159,7 +164,7 @@ void Convolve::convolveSingle(Image in, Image filter, Image out,
                             for (int dx = -xoff; dx <= xoff; dx++) {
                                 if (x + dx < 0) continue;
                                 if (x + dx >= in.width) break;
-                                float w = filter(dx+xoff, dy+yoff, dt+toff, 0);
+                                float w = filter(xoff-dx, yoff-dy, toff-dt, 0);
                                 v += in(x+dx, y+dy, t+dt, 0) * w;
                             }
                         }                                        
@@ -185,7 +190,7 @@ void Convolve::convolveSingle(Image in, Image filter, Image out,
                     float weightSum = 0;
                     float v = 0;
                     for (int dt = -toff; dt <= toff; dt++) {
-                         if (t + dt < 0) continue;
+			if (t + dt < 0) continue;
                         if (t + dt >= in.frames) break;
                         for (int dy = -yoff; dy <= yoff; dy++) {
                             if (y + dy < 0) continue;
@@ -193,7 +198,7 @@ void Convolve::convolveSingle(Image in, Image filter, Image out,
                             for (int dx = -xoff; dx <= xoff; dx++) {
                                 if (x + dx < 0) continue;
                                 if (x + dx >= in.width) break;
-                                float w = filter(dx+xoff, dy+yoff, dt+toff, 0);
+                                float w = filter(xoff-dx, yoff-dy, toff-dt, 0);
                                 v += in(x+dx, y+dy, t+dt, 0) * w;
                                 weightSum += w;
                             }
@@ -217,7 +222,7 @@ void Convolve::convolveSingle(Image in, Image filter, Image out,
                             int yc = clamp(y+dy, 0, in.height-1);
                             for (int dx = -xoff; dx <= xoff; dx++) {
                                 int xc = clamp(x+dx, 0, in.width-1);
-                                float w = filter(dx+xoff, dy+yoff, dt+toff, 0);
+                                float w = filter(xoff-dx, yoff-dy, toff-dt, 0);
                                 v += in(xc, yc, tc, 0) * w;
                             }
                         }                                        
@@ -237,7 +242,7 @@ void Convolve::convolveSingle(Image in, Image filter, Image out,
                             int yc = (y+dy+yoff*in.height)%in.height;
                             for (int dx = -xoff; dx <= xoff; dx++) {
                                 int xc = (x+dx+xoff*in.width)%in.width;
-                                float w = filter(dx+xoff, dy+yoff, dt+toff, 0);
+                                float w = filter(xoff-dx, yoff-dy, toff-dt, 0);
                                 v += in(xc, yc, tc, 0) * w;
                             }
                         }                                        
@@ -259,14 +264,23 @@ Image Convolve::apply(Image im, Image filter, BoundaryCondition b, Multiply::Mod
                "To perform an inner or matrix product, the channel count "
                "of either the image or the filter must be a multiple of "
                "the channel count of the other.");
-        int maxc = max(im.channels, filter.channels);
-        int minc = min(im.channels, filter.channels);
-        out = Image(im.width, im.height, im.frames, maxc/minc);
-        for (int i = 0; i < maxc; i++) {
-            convolveSingle(im.channel(i), 
-                           filter.channel(i % minc), 
-                           out.channel(i / minc), b);
-        }
+	if (im.channels < filter.channels) {
+	    out = Image(im.width, im.height, im.frames, filter.channels/im.channels);
+	    for (int i = 0; i < filter.channels; i++) {
+		printf("%d\n", i);
+		convolveSingle(im.channel(i % im.channels), 
+			       filter.channel(i), 
+			       out.channel(i / im.channels), b);
+	    }
+	} else {
+	    out = Image(im.width, im.height, im.frames, im.channels/filter.channels);
+	    for (int i = 0; i < im.channels; i++) {
+		printf("%d\n", i);
+		convolveSingle(im.channel(i), 
+			       filter.channel(i % filter.channels), 
+			       out.channel(i / filter.channels), b);
+	    }	    
+	}
     } else if (m == Multiply::Outer) {
         out = Image(im.width, im.height, im.frames, im.channels * filter.channels);
         for (int i = 0; i < im.channels; i++) {

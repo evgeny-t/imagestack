@@ -175,12 +175,9 @@ bool GradMag::test() {
     Gradient::apply(dx, 'x');
     Image dy = a.copy();
     Gradient::apply(dy, 'y');
-    dx *= dx;
-    dy *= dy;
     GradMag::apply(a);
-    a -= dx;
-    a -= dy;
-    Stats s(a);
+    Stats s(a - (dx*dx + dy*dy));
+    printf("%f %f\n", s.mean(), s.variance());
     return (nearly_equal(s.mean(), 0) &&
 	    nearly_equal(s.variance(), 0));    
 }
