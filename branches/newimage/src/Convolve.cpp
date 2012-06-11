@@ -267,7 +267,6 @@ Image Convolve::apply(Image im, Image filter, BoundaryCondition b, Multiply::Mod
 	if (im.channels < filter.channels) {
 	    out = Image(im.width, im.height, im.frames, filter.channels/im.channels);
 	    for (int i = 0; i < filter.channels; i++) {
-		printf("%d\n", i);
 		convolveSingle(im.channel(i % im.channels), 
 			       filter.channel(i), 
 			       out.channel(i / im.channels), b);
@@ -275,7 +274,6 @@ Image Convolve::apply(Image im, Image filter, BoundaryCondition b, Multiply::Mod
 	} else {
 	    out = Image(im.width, im.height, im.frames, im.channels/filter.channels);
 	    for (int i = 0; i < im.channels; i++) {
-		printf("%d\n", i);
 		convolveSingle(im.channel(i), 
 			       filter.channel(i % filter.channels), 
 			       out.channel(i / filter.channels), b);

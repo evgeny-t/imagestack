@@ -177,7 +177,6 @@ bool GradMag::test() {
     Gradient::apply(dy, 'y');
     GradMag::apply(a);
     Stats s(a - (dx*dx + dy*dy));
-    printf("%f %f\n", s.mean(), s.variance());
     return (nearly_equal(s.mean(), 0) &&
 	    nearly_equal(s.variance(), 0));    
 }
