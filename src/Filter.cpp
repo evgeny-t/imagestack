@@ -184,7 +184,7 @@ void FastBlur::parse(vector<string> args) {
     apply(stack(0), width, height, frames);
 }
 
-void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filterFrames, bool addMargin) {
+void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filterFrames) {
     assert(filterFrames >= 0 &&
            filterWidth >= 0 &&
            filterHeight >= 0,
