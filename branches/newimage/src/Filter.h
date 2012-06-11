@@ -15,7 +15,7 @@ public:
     void help();
     bool test();
     void parse(vector<string> args);
-    static void apply(Image im, float filterWidth, float filterHeight, float filterFrames, bool addMargin = true);
+    static void apply(Image im, float filterWidth, float filterHeight, float filterFrames);
 private:
     // helper function for IIR filtering
     static void calculateCoefficients(float sigma, float *c0, float *c1, float *c2, float *c3);

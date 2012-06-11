@@ -8,35 +8,9 @@
 #include "header.h"
 
 Image LocalLaplacian::pyramidDown(const Image im) {
-    Image smaller((im.width+1)/2, (im.height+1)/2, (im.frames+1)/2, im.channels);
-
     Image blurry = im.copy();
-    FastBlur::apply(blurry, 1, 1, 1);
-
-    for (int c = 0; c < im.channels; c++) {
-	for (int t = 0; t < im.frames; t++) {
-	    for (int y = 0; y < im.height; y++) {
-		for (int x = 0; x < im.width; x++) {
-                    smaller(x/2, y/2, t/2, c) += blurry(x, y, t, c);
-                }
-            }
-        }
-    }
-
-    for (int c = 0; c < smaller.channels; c++) {
-	for (int t = 0; t < smaller.frames; t++) {
-	    float tFactor = ((t*2+1) < im.frames) ? 0.125f : 0.25f;
-	    for (int y = 0; y < smaller.height; y++) {
-		float yFactor = ((y*2+1) < im.height) ? tFactor : (tFactor*2);
-		for (int x = 0; x < smaller.width; x++) {
-		    float xFactor = ((x*2+1) < im.width) ? (yFactor) : (yFactor*2);
-                    smaller(x, y, t, c) *= xFactor;
-                }
-            }
-        }
-    }
-    
-    return smaller;
+    FastBlur::apply(blurry, 2, 2, 2);
+    return Subsample::apply(blurry, 2, 2, 0, 0);
 }
 
 Image LocalLaplacian::pyramidUp(const Image im, int w, int h, int f) {
@@ -52,7 +26,7 @@ Image LocalLaplacian::pyramidUp(const Image im, int w, int h, int f) {
         }
     }
 
-    FastBlur::apply(larger, 1, 1, 1, false);
+    FastBlur::apply(larger, 2, 2, 2);
 
     return larger;
 }
@@ -103,6 +77,13 @@ Image LocalLaplacian::apply(Image im, float alpha, float beta) {
     for (int i = 0; i < K; i++) {
 	Image p = im.copy();
         
+	/*
+	auto luminance = sum_c(im)/im.channels;
+	auto delta = luminance - target[i];
+	auto adjustment = alpha * delta * exp(sigma * delta * delta);
+	Image p = im + adjustment;
+	*/
+
         for (int t = 0; t < im.frames; t++) {
             for (int y = 0; y < im.height; y++) {
                 for (int x = 0; x < im.width; x++) {
