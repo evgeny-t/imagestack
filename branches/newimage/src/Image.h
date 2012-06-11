@@ -435,11 +435,44 @@ class Image {
 		   "Can't assign unbounded expression to undefined image\n");
 	}
 
+	// 8-wide vector code, distributed across cores
+	#ifdef __AVX__
+	if (width > 16) {
+	    for (int c = 0; c < channels; c++) {
+		for (int t = 0; t < frames; t++) {
+                    #ifdef _OPENMP
+                    #pragma omp parallel for
+                    #endif		
+		    for (int y = 0; y < height; y++) {
+			int x = 0;
+			float *addr = base + c*cstride + t*tstride + y*ystride;
+			while ((size_t)addr & 0x1f) {
+			    *addr = func(x, y, t, c);
+			    addr++;
+			    x++;
+			}
+			while (x+7 < width) {
+			    _mm256_stream_ps(addr, func.vec_avx(x, y, t, c));
+			    x += 8;
+			    addr += 8;
+			}
+			while (x < width) {
+			    (*this)(x, y, t, c) = func(x, y, t, c);
+			    x++;
+			}
+		    }
+		}
+	    }	
+	    return;
+	}
+        #endif	    	
+
+	// Scalar code, distributed across cores
 	for (int c = 0; c < channels; c++) {
 	    for (int t = 0; t < frames; t++) {
 		#ifdef _OPENMP
 		#pragma omp parallel for
-		#endif
+		#endif		
 		for (int y = 0; y < height; y++) {
 		    for (int x = 0; x < width; x++) {
 			(*this)(x, y, t, c) = func(x, y, t, c);
@@ -459,6 +492,12 @@ class Image {
     void set(float x) {
 	set(ImageStack::Func::Const(x));
     }
+
+    #ifdef __AVX__
+    __v8sf vec_avx(int x, int y, int t, int c) const {
+	return _mm256_loadu_ps(base + c*cstride + t*tstride + y*ystride + x);
+    }
+    #endif
 
     // Construct an image from a function-like thing
     template<typename T, typename Enable = typename T::Func>    
@@ -487,7 +526,7 @@ class Image {
 
     static float *compute_base(std::shared_ptr<vector<float> > data) {
 	float *base = &((*data)[0]);
-	while (((size_t)base) & 0xf) base++;    
+	while (((size_t)base) & 0x1f) base++;    
 	return base;
     }
 

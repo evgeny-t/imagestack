@@ -1,6 +1,7 @@
 #ifndef IMAGESTACK_FUNC_H
 #define IMAGESTACK_FUNC_H
 
+#include <immintrin.h>
 #include "header.h"
 
 // This file defines a set of image-like function objects. They
@@ -29,26 +30,56 @@ struct Const : public Unbounded {
     float operator()(int x, int y, int c, int t) const {
 	return val;
     }
+
+    #ifdef __AVX__
+    __v8sf vec_avx(int x, int y, int t, int c) const {
+	return _mm256_set_ps(val, val, val, val, val, val, val, val);
+    }
+    #endif
 };
 
 struct X : public Unbounded {
     typedef X Func;
     float operator()(int x, int, int, int) const {return x;}
+
+    #ifdef __AVX__
+    __v8sf vec_avx(int x, int y, int t, int c) const {
+	return _mm256_set_ps(x, x+1, x+2, x+3, x+4, x+5, x+6, x+7);
+    }
+    #endif    
 };
 
 struct Y : public Unbounded {
     typedef Y Func;
     float operator()(int, int y, int, int) const {return y;}
+
+    #ifdef __AVX__
+    __v8sf vec_avx(int x, int y, int t, int c) const {
+	return _mm256_set_ps(y, y, y, y, y, y, y, y);
+    }
+    #endif    
 };
 
 struct T : public Unbounded {
     typedef T Func;
     float operator()(int, int, int t, int) const {return t;}
+
+    #ifdef __AVX__
+    __v8sf vec_avx(int x, int y, int t, int c) const {
+	return _mm256_set_ps(t, t, t, t, t, t, t, t);
+    }
+    #endif    
 };
 
 struct C : public Unbounded {
     typedef C Func;
     float operator()(int, int, int, int c) const {return c;}
+
+    #ifdef __AVX__
+    __v8sf vec_avx(int x, int y, int t, int c) const {
+	return _mm256_set_ps(c, c, c, c, c, c, c, c);
+    }
+    #endif    
 };
 
 template<typename A, typename B>
@@ -93,6 +124,13 @@ struct Add : public BinaryOp<A, B> {
     float operator()(int x, int y, int t, int c) const {
 	return BinaryOp<A, B>::a(x, y, t, c) + BinaryOp<A, B>::b(x, y, t, c);
     }
+    
+    #ifdef __AVX__
+    __v8sf vec_avx(int x, int y, int t, int c) const {
+	return (BinaryOp<A, B>::a.vec_avx(x, y, t, c) + 
+		BinaryOp<A, B>::b.vec_avx(x, y, t, c));
+    }
+    #endif
 };
 
 template<typename A, typename B>
@@ -102,6 +140,13 @@ struct Sub : public BinaryOp<A, B> {
     float operator()(int x, int y, int t, int c) const {
 	return BinaryOp<A, B>::a(x, y, t, c) - BinaryOp<A, B>::b(x, y, t, c);
     }
+
+    #ifdef __AVX__
+    __v8sf vec_avx(int x, int y, int t, int c) const {
+	return (BinaryOp<A, B>::a.vec_avx(x, y, t, c) -
+		BinaryOp<A, B>::b.vec_avx(x, y, t, c));
+    }
+    #endif
 };
 
 template<typename A, typename B>
@@ -111,6 +156,13 @@ struct Mul : public BinaryOp<A, B> {
     float operator()(int x, int y, int t, int c) const {
 	return BinaryOp<A, B>::a(x, y, t, c) * BinaryOp<A, B>::b(x, y, t, c);
     }
+
+    #ifdef __AVX__
+    __v8sf vec_avx(int x, int y, int t, int c) const {
+	return (BinaryOp<A, B>::a.vec_avx(x, y, t, c) * 
+		BinaryOp<A, B>::b.vec_avx(x, y, t, c));
+    }
+    #endif
 };
 
 template<typename A, typename B>
@@ -120,6 +172,13 @@ struct Div : public BinaryOp<A, B> {
     float operator()(int x, int y, int t, int c) const {
 	return BinaryOp<A, B>::a(x, y, t, c) / BinaryOp<A, B>::b(x, y, t, c);
     }
+
+    #ifdef __AVX__
+    __v8sf vec_avx(int x, int y, int t, int c) const {
+	return (BinaryOp<A, B>::a.vec_avx(x, y, t, c) / 
+		BinaryOp<A, B>::b.vec_avx(x, y, t, c));
+    }
+    #endif
 };
 
 }
