@@ -223,19 +223,19 @@ bool Daubechies::test() {
     Image a(256, 256, 3, 3);
     Noise::apply(a, 0, 1);
     Image filter(7, 1, 1, 1);
-    filter(0, 0) = 0;
-    filter(1, 0) = 0;
-    filter(2, 0) = 0;
+    filter(0, 0) = -DAUB0;
+    filter(1, 0) = DAUB1;
+    filter(2, 0) = -DAUB2;
     filter(3, 0) = DAUB3;
-    filter(4, 0) = -DAUB2;
-    filter(5, 0) = DAUB1;
-    filter(6, 0) = -DAUB0;
+    filter(4, 0) = 0;
+    filter(5, 0) = 0;
+    filter(6, 0) = 0;
     Image b = Convolve::apply(a, filter);
     b = Convolve::apply(b, Transpose::apply(filter, 'x', 'y'));
     b = Subsample::apply(b, 2, 2, 0, 0);
     Daubechies::apply(a);
     b -= a.region(128, 128, 0, 0, 128, 128, 3, 3);
-    Stats s(b.region(0, 0, 0, 0, 100, 100, 3, 3));
+    Stats s(b.region(0, 0, 0, 0, 100, 100, 3, 3));    
     return (nearly_equal(s.mean(), 0) &&
 	    nearly_equal(s.variance(), 0));
 }

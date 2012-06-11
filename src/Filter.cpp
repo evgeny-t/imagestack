@@ -920,13 +920,14 @@ void MaxFilter::help() {
             "Usage: ImageStack -load input.jpg -maxfilter 10 -save output.jpg\n");
 }
 
+#include "File.h"
+
 bool MaxFilter::test() {
     Image a(123, 234, 2, 3);
     Noise::apply(a, 0, 1);
     Image b = a.copy();
     MaxFilter::apply(b, 3);
-    b -= a;
-    return nearly_equal(Stats(b).minimum(), 0);
+    return nearly_equal(Stats(b-a).minimum(), 0);
 }
 
 void MaxFilter::parse(vector<string> args) {

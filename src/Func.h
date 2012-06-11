@@ -15,6 +15,16 @@
 
 namespace Func {
 
+#ifdef __AVX__
+#define VECTORIZE
+typedef __v8sf vec_type;
+#else
+#ifdef __SSE__
+ #define VECTORIZE
+typedef __v4sf vec_type;
+#endif
+#endif
+
 struct Unbounded {
     bool bounded() const {return false;}
     int getWidth() const {return 0;}
@@ -31,55 +41,76 @@ struct Const : public Unbounded {
 	return val;
     }
 
-    #ifdef __AVX__
-    __v8sf vec_avx(int x, int y, int t, int c) const {
-	return _mm256_set_ps(val, val, val, val, val, val, val, val);
+    // State needed to iterate across a scanline    
+    struct Iter {
+	Iter (float v) : val(v) {
+	    #ifdef __AVX__
+	    vec_val = _mm256_set_ps(val, val, val, val, val, val, val, val);
+	    #else
+            #ifdef __SSE__
+	    vec_val = _mm_set_ps(val, val, val, val);
+	    #endif
+	    #endif
+	}
+	const float val;
+	float operator[](int x) const {return val;}
+	#ifdef VECTORIZE
+	vec_type vec_val;
+	vec_type vec(int x) const {return vec_val;}
+	#endif
+    };
+    Iter scanline(int y, int t, int c) const {
+	return Iter(val);
     }
-    #endif
 };
 
 struct X : public Unbounded {
     typedef X Func;
     float operator()(int x, int, int, int) const {return x;}
 
-    #ifdef __AVX__
-    __v8sf vec_avx(int x, int y, int t, int c) const {
-	return _mm256_set_ps(x, x+1, x+2, x+3, x+4, x+5, x+6, x+7);
+    // State needed to iterate across a scanline    
+    struct Iter {
+	float operator[](int x) const {return x;}
+	#ifdef VECTORIZE
+	vec_type vec(int x) const {
+	    #ifdef __AVX__
+	    return _mm256_set_ps(x, x+1, x+2, x+3, x+4, x+5, x+6, x+7);	    
+	    #else
+	    return _mm_set_ps(x, x+1, x+2, x+3);	    	    
+	    #endif
+	}
+	#endif
+    };
+    Iter scanline(int y, int t, int c) const {
+	return Iter();
     }
-    #endif    
 };
 
 struct Y : public Unbounded {
     typedef Y Func;
     float operator()(int, int y, int, int) const {return y;}
 
-    #ifdef __AVX__
-    __v8sf vec_avx(int x, int y, int t, int c) const {
-	return _mm256_set_ps(y, y, y, y, y, y, y, y);
+    Const::Iter scanline(int y, int t, int c) const {
+	return Const::Iter(y);
     }
-    #endif    
 };
 
 struct T : public Unbounded {
     typedef T Func;
     float operator()(int, int, int t, int) const {return t;}
 
-    #ifdef __AVX__
-    __v8sf vec_avx(int x, int y, int t, int c) const {
-	return _mm256_set_ps(t, t, t, t, t, t, t, t);
+    Const::Iter scanline(int y, int t, int c) const {
+	return Const::Iter(t);
     }
-    #endif    
 };
 
 struct C : public Unbounded {
     typedef C Func;
     float operator()(int, int, int, int c) const {return c;}
 
-    #ifdef __AVX__
-    __v8sf vec_avx(int x, int y, int t, int c) const {
-	return _mm256_set_ps(c, c, c, c, c, c, c, c);
+    Const::Iter scanline(int y, int t, int c) const {
+	return Const::Iter(c);
     }
-    #endif    
 };
 
 template<typename A, typename B>
@@ -124,13 +155,20 @@ struct Add : public BinaryOp<A, B> {
     float operator()(int x, int y, int t, int c) const {
 	return BinaryOp<A, B>::a(x, y, t, c) + BinaryOp<A, B>::b(x, y, t, c);
     }
-    
-    #ifdef __AVX__
-    __v8sf vec_avx(int x, int y, int t, int c) const {
-	return (BinaryOp<A, B>::a.vec_avx(x, y, t, c) + 
-		BinaryOp<A, B>::b.vec_avx(x, y, t, c));
+
+    struct Iter {
+	typename A::Iter a; 
+	typename B::Iter b;
+	float operator[](int x) const {return a[x] + b[x];}
+	#ifdef VECTORIZE
+	vec_type vec(int x) const {
+	    return a.vec(x) + b.vec(x);
+	}
+	#endif
+    };
+    Iter scanline(int y, int t, int c) const {
+	return {BinaryOp<A, B>::a.scanline(y, t, c), BinaryOp<A, B>::b.scanline(y, t, c)};
     }
-    #endif
 };
 
 template<typename A, typename B>
@@ -141,12 +179,19 @@ struct Sub : public BinaryOp<A, B> {
 	return BinaryOp<A, B>::a(x, y, t, c) - BinaryOp<A, B>::b(x, y, t, c);
     }
 
-    #ifdef __AVX__
-    __v8sf vec_avx(int x, int y, int t, int c) const {
-	return (BinaryOp<A, B>::a.vec_avx(x, y, t, c) -
-		BinaryOp<A, B>::b.vec_avx(x, y, t, c));
+    struct Iter {
+	typename A::Iter a; 
+	typename B::Iter b;
+	float operator[](int x) const {return a[x] - b[x];}
+	#ifdef VECTORIZE
+	vec_type vec(int x) const {
+	    return a.vec(x) - b.vec(x);
+	}
+	#endif
+    };
+    Iter scanline(int y, int t, int c) const {
+	return {BinaryOp<A, B>::a.scanline(y, t, c), BinaryOp<A, B>::b.scanline(y, t, c)};
     }
-    #endif
 };
 
 template<typename A, typename B>
@@ -157,12 +202,19 @@ struct Mul : public BinaryOp<A, B> {
 	return BinaryOp<A, B>::a(x, y, t, c) * BinaryOp<A, B>::b(x, y, t, c);
     }
 
-    #ifdef __AVX__
-    __v8sf vec_avx(int x, int y, int t, int c) const {
-	return (BinaryOp<A, B>::a.vec_avx(x, y, t, c) * 
-		BinaryOp<A, B>::b.vec_avx(x, y, t, c));
+    struct Iter {
+	typename A::Iter a; 
+	typename B::Iter b;
+	float operator[](int x) const {return a[x] * b[x];}
+	#ifdef VECTORIZE
+	vec_type vec(int x) const {
+	    return a.vec(x) * b.vec(x);
+	}
+	#endif
+    };
+    Iter scanline(int y, int t, int c) const {
+	return {BinaryOp<A, B>::a.scanline(y, t, c), BinaryOp<A, B>::b.scanline(y, t, c)};
     }
-    #endif
 };
 
 template<typename A, typename B>
@@ -173,12 +225,19 @@ struct Div : public BinaryOp<A, B> {
 	return BinaryOp<A, B>::a(x, y, t, c) / BinaryOp<A, B>::b(x, y, t, c);
     }
 
-    #ifdef __AVX__
-    __v8sf vec_avx(int x, int y, int t, int c) const {
-	return (BinaryOp<A, B>::a.vec_avx(x, y, t, c) / 
-		BinaryOp<A, B>::b.vec_avx(x, y, t, c));
+    struct Iter {
+	typename A::Iter a; 
+	typename B::Iter b;
+	float operator[](int x) const {return a[x] / b[x];}
+	#ifdef VECTORIZE
+	vec_type vec(int x) const {
+	    return a.vec(x) / b.vec(x);
+	}
+	#endif
+    };
+    Iter scanline(int y, int t, int c) const {
+	return {BinaryOp<A, B>::a.scanline(y, t, c), BinaryOp<A, B>::b.scanline(y, t, c)};
     }
-    #endif
 };
 
 }

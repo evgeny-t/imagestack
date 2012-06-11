@@ -135,7 +135,7 @@ Image LocalLaplacian::apply(Image im, float alpha, float beta) {
     for (int i = 0; i < K; i++) {
         pyramid[i][0] = processed[i];
         for (int j = 1; j < J; j++) {
-            int oldW = pyramid[i][j-1].width;
+	    int oldW = pyramid[i][j-1].width;
             int oldH = pyramid[i][j-1].height;
             int oldF = pyramid[i][j-1].frames;
             pyramid[i][j] = pyramidDown(pyramid[i][j-1]);

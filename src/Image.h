@@ -20,30 +20,46 @@ class Image {
     Image(int w, int h, int f, int c) :
 	width(w), height(h), frames(f), channels(c), 
 	ystride(w), tstride(w*h), cstride(w*h*f), 
-	data(new vector<float>(w*h*f*c+3)), base(compute_base(data)) {
+	data(new vector<float>(w*h*f*c+7)), base(compute_base(data)) {
     }
 
     inline float &operator()(int x, int y) {
-        return (base + y*ystride)[x];
+	return (*this)(x, y, 0, 0);
     }
 
     inline float &operator()(int x, int y, int c) {
-	return (base + c*cstride + y*ystride)[x];
+	return (*this)(x, y, 0, c);
     }
 
     inline float &operator()(int x, int y, int t, int c) {
+	#ifdef BOUNDS_CHECKING
+	assert(x >= 0 && x < width &&
+	       y >= 0 && y < height &&
+	       t >= 0 && t < frames &&
+	       c >= 0 && c < channels, 
+	       "Access out of bounds: %d %d %d %d\n", 
+	       x, y, t, c);
+	#endif
         return (base + c*cstride + t*tstride + y*ystride)[x];
     }
 
     inline float operator()(int x, int y) const {
-        return (base + y*ystride)[x];
+	return (*this)(x, y, 0, 0);
     }
 
     inline float operator()(int x, int y, int c) const {
-	return (base + c*cstride + y*ystride)[x];
+	return (*this)(x, y, 0, c);
     }
 
     inline float operator()(int x, int y, int t, int c) const {
+	#ifdef BOUNDS_CHECKING
+	assert(x >= 0 && x < width &&
+	       y >= 0 && y < height &&
+	       t >= 0 && t < frames &&
+	       c >= 0 && c < channels, 
+	       "Access out of bounds: %d %d %d %d\n", 
+	       x, y, t, c);
+	#endif
         return (base + c*cstride + t*tstride + y*ystride)[x];
     }
 
@@ -435,29 +451,41 @@ class Image {
 		   "Can't assign unbounded expression to undefined image\n");
 	}
 
-	// 8-wide vector code, distributed across cores
-	#ifdef __AVX__
-	if (width > 16) {
+	// 4 or 8-wide vector code, distributed across cores
+	#if defined __AVX__ || defined __SSE__
+        #ifdef __AVX__
+	const int vec_width = 8;
+        #else 
+	const int vec_width = 4;
+        #endif
+	if (width > vec_width*2) {
 	    for (int c = 0; c < channels; c++) {
 		for (int t = 0; t < frames; t++) {
-                    #ifdef _OPENMP
+
+		    #ifdef _OPENMP
                     #pragma omp parallel for
-                    #endif		
+		    #endif
 		    for (int y = 0; y < height; y++) {
-			int x = 0;
-			float *addr = base + c*cstride + t*tstride + y*ystride;
-			while ((size_t)addr & 0x1f) {
-			    *addr = func(x, y, t, c);
-			    addr++;
+			const int w = width;
+			const typename T::Iter iter = func.scanline(y, t, c);
+			float * const dst = base + c*cstride + t*tstride + y*ystride;
+
+			// warm up
+			int x = 0;			
+			while ((size_t)(dst+x) & (vec_width*sizeof(float) - 1)) {
+			    dst[x] = iter[x];
 			    x++;
 			}
-			while (x+7 < width) {
-			    _mm256_stream_ps(addr, func.vec_avx(x, y, t, c));
-			    x += 8;
-			    addr += 8;
+			// vectorized steady-state
+			while (x < (w-(vec_width-1))) {
+			    // Stream is often counterproductive.
+			    //_mm256_stream_ps(dst+x, iter.vec(x));
+			    *((ImageStack::Func::vec_type *)(dst + x)) = iter.vec(x);
+			    x += vec_width;
 			}
-			while (x < width) {
-			    (*this)(x, y, t, c) = func(x, y, t, c);
+			// wind down
+			while (x < w) {
+			    dst[x] = iter[x];
 			    x++;
 			}
 		    }
@@ -467,6 +495,9 @@ class Image {
 	}
         #endif	    	
 
+	// 4-wide vector code, distributed across cores
+	
+
 	// Scalar code, distributed across cores
 	for (int c = 0; c < channels; c++) {
 	    for (int t = 0; t < frames; t++) {
@@ -474,8 +505,10 @@ class Image {
 		#pragma omp parallel for
 		#endif		
 		for (int y = 0; y < height; y++) {
+		    const typename T::Iter src = func.scanline(y, t, c);
+		    Iter dst = scanline(y, t, c);
 		    for (int x = 0; x < width; x++) {
-			(*this)(x, y, t, c) = func(x, y, t, c);
+			dst[x] = src[x];
 		    }
 		}
 	    }
@@ -488,16 +521,29 @@ class Image {
     int getHeight() const {return height;}
     int getFrames() const {return frames;}
     int getChannels() const {return channels;}
+    struct Iter {
+	float * const addr;
+	float operator[](int x) const {return addr[x];}
+	float &operator[](int x) {return addr[x];}
+	#ifdef __AVX__
+	__v8sf vec(int x) const {
+	    return _mm256_loadu_ps(addr + x);
+	}
+	#else 
+	#ifdef __SSE__
+	__v4sf vec(int x) const {
+	    return _mm_loadu_ps(addr + x);
+	}
+	#endif
+	#endif
+    };
+    Iter scanline(int y, int t, int c) const {
+	return {base + y*ystride + t*tstride + c*cstride};
+    }
 
     void set(float x) {
 	set(ImageStack::Func::Const(x));
     }
-
-    #ifdef __AVX__
-    __v8sf vec_avx(int x, int y, int t, int c) const {
-	return _mm256_loadu_ps(base + c*cstride + t*tstride + y*ystride + x);
-    }
-    #endif
 
     // Construct an image from a function-like thing
     template<typename T, typename Enable = typename T::Func>    
