@@ -40,7 +40,7 @@ class Image {
 	       "Access out of bounds: %d %d %d %d\n", 
 	       x, y, t, c);
 	#endif
-        return (base + c*cstride + t*tstride + y*ystride)[x];
+        return (((base + c*cstride) + t*tstride) + y*ystride)[x];
     }
 
     inline float operator()(int x, int y) const {
@@ -60,7 +60,7 @@ class Image {
 	       "Access out of bounds: %d %d %d %d\n", 
 	       x, y, t, c);
 	#endif
-        return (base + c*cstride + t*tstride + y*ystride)[x];
+        return (((base + c*cstride) + t*tstride) + y*ystride)[x];
     }
 
     float *baseAddress() const {
