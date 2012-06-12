@@ -595,15 +595,16 @@ void Rotate::parse(vector<string> args) {
 Image Rotate::apply(Image im, float degrees) {
 
     // figure out the rotation matrix
-    float radians = degrees * M_PI / 180;
-    float cosine = cosf(radians);
-    float sine = sinf(radians);
+    double radians = degrees * M_PI / 180;
+    double cosine = cos(radians);
+    double sine = sin(radians);
     // locate the origin
-    float xorigin = (im.width-1) * 0.5;
-    float yorigin = (im.height-1) * 0.5;
+    double xorigin = (im.width-1) * 0.5;
+    double yorigin = (im.height-1) * 0.5;
 
-    vector<double> matrix = {cosine, sine, xorigin - (cosine * xorigin + sine * yorigin),
-			     -sine, cosine, yorigin - (-sine * xorigin + cosine * yorigin)};
+    vector<double> matrix(6);
+    matrix[0] = cosine; matrix[1] = sine; matrix[2] = xorigin - (cosine * xorigin + sine * yorigin);
+    matrix[3] = -sine; matrix[4] = cosine; matrix[5] = yorigin - (-sine * xorigin + cosine * yorigin);
     return AffineWarp::apply(im, matrix);
 }
 
@@ -1696,8 +1697,9 @@ bool Warp::test() {
     Image a(100, 100, 1, 3);
     Noise::apply(a, 0, 1);
     // Do an affine warp in two ways
-    vector<double> matrix = {0.9, 0.1, 3, 
-			     -0.2, 0.8, 3};
+    vector<double> matrix(6);
+    matrix[0] = 0.9; matrix[1] = 0.1; matrix[2] = 3;
+    matrix[3] = -0.2; matrix[4] = 0.8; matrix[5] = 3;
     Image warped = AffineWarp::apply(a, matrix);
     Image warpField(100, 100, 1, 2);
     for (int y = 0; y < 100; y++) {

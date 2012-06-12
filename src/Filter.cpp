@@ -1169,10 +1169,10 @@ Image PercentileFilter::apply(Image im, int radius, float percentile) {
             updateFrom(heapIdx);
         }
 
-        void rebalance(float percentile) {
+        void rebalance(float p) {
             int total = maxHeap[0].second + minHeap[0].second;
 
-            int desiredMinHeapSize = clamp(int(total * (1.0f - percentile)), 0, total-1);
+            int desiredMinHeapSize = clamp(int(total * (1.0f - p)), 0, total-1);
 
             // Make sure there aren't too few things in the maxHeap
             while (minHeap[0].second > desiredMinHeapSize) {
