@@ -1,6 +1,7 @@
 #include "main.h"
 #include "Paint.h"
 #include "Parser.h"
+#include "File.h"
 #include "header.h"
 
 void Eval::help() {
@@ -176,6 +177,30 @@ void Composite::help() {
            "       \"x>width/2\" -composite -display\n\n");
 }
 
+bool Composite::test() {
+    Image mask(123, 234, 1, 1);
+
+    mask.set((Func::X()+Func::Y())/(123+234));
+
+    Image a(123, 234, 1, 3);
+    Image b(123, 234, 1, 3);
+    Noise::apply(a, 0, 6);
+    Noise::apply(b, -3, 2);
+    Image c = a.copy();
+    Composite::apply(c, b, mask);
+
+    for (int i = 0; i < 100; i++) {
+	int y = randomInt(0, a.height-1);
+	int x = randomInt(0, a.width-1);
+	float m = (x+y)/(123.0f + 234.0f);
+	float val = c(x, y, 1);
+	float correct = m*b(x, y, 1) + (1-m)*a(x, y, 1);
+	if (!nearly_equal(val, correct)) return false;
+    }
+
+    return true;
+}
+
 void Composite::parse(vector<string> args) {
     assert(args.size() == 0, "-composite takes no arguments\n");
 
@@ -198,7 +223,9 @@ void Composite::apply(Image dst, Image src) {
 
     if (src.channels > dst.channels) {
         apply(dst, 
-              src.region(0, 0, 0, 0, src.width, src.height, src.frames, dst.channels),
+              src.region(0, 0, 0, 0, 
+			 src.width, src.height, 
+			 src.frames, dst.channels),
               src.channel(dst.channels));
               
     } else {
@@ -214,15 +241,8 @@ void Composite::apply(Image dst, Image src, Image mask) {
     assert(dst.frames == mask.frames && dst.width == mask.width && dst.height == mask.height,
            "The source and destination images must be the same size as the mask\n");
 
-    for (int t = 0; t < dst.frames; t++) {
-        for (int y = 0; y < dst.height; y++) {
-            for (int x = 0; x < dst.width; x++) {
-                float alpha = mask(x, y, t, 0);
-                for (int c = 0; c < dst.channels; c++) {
-                    dst(x, y, t, c) = alpha*src(x, y, t, c) + (1-alpha)*dst(x, y, t, c);
-                }
-            }
-        }
+    for (int c = 0; c < dst.channels; c++) {
+	dst.channel(c).set(mask*src.channel(c) + (1-mask)*dst.channel(c));
     }
 }
 
