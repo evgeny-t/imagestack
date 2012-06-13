@@ -26,6 +26,7 @@ public:
 class Composite : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image dst, Image src);
     static void apply(Image dst, Image src, Image mask);

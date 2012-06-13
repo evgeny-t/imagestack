@@ -74,9 +74,9 @@ struct X : public Unbounded {
 	#ifdef VECTORIZE
 	vec_type vec(int x) const {
 	    #ifdef __AVX__
-	    return _mm256_set_ps(x, x+1, x+2, x+3, x+4, x+5, x+6, x+7);	    
+	    return _mm256_set_ps(x+7, x+6, x+5, x+4, x+3, x+2, x+1, x+0);	    
 	    #else
-	    return _mm_set_ps(x, x+1, x+2, x+3);	    	    
+	    return _mm_set_ps(x+3, x+2, x+1, x+0);  
 	    #endif
 	}
 	#endif
@@ -90,6 +90,8 @@ struct Y : public Unbounded {
     typedef Y Func;
     float operator()(int, int y, int, int) const {return y;}
 
+    typedef Const::Iter Iter;
+
     Const::Iter scanline(int y, int t, int c) const {
 	return Const::Iter(y);
     }
@@ -99,6 +101,8 @@ struct T : public Unbounded {
     typedef T Func;
     float operator()(int, int, int t, int) const {return t;}
 
+    typedef Const::Iter Iter;
+
     Const::Iter scanline(int y, int t, int c) const {
 	return Const::Iter(t);
     }
@@ -107,6 +111,8 @@ struct T : public Unbounded {
 struct C : public Unbounded {
     typedef C Func;
     float operator()(int, int, int, int c) const {return c;}
+
+    typedef Const::Iter Iter;
 
     Const::Iter scanline(int y, int t, int c) const {
 	return Const::Iter(c);
@@ -240,6 +246,39 @@ struct Div : public BinaryOp<A, B> {
     }
 };
 
+
+template<typename A, typename B>
+struct GT : public BinaryOp<A, B> {
+    typedef GT<typename A::Func, typename B::Func> Func;
+    GT(const A a_, const B b_) : BinaryOp<A, B>(a_, b_) {}
+    float operator()(int x, int y, int t, int c) const {
+	return BinaryOp<A, B>::a(x, y, t, c) / BinaryOp<A, B>::b(x, y, t, c);
+    }
+
+    struct Iter {
+	typename A::Iter a; 
+	typename B::Iter b;
+	float operator[](int x) const {return a[x] > b[x] ? 1 : 0;}
+	#ifdef VECTORIZE
+	vec_type vec(int x) const {
+	    vec_type va = a.vec(x), vb = b.vec(x);
+	    #ifdef __AVX__
+	    vec_type one = _mm256_set_ps(1, 1, 1, 1, 1, 1, 1, 1);
+	    vec_type mask = _mm256_cmp_ps(va, vb, _CMP_GT_OQ);
+	    return _mm256_and_ps(mask, one);
+	    #else 
+	    vec_type one = _mm_set_ps(1, 1, 1, 1);
+	    vec_type mask = _mm_cmpgt_ps(va, vb);
+	    return _mm_and_ps(mask, one);
+	    #endif
+	}
+	#endif
+    };
+    Iter scanline(int y, int t, int c) const {
+	return {BinaryOp<A, B>::a.scanline(y, t, c), BinaryOp<A, B>::b.scanline(y, t, c)};
+    }
+};
+
 }
 
 
@@ -305,6 +344,20 @@ Func::Mul<typename A::Func, Func::Const> operator/(const A a, const float b) {
     return Func::Mul<A, Func::Const>(a, Func::Const(1.0f/b));
 }
 
+template<typename A, typename B>
+Func::GT<typename A::Func, typename B::Func> operator>(const A a, const B b) {
+    return Func::GT<A, B>(a, b);
+}
+
+template<typename A>
+Func::GT<typename A::Func, Func::Const> operator>(const A a, const float b) {
+    return Func::GT<A, Func::Const>(a, Func::Const(b));
+}
+
+template<typename B>
+Func::GT<Func::Const, typename B::Func> operator>(const float a, const B b) {
+    return Func::GT<Func::Const, B>(Func::Const(a), b);
+}
 
 
 
