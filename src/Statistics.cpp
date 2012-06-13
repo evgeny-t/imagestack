@@ -691,6 +691,7 @@ void Shuffle::apply(Image im) {
             for (int x = 0; x < im.width; x++) {
                 // pick a random new location after this one
 		idx++;
+		if (idx > maxIdx) return;
 		int idx2 = randomInt(idx, maxIdx);
 		int ot = idx2 / (im.width * im.height);
 		int oy = (idx2 % (im.width * im.height)) / im.width;

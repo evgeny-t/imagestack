@@ -6,6 +6,21 @@
 #include "tables.h"
 #include "header.h"
 
+// The image data type.
+// It's a reference-counted pointer type.
+
+// Note that const Image means that the reference doesn't change, not
+// that the pixel data doesn't. It's equivalent to "float * const
+// foo", not "const float * foo". This means that methods tagged const
+// are those which do not change the metadata, not those which do not
+// change the pixel data. 
+//
+// However, I don't expect people to use const Image everywhere, so I
+// also marked all the metadata as const internally, so that gcc lifts
+// it out of inner loops. The only method that is non-const is
+// operator=(const Image &other), because this is the only way to
+// change the metadata.
+
 class Image {
   public:
 
@@ -23,35 +38,15 @@ class Image {
 	data(new vector<float>(w*h*f*c+7)), base(compute_base(data)) {
     }
 
-    inline float &operator()(int x, int y) {
+    inline float &operator()(int x, int y) const {
 	return (*this)(x, y, 0, 0);
     }
 
-    inline float &operator()(int x, int y, int c) {
+    inline float &operator()(int x, int y, int c) const {
 	return (*this)(x, y, 0, c);
     }
 
-    inline float &operator()(int x, int y, int t, int c) {
-	#ifdef BOUNDS_CHECKING
-	assert(x >= 0 && x < width &&
-	       y >= 0 && y < height &&
-	       t >= 0 && t < frames &&
-	       c >= 0 && c < channels, 
-	       "Access out of bounds: %d %d %d %d\n", 
-	       x, y, t, c);
-	#endif
-        return (((base + c*cstride) + t*tstride) + y*ystride)[x];
-    }
-
-    inline float operator()(int x, int y) const {
-	return (*this)(x, y, 0, 0);
-    }
-
-    inline float operator()(int x, int y, int c) const {
-	return (*this)(x, y, 0, c);
-    }
-
-    inline float operator()(int x, int y, int t, int c) const {
+    inline float &operator()(int x, int y, int t, int c) const {
 	#ifdef BOUNDS_CHECKING
 	assert(x >= 0 && x < width &&
 	       y >= 0 && y < height &&
@@ -73,24 +68,24 @@ class Image {
         return m;
     }
 
-    Image region(int x, int y, int t, int c,
-		 int xs, int ys, int ts, int cs) const {
-        return Image(*this, x, y, t, c, xs, ys, ts, cs);
+    const Image region(int x, int y, int t, int c,
+		       int xs, int ys, int ts, int cs) const {
+	return Image(*this, x, y, t, c, xs, ys, ts, cs);
     }
 
-    Image column(int x) const {
+    const Image column(int x) const {
         return region(x, 0, 0, 0, 1, height, frames, channels);
     }
 
-    Image row(int y) const {
+    const Image row(int y) const {
         return region(0, y, 0, 0, width, 1, frames, channels);
     }
 
-    Image frame(int t) const {
+    const Image frame(int t) const {
         return region(0, 0, t, 0, width, height, 1, channels);
     }
     
-    Image channel(int c) const {
+    const Image channel(int c) const {
         return region(0, 0, 0, c, width, height, frames, 1);
     }
 
@@ -103,7 +98,7 @@ class Image {
 	return base != NULL;
     }
 
-    bool operator==(const Image &other) {
+    bool operator==(const Image &other) const {
 	return (base == other.base &&
 		ystride == other.ystride &&
 		tstride == other.tstride &&
@@ -114,73 +109,73 @@ class Image {
 		channels == other.channels);
     }
 
-    bool operator!=(const Image &other) {
+    bool operator!=(const Image &other) const {
 	return !(*this == other);
     }
 
-    void operator+=(const float f) {
+    void operator+=(const float f) const {
 	set((*this) + f);
     }
 
-    void operator*=(const float f) {
+    void operator*=(const float f) const {
 	set((*this) * f);
     }
 
-    void operator-=(const float f) {
+    void operator-=(const float f) const {
 	set((*this) - f);
     }
 
-    void operator/=(const float f) {
+    void operator/=(const float f) const {
 	set((*this) / f);
     }
 
-    void operator+=(const vector<float> f) {	
+    void operator+=(const vector<float> f) const {	
 	for (int c = 0; c < channels; c++) {
 	    channel(c) += f[c % f.size()];
 	}
     }
 
-    void operator*=(const vector<float> f) {
+    void operator*=(const vector<float> f) const {
 	for (int c = 0; c < channels; c++) {
 	    channel(c) *= f[c % f.size()];
 	}
     }
 
-    void operator-=(const vector<float> f) {	
+    void operator-=(const vector<float> f) const {	
 	for (int c = 0; c < channels; c++) {
 	    channel(c) -= f[c % f.size()];
 	}
     }
 
-    void operator/=(const vector<float> f) {
+    void operator/=(const vector<float> f) const {
 	for (int c = 0; c < channels; c++) {
 	    channel(c) /= f[c % f.size()];
 	}
     }
 
     template<typename T, typename Enable = typename T::Func>
-    void operator+=(const T other) {
+    void operator+=(const T other) const {
 	set((*this) + other);
     }
 
     template<typename T, typename Enable = typename T::Func>
-    void operator*=(const T other) {
+    void operator*=(const T other) const {
 	set((*this) * other);
     }
 
     template<typename T, typename Enable = typename T::Func>
-    void operator-=(const T other) {
+    void operator-=(const T other) const {
 	set((*this) - other);
     }
 
     template<typename T, typename Enable = typename T::Func>
-    void operator/=(const T other) {
+    void operator/=(const T other) const {
 	set((*this) / other);
     }
 
     typedef enum {ZERO = 0, NEUMANN} BoundaryCondition;
 
-    void sample2D(float fx, float fy, int t, vector<float> &result, BoundaryCondition boundary = ZERO) {
+    void sample2D(float fx, float fy, int t, vector<float> &result, BoundaryCondition boundary = ZERO) const {
         int ix = (int)fx;
         int iy = (int)fy;
         const int LEFT = -2;
@@ -265,16 +260,16 @@ class Image {
         }
     }
 
-    void sample2D(float fx, float fy, vector<float> &result) {
+    void sample2D(float fx, float fy, vector<float> &result) const {
         sample2D(fx, fy, 0, result);
     }
 
 
-    void sample2DLinear(float fx, float fy, vector<float> &result) {
+    void sample2DLinear(float fx, float fy, vector<float> &result) const {
         sample2DLinear(fx, fy, 0, result);
     }
 
-    void sample2DLinear(float fx, float fy, int t, vector<float> &result) {
+    void sample2DLinear(float fx, float fy, int t, vector<float> &result) const {
         int ix = (int)fx;
         int iy = (int)fy;
         fx -= ix;
@@ -288,7 +283,7 @@ class Image {
 
     }
 
-    void sample3DLinear(float fx, float fy, float ft, vector<float> &result) {
+    void sample3DLinear(float fx, float fy, float ft, vector<float> &result) const {
         int ix = (int)fx;
         int iy = (int)fy;
         int it = (int)ft;
@@ -310,7 +305,7 @@ class Image {
 
     }
 
-    void sample3D(float fx, float fy, float ft, vector<float> &result, BoundaryCondition boundary = ZERO) {
+    void sample3D(float fx, float fy, float ft, vector<float> &result, BoundaryCondition boundary = ZERO) const {
         int ix = (int)fx;
         int iy = (int)fy;
         int it = (int)ft;
@@ -433,19 +428,15 @@ class Image {
     // The second template argument prevents instantiations from
     // things that don't have a nested ::Func type
     template<typename T, typename Enable = typename T::Func>
-    void set(const T func) {
+    void set(const T func) const {
 	if (func.bounded()) {
 	    int w = func.getWidth(), h = func.getHeight(),
 		f = func.getFrames(), c = func.getChannels();
-	    if (defined()) {
-		assert(width == w &&
-		       height == h &&
-		       frames == f &&
-		       channels == c,
-		       "Can only assign from source of matching size\n");
-	    } else {
-		(*this) = Image(w, h, f, c);
-	    }	    
+	    assert(width == w &&
+		   height == h &&
+		   frames == f &&
+		   channels == c,
+		   "Can only assign from source of matching size\n");
 	} else {
 	    assert(defined(),
 		   "Can't assign unbounded expression to undefined image\n");
@@ -495,9 +486,6 @@ class Image {
 	}
         #endif	    	
 
-	// 4-wide vector code, distributed across cores
-	
-
 	// Scalar code, distributed across cores
 	for (int c = 0; c < channels; c++) {
 	    for (int t = 0; t < frames; t++) {
@@ -541,7 +529,7 @@ class Image {
 	return {base + y*ystride + t*tstride + c*cstride};
     }
 
-    void set(float x) {
+    void set(float x) const {
 	set(ImageStack::Func::Const(x));
     }
 

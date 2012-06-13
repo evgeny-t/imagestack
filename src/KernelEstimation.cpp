@@ -46,8 +46,8 @@ void KernelEstimation::NormalizeSum(Image im) {
 Image KernelEstimation::EnlargeKernel(Image im, int w, int h) {
     Image ret(w, h, 1, 2);
     for (int y = 0; y < im.height; y++) {
-        int new_y = (y - (im.height >> 1) + h) % h;
-        int new_x =  - (im.width >> 1) + w;
+        int new_y = (y - (im.height/2) + h) % h;
+        int new_x =  - (im.width/2) + w;
         for (int x = 0; x < im.width; x++, new_x++) {
             if (new_x == w) new_x = 0;
             ret(new_x, new_y) = im(x, y);

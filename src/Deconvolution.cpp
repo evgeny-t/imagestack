@@ -1,7 +1,6 @@
 #ifndef NO_FFTW
 #include "main.h"
 #include "Arithmetic.h"
-#include "Color.h"
 #include "Complex.h"
 #include "Deconvolution.h"
 #include "DFT.h"
@@ -9,6 +8,8 @@
 #include "GaussTransform.h"
 #include "Geometry.h"
 #include "KernelEstimation.h"
+#include "Statistics.h"
+#include "Filter.h"
 #include "header.h"
 
 #define FourierTransform(X) (FFT::apply(X, true, true, false))
@@ -29,7 +30,40 @@ void Deconvolve::help() {
 }
 
 bool Deconvolve::test() {
-    return false;
+    // Make a lop-sided random kernel
+    Image kernel(9, 9, 1, 1);
+    Noise::apply(kernel, 0, 0.1);
+    Noise::apply(kernel.region(0, 0, 0, 0,
+			       5, 5, 1, 1), 0, 1);
+    kernel /= Stats(kernel).sum();
+    Image input = Load::apply("pics/dog1.jpg");
+    Image blurry = Convolve::apply(input, kernel, Convolve::Zero);
+    Noise::apply(blurry, -0.02, 0.02);
+    Image shanResult = Deconvolve::applyShan2008(blurry, kernel);
+    Image choResult = Deconvolve::applyCho2009(blurry, kernel);
+    Image levinResult = Deconvolve::applyLevin2007(blurry, kernel, 0.02);
+    /*
+    Save::apply(kernel, "kernel.tmp");
+    Save::apply(blurry, "blurry.tmp");
+    Save::apply(shanResult, "shan.tmp");
+    Save::apply(choResult, "cho.tmp");
+    Save::apply(levinResult, "levin.tmp");
+    */
+    Stats shanStats(shanResult - input);
+    Stats choStats(choResult - input);
+    Stats levinStats(levinResult - input);
+    printf("Shan:  %f %f\n"
+	   "Cho:   %f %f\n"
+	   "Levin: %f %f\n",
+	   shanStats.mean(), shanStats.variance(),
+	   choStats.mean(), choStats.variance(),
+	   levinStats.mean(), levinStats.variance());
+    return (nearly_equal(shanStats.mean(), 0) &&
+	    nearly_equal(shanStats.variance(), 0) &&
+	    nearly_equal(choStats.mean(), 0) &&
+	    nearly_equal(choStats.variance(), 0) &&
+	    nearly_equal(levinStats.mean(), 0) &&
+	    nearly_equal(levinStats.variance(), 0));	    
 }
 
 void Deconvolve::parse(vector<string> args) {
@@ -51,15 +85,23 @@ void Deconvolve::parse(vector<string> args) {
 }
 
 Image Deconvolve::applyShan2008(Image B, Image K) {
-    assert(K.channels == 1 && K.frames == 1 && B.frames == 1,
-           "The kernel must be single-channel, and both the kernel and blurred\n"
-           "image must be single-framed.\n");
-    assert(K.width % 2 == 1 && K.height % 2 ==1,
+    assert(K.channels == 1 && K.frames == 1,
+           "The kernel must have one channel and one frame\n");
+    assert(K.width % 2 == 1 && K.height % 2 == 1,
            "The kernel dimensions must be odd.\n");
-
+    
     // Prepare constants and images.
-    Image Bgray = (B.channels == 3) ? ColorConvert::apply(B, "rgb", "y") : B;
-    Image B_large = applyPadding(Bgray);
+    if (B.channels > 1 || B.frames > 1) {
+	Image result(B.width, B.height, B.frames, B.channels);
+	for (int c = 0; c < B.channels; c++) {
+	    for (int t = 0; t < B.frames; t++) {
+		Image tmp = applyShan2008(B.channel(c).frame(t), K);
+		result.channel(c).frame(t).set(tmp);
+	    }
+	}
+	return result;
+    }
+    Image B_large = applyPadding(B);
     Image K_large = KernelEstimation::EnlargeKernel(K, B_large.width, B_large.height);
     Image smoothness_map;
     const int x_padding = (B_large.width - B.width) / 2;
@@ -67,24 +109,14 @@ Image Deconvolve::applyShan2008(Image B, Image K) {
 
     // Compute the smoothness map.
     {
-        Image filter_x(K.width, 1, 1, 1);
-        Image filter_y(1, K.height, 1, 1);
-	filter_x += 1.0f/K.width;
-	filter_y += 1.0f/K.height;
-        if (K.width % 2 == 0) filter_x = Crop::apply(filter_x, 0, 0, K.width+1, 1);
-        if (K.height %2 == 0) filter_y = Crop::apply(filter_y, 0, 0, 1, K.height+1);
-        Image tmp = Convolve::apply(Convolve::apply(Bgray, filter_x, Convolve::Clamp),
-                                       filter_y, Convolve::Clamp);
-	tmp *= tmp;
-        smoothness_map = Bgray.copy();
-        smoothness_map = Multiply::apply(smoothness_map, smoothness_map, Multiply::Elementwise);
-        smoothness_map = Convolve::apply(Convolve::apply(smoothness_map, filter_x, Convolve::Clamp),
-                                         filter_y, Convolve::Clamp);
-	smoothness_map -= tmp;
-	smoothness_map *= -1.0f;
-
+	Image mean = B.copy();
+	RectFilter::apply(mean, K.width | 1, K.height | 1, 1);
+	Image variance = B * B;
+	RectFilter::apply(variance, K.width | 1, K.height | 1, 1);
+	smoothness_map = mean*mean - variance;
         Threshold::apply(smoothness_map, -25.0f / (256.f * 256.f));
         smoothness_map = Crop::apply(smoothness_map, -x_padding, -y_padding, 0, B_large.width, B_large.height, 1);
+	Save::apply(smoothness_map, "smoothness_map.tmp");
     }
 
     // Prepare Fourier domain stuff.
@@ -154,11 +186,12 @@ Image Deconvolve::applyShan2008(Image B, Image K) {
 
     Image dIdx = Convolve::apply(B_large, Crop::apply(FDeriv[1], -1, 0, 3, 1), Convolve::Wrap);
     Image dIdy = Convolve::apply(B_large, Crop::apply(FDeriv[3], 0, -1, 1, 3), Convolve::Wrap);
-    Image L, FPsi_x, FPsi_y;
+    Image L = B_large; 
+    Image FPsi_x, FPsi_y;
     Image Psi_x(B_large.width, B_large.height, 1, 2);
     Image Psi_y(B_large.width, B_large.height, 1, 2);
     float gamma = 2.0f;
-    const int MAX_ITERATION = 2;
+    const int MAX_ITERATION = 1;
 
     // Non-linear prior for gradient (for 8-bit int pixels)
     float k = 2.7f;
@@ -168,7 +201,6 @@ Image Deconvolve::applyShan2008(Image B, Image K) {
     k *= 255.f; a *= 255.f * 255.f; lt /= 255.f; // adjustment for floating point
 
     for (int iterations = 1; iterations <= MAX_ITERATION; iterations++) {
-        printf(" Starting iteration %d of %d\n", iterations, MAX_ITERATION);
         /******************************************/
         /* Optimize over Psi                      */
         /******************************************/
@@ -381,7 +413,7 @@ Image Deconvolve::applyPadding(Image B) {
     int y_padding = B.height / 2;
     if (x_padding < alpha * 3) x_padding = alpha * 3;
     if (y_padding < alpha * 3) y_padding = alpha * 3;
-
+    
     // Prepare the enlarged canvas.
     vector<float> prev(B.channels);
     Image ret = Crop::apply(B, -x_padding, -y_padding, 0,
@@ -423,7 +455,7 @@ Image Deconvolve::applyPadding(Image B) {
                 }
             }
 	}
-
+	
 	// Populate the left 'C-B-C' region
 	for (int y = 0; y < B.height + y_padding * 2; y++) {
 	    for (int x = 0; x < alpha; x++) {
@@ -433,7 +465,7 @@ Image Deconvolve::applyPadding(Image B) {
 		}
 	    }
 	}
-
+	
 	for (int x = alpha; x < x_padding - alpha; x++) {
 	    // interpolate towards the right boundary.
 	    float weight = 1.f / (x_padding - alpha - (x-1));
@@ -574,19 +606,21 @@ Image Deconvolve::applyLevin2007(Image blurred, Image kernel, float weight) {
            "The kernel must be single-channel, and both the kernel and blurred\n"
            "image must be single-framed.\n");
 
+    Image padded = applyPadding(blurred);
+
     // sum of second derivatives filter
-    Image fft_g(blurred.width, blurred.height, 1, 2);
+    Image fft_g(padded.width, padded.height, 1, 2);
     fft_g(0, 0) = weight;
-    fft_g(blurred.width-1, 0) = -weight*0.25;
-    fft_g(0, blurred.height-1) = -weight*0.25;
+    fft_g(padded.width-1, 0) = -weight*0.25;
+    fft_g(0, padded.height-1) = -weight*0.25;
     fft_g(1, 0) = -weight*0.25;
     fft_g(0, 1) = -weight*0.25;
     FFT::apply(fft_g);
 
-    Image fft_im = RealComplex::apply(blurred);
+    Image fft_im = RealComplex::apply(padded);
     FFT::apply(fft_im);
 
-    Image fft_kernel(blurred.width, blurred.height, 1, 2);
+    Image fft_kernel(padded.width, padded.height, 1, 2);
     for (int y = 0; y < kernel.height; y++) {
         int fy = y - kernel.height/2;
         if (fy < 0) { fy += fft_kernel.height; }
@@ -606,7 +640,14 @@ Image Deconvolve::applyLevin2007(Image blurred, Image kernel, float weight) {
     fft_kernel += fft_g;
     ComplexDivide::apply(fft_im, fft_kernel, false);
 
+
+    const int x_pad = (padded.width - blurred.width)/2;
+    const int y_pad = (padded.height - blurred.height)/2;
+
     IFFT::apply(fft_im);
+    fft_im = fft_im.region(x_pad, y_pad, 0, 0,
+			   blurred.width, blurred.height, 
+			   blurred.frames, fft_im.channels);
     return ComplexReal::apply(fft_im);
 }
 

@@ -1709,8 +1709,7 @@ bool Warp::test() {
 	}
     }
     Image warped2 = Warp::apply(warpField, a);
-    warped2 -= warped;
-    Stats s(warped2);
+    Stats s(warped2 - warped);
     return (nearly_equal(s.mean(), 0) && 
 	    nearly_equal(s.variance(), 0));
 }
