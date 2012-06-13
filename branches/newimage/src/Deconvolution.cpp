@@ -36,7 +36,7 @@ bool Deconvolve::test() {
     Noise::apply(kernel.region(0, 0, 0, 0,
 			       5, 5, 1, 1), 0, 1);
     kernel /= Stats(kernel).sum();
-    Image input = Load::apply("pics/dog1.jpg");
+    Image input = Downsample::apply(Load::apply("pics/dog1.jpg"), 2, 2, 1);
     Image blurry = Convolve::apply(input, kernel, Convolve::Zero);
     Noise::apply(blurry, -0.02, 0.02);
     Image shanResult = Deconvolve::applyShan2008(blurry, kernel);

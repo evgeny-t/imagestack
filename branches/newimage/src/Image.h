@@ -544,7 +544,8 @@ class Image {
 
   private:
 
-    static float *compute_base(std::shared_ptr<vector<float> > data) {
+    // Compute a 32-byte aligned address within data
+    static float *compute_base(const std::shared_ptr<vector<float> > &data) {
 	float *base = &((*data)[0]);
 	while (((size_t)base) & 0x1f) base++;    
 	return base;
