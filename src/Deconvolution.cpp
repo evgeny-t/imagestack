@@ -107,6 +107,7 @@ Image Deconvolve::applyShan2008(Image B, Image K) {
     const int x_padding = (B_large.width - B.width) / 2;
     const int y_padding = (B_large.height - B.height) / 2;
 
+
     // Compute the smoothness map.
     {
 	Image mean = B.copy();
