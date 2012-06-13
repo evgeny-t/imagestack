@@ -7,25 +7,20 @@
 #include "header.h"
 
 // The image data type.
+
 // It's a reference-counted pointer type.
 
-// Note that const Image means that the reference doesn't change, not
+// Note that "const Image" means that the reference doesn't change, not
 // that the pixel data doesn't. It's equivalent to "float * const
 // foo", not "const float * foo". This means that methods tagged const
 // are those which do not change the metadata, not those which do not
 // change the pixel data. 
-//
-// However, I don't expect people to use const Image everywhere, so I
-// also marked all the metadata as const internally, so that gcc lifts
-// it out of inner loops. The only method that is non-const is
-// operator=(const Image &other), because this is the only way to
-// change the metadata.
 
 class Image {
   public:
 
-    const int width, height, frames, channels;
-    const int ystride, tstride, cstride;   
+    int width, height, frames, channels;
+    int ystride, tstride, cstride;   
 
     Image() : 
 	width(0), height(0), frames(0), channels(0), 
@@ -494,7 +489,7 @@ class Image {
 		#endif		
 		for (int y = 0; y < height; y++) {
 		    const typename T::Iter src = func.scanline(y, t, c);
-		    Iter dst = scanline(y, t, c);
+		    float * const dst = &(*this)(0, y, t, c);
 		    for (int x = 0; x < width; x++) {
 			dst[x] = src[x];
 		    }
@@ -502,7 +497,16 @@ class Image {
 	    }
 	}
     }
-    // An image itself is one such function-like thing
+
+    // Special-case setting an image to a float value, because it
+    // won't implicitly cast things like int literals to Func::Const
+    // via float, and I'd like to be able to say image.set(1);
+    void set(float x) const {
+	set(ImageStack::Func::Const(x));
+    }
+
+    // An image itself is one such function-like thing. Here's the
+    // interface it needs to implement for that to happen:
     typedef Image Func;
     bool bounded() const {return true;}
     int getWidth() const {return width;}
@@ -510,9 +514,8 @@ class Image {
     int getFrames() const {return frames;}
     int getChannels() const {return channels;}
     struct Iter {
-	float * const addr;
+	const float * const addr;
 	float operator[](int x) const {return addr[x];}
-	float &operator[](int x) {return addr[x];}
 	#ifdef __AVX__
 	__v8sf vec(int x) const {
 	    return _mm256_loadu_ps(addr + x);
@@ -529,10 +532,6 @@ class Image {
 	return {base + y*ystride + t*tstride + c*cstride};
     }
 
-    void set(float x) const {
-	set(ImageStack::Func::Const(x));
-    }
-
     // Construct an image from a function-like thing
     template<typename T, typename Enable = typename T::Func>    
     Image(const T func) :
@@ -542,20 +541,6 @@ class Image {
 	(*this) = Image(func.getWidth(), func.getHeight(), func.getFrames(), func.getChannels());
 	set(func);
     }
-
-    void operator=(const Image &other) {
-	//assert(!defined(), "Can't assign to an already-defined image\n");
-	const_cast<int *>(&width)[0] = other.width;
-	const_cast<int *>(&height)[0] = other.height;
-	const_cast<int *>(&frames)[0] = other.frames;
-	const_cast<int *>(&channels)[0] = other.channels;
-	const_cast<int *>(&ystride)[0] = other.ystride;
-	const_cast<int *>(&tstride)[0] = other.tstride;
-	const_cast<int *>(&cstride)[0] = other.cstride;
-	const_cast<float **>(&base)[0] = other.base;
-	const_cast<std::shared_ptr<std::vector<float> > *>(&data)[0] = other.data;
-    }
-    
 
   private:
 
@@ -571,10 +556,12 @@ class Image {
 	width(xs), height(ys), frames(ts), channels(cs),
 	ystride(im.ystride), tstride(im.tstride), cstride(im.cstride),
 	data(im.data), base(&im(x, y, t, c)) {	
+	// Note that base is no longer aligned. You're only guaranteed
+	// alignment if you allocate an image from scratch.
     }
 
-    const std::shared_ptr<std::vector<float> > data;
-    float * const base;
+    std::shared_ptr<std::vector<float> > data;
+    float * base;
 };
 
 
