@@ -539,6 +539,7 @@ class Image {
 	width(0), height(0), frames(0), channels(0), 
 	ystride(0), tstride(0), cstride(0), data(), base(NULL) {
 	assert(func.bounded(), "Can only construct an image from a bounded expression\n");
+	(*this) = Image(func.getWidth(), func.getHeight(), func.getFrames(), func.getChannels());
 	set(func);
     }
 
