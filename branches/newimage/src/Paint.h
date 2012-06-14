@@ -5,6 +5,7 @@
 class Eval : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, string expression);
 };
@@ -12,6 +13,7 @@ public:
 class EvalChannels : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, vector<string> expressions);
 };
@@ -19,6 +21,7 @@ public:
 class Plot : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, int width, int height, float lineThickness);
 };

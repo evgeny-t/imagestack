@@ -4,11 +4,45 @@
 #include "File.h"
 #include "header.h"
 
+using namespace Lazy;
+
 void Eval::help() {
     printf("\n-eval takes a simple expression and evaluates it, writing the result to the\n"
            "current image.\n\n");
     Expression::help();
     printf("Usage: ImageStack -push 128 128 128 1 -eval \"(x*y*t)^0.5\" -save out.tga\n\n");
+}
+
+bool Eval::test() {
+    Image im(123, 234, 2, 3);
+    Noise::apply(im, 0, 1);
+
+    {
+	Image a = Eval::apply(im, "[0]*2 + val");
+	Image b = RepeatC(im.channel(0))*2 + im;
+	Stats s(a - b);
+	if (!nearly_equal(s.mean(), 0) && 
+	    !nearly_equal(s.variance(), 0)) return false;
+    }
+
+    {
+	Image a = Eval::apply(im, "abs(cos(50*(log(exp(val-2) + 1))))");
+	Image b = abs(cos(50*(log(exp(im-2) + 1))));
+	Stats s(a - b);
+	if (!nearly_equal(s.mean(), 0) && 
+	    !nearly_equal(s.variance(), 0)) return false;
+    }
+
+    {
+	Stats ims(im);
+	Image a = Eval::apply(im, "val > 0.5 ? (val / mean(2) + skew(0)) : -covariance(0, 1)");
+	Image b = Select(im > 0.5, im / ims.mean(2) + ims.skew(0), -ims.covariance(0, 1));
+	Stats s(a - b);
+	if (!nearly_equal(s.mean(), 0) && 
+	    !nearly_equal(s.variance(), 0)) return false;	
+    }
+
+    return true;
 }
 
 void Eval::parse(vector<string> args) {
@@ -47,14 +81,15 @@ void EvalChannels::help() {
            "                  -save out.tga\n\n");
 }
 
+bool EvalChannels::test() {
+    return false;
+}
+
 void EvalChannels::parse(vector<string> args) {
     Image im = apply(stack(0), args);
     pop();
     push(im);
 }
-
-
-
 
 Image EvalChannels::apply(Image im, vector<string> expressions_) {
     vector<Expression *> expressions(expressions_.size());
@@ -88,6 +123,10 @@ void Plot::help() {
            "It takes three arguments: the width and height of the resulting graph,\n"
            "and the line thickness to use for the plot. The resulting graph will\n"
            "have the same number of frames and channels as the input.\n\n");
+}
+
+bool Plot::test() {
+    return false;
 }
 
 void Plot::parse(vector<string> args) {
@@ -180,7 +219,7 @@ void Composite::help() {
 bool Composite::test() {
     Image mask(123, 234, 1, 1);
 
-    mask.set((Func::X()+Func::Y())/(123+234));
+    mask.set((X()+Y())/(123+234));
 
     Image a(123, 234, 1, 3);
     Image b(123, 234, 1, 3);
