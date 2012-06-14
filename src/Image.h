@@ -1,7 +1,7 @@
 #ifndef IMAGESTACK_IMAGE_H
 #define IMAGESTACK_IMAGE_H
 
-#include "Func.h"
+#include "Lazy.h"
 
 #include "tables.h"
 #include "header.h"
@@ -148,22 +148,22 @@ class Image {
 	}
     }
 
-    template<typename T, typename Enable = typename T::Func>
+    template<typename T, typename Enable = typename T::Lazy>
     void operator+=(const T other) const {
 	set((*this) + other);
     }
 
-    template<typename T, typename Enable = typename T::Func>
+    template<typename T, typename Enable = typename T::Lazy>
     void operator*=(const T other) const {
 	set((*this) * other);
     }
 
-    template<typename T, typename Enable = typename T::Func>
+    template<typename T, typename Enable = typename T::Lazy>
     void operator-=(const T other) const {
 	set((*this) - other);
     }
 
-    template<typename T, typename Enable = typename T::Func>
+    template<typename T, typename Enable = typename T::Lazy>
     void operator/=(const T other) const {
 	set((*this) / other);
     }
@@ -419,22 +419,24 @@ class Image {
 
     }
 
-    // Evaluate a function-like object defined in Func.h
+    // Evaluate a function-like object defined in Lazy.h
     // The second template argument prevents instantiations from
-    // things that don't have a nested ::Func type
-    template<typename T, typename Enable = typename T::Func>
+    // things that don't have a nested ::Lazy type
+    template<typename T, typename Enable = typename T::Lazy>
     void set(const T func) const {
-	if (func.bounded()) {
+	{
 	    int w = func.getWidth(), h = func.getHeight(),
 		f = func.getFrames(), c = func.getChannels();
-	    assert(width == w &&
-		   height == h &&
-		   frames == f &&
-		   channels == c,
-		   "Can only assign from source of matching size\n");
-	} else {
-	    assert(defined(),
-		   "Can't assign unbounded expression to undefined image\n");
+	    if (w && h && f && c) {
+		assert(width == w &&
+		       height == h &&
+		       frames == f &&
+		       channels == c,
+		       "Can only assign from source of matching size\n");
+	    } else {
+		assert(defined(),
+		       "Can't assign unbounded expression to undefined image\n");
+	    }
 	}
 
 	// 4 or 8-wide vector code, distributed across cores
@@ -466,7 +468,7 @@ class Image {
 			while (x < (w-(vec_width-1))) {
 			    // Stream is often counterproductive.
 			    //_mm256_stream_ps(dst+x, iter.vec(x));
-			    *((ImageStack::Func::vec_type *)(dst + x)) = iter.vec(x);
+			    *((ImageStack::Lazy::vec_type *)(dst + x)) = iter.vec(x);
 			    x += vec_width;
 			}
 			// wind down
@@ -499,16 +501,15 @@ class Image {
     }
 
     // Special-case setting an image to a float value, because it
-    // won't implicitly cast things like int literals to Func::Const
+    // won't implicitly cast things like int literals to Lazy::Const
     // via float, and I'd like to be able to say image.set(1);
     void set(float x) const {
-	set(ImageStack::Func::Const(x));
+	set(ImageStack::Lazy::Const(x));
     }
 
     // An image itself is one such function-like thing. Here's the
     // interface it needs to implement for that to happen:
-    typedef Image Func;
-    bool bounded() const {return true;}
+    typedef Image Lazy;
     int getWidth() const {return width;}
     int getHeight() const {return height;}
     int getFrames() const {return frames;}
@@ -533,11 +534,12 @@ class Image {
     }
 
     // Construct an image from a function-like thing
-    template<typename T, typename Enable = typename T::Func>    
+    template<typename T, typename Enable = typename T::Lazy>    
     Image(const T func) :
 	width(0), height(0), frames(0), channels(0), 
 	ystride(0), tstride(0), cstride(0), data(), base(NULL) {
-	assert(func.bounded(), "Can only construct an image from a bounded expression\n");
+	assert(func.getWidth() && func.getHeight() && func.getFrames() && func.getChannels(),
+	       "Can only construct an image from a bounded expression\n");
 	(*this) = Image(func.getWidth(), func.getHeight(), func.getFrames(), func.getChannels());
 	set(func);
     }
