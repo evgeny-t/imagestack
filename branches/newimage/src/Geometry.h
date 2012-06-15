@@ -74,6 +74,7 @@ public:
     bool test();
     void parse(vector<string> args);
     static Image apply(Image im, vector<double> warp);
+    static Image apply(Image im, double *warp);
 };
 
 class Crop : public Operation {

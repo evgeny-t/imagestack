@@ -91,7 +91,6 @@ public:
     void help();
     bool test();
     void parse(vector<string> args);
-    static void apply(Image a, vector<float>);
     static void apply(Image a, float);
 };
 
@@ -100,7 +99,6 @@ public:
     void help();
     bool test();
     void parse(vector<string> args);
-    static void apply(Image a, vector<float>);
     static void apply(Image a, float);
 };
 

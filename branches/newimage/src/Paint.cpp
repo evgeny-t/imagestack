@@ -2,6 +2,7 @@
 #include "Paint.h"
 #include "Parser.h"
 #include "File.h"
+#include "Geometry.h"
 #include "header.h"
 
 using namespace Lazy;
@@ -14,18 +15,24 @@ void Eval::help() {
 }
 
 bool Eval::test() {
+    // This also tests much of the Lazy module
+
     Image im(123, 234, 2, 3);
     Noise::apply(im, 0, 1);
 
+    // Test basic arithmetic and channel selection
     {
-	Image a = Eval::apply(im, "[0]*2 + val");
-	Image b = RepeatC(im.channel(0))*2 + im;
+	printf("Testing arithmetic\n");
+	Image a = Eval::apply(im, "[1]*2 + val");
+	Image b = RepeatC(im.channel(1))*2 + im;
 	Stats s(a - b);
 	if (!nearly_equal(s.mean(), 0) && 
 	    !nearly_equal(s.variance(), 0)) return false;
     }
 
+    // Test some transcendentals
     {
+	printf("Testing transcendentals\n");
 	Image a = Eval::apply(im, "abs(cos(50*(log(exp(val-2) + 1))))");
 	Image b = abs(cos(50*(log(exp(im-2) + 1))));
 	Stats s(a - b);
@@ -33,10 +40,36 @@ bool Eval::test() {
 	    !nearly_equal(s.variance(), 0)) return false;
     }
 
+
+    // Test conditional
     {
+	printf("Testing conditionals\n");
 	Stats ims(im);
 	Image a = Eval::apply(im, "val > 0.5 ? (val / mean(2) + skew(0)) : -covariance(0, 1)");
 	Image b = Select(im > 0.5, im / ims.mean(2) + ims.skew(0), -ims.covariance(0, 1));
+	Stats s(a - b);
+	if (!nearly_equal(s.mean(), 0) && 
+	    !nearly_equal(s.variance(), 0)) return false;	
+    }
+
+    // Test some more comparisons
+    {
+	printf("Testing comparisons\n");
+	Stats ims(im);
+	Image a = Eval::apply(im, "(val > 0.5) + (x <= 50) + (y >= 10) + (c < 2) + (y != 23) + (x == 22)");
+	Image b = (im > 0.5) + (X() <= 50) + (Y() >= 10) + (C() < 2) + (Y() != 23) + (X() == 22);
+	Stats s(a - b);
+	if (!nearly_equal(s.mean(), 0) && 
+	    !nearly_equal(s.variance(), 0)) return false;	
+    }
+
+    // Test sampling
+    {
+	printf("Testing sampling\n");
+	Stats ims(im);
+	Image a = Eval::apply(im, "[x*0.8 + y*0.2, -x*0.2 + y*0.8]");
+	double matrix[] = {0.8, 0.2, 0, -0.2, 0.8, 0};
+	Image b = AffineWarp::apply(im, matrix);
 	Stats s(a - b);
 	if (!nearly_equal(s.mean(), 0) && 
 	    !nearly_equal(s.variance(), 0)) return false;	

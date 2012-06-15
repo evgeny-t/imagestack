@@ -124,30 +124,6 @@ class Image {
 	set((*this) / f);
     }
 
-    void operator+=(const vector<float> f) const {	
-	for (int c = 0; c < channels; c++) {
-	    channel(c) += f[c % f.size()];
-	}
-    }
-
-    void operator*=(const vector<float> f) const {
-	for (int c = 0; c < channels; c++) {
-	    channel(c) *= f[c % f.size()];
-	}
-    }
-
-    void operator-=(const vector<float> f) const {	
-	for (int c = 0; c < channels; c++) {
-	    channel(c) -= f[c % f.size()];
-	}
-    }
-
-    void operator/=(const vector<float> f) const {
-	for (int c = 0; c < channels; c++) {
-	    channel(c) /= f[c % f.size()];
-	}
-    }
-
     template<typename T, typename Enable = typename T::Lazy>
     void operator+=(const T other) const {
 	set((*this) + other);
@@ -171,6 +147,10 @@ class Image {
     typedef enum {ZERO = 0, NEUMANN} BoundaryCondition;
 
     void sample2D(float fx, float fy, int t, vector<float> &result, BoundaryCondition boundary = ZERO) const {
+	sample2D(fx, fy, t, &result[0], boundary);
+    }
+
+    void sample2D(float fx, float fy, int t, float *result, BoundaryCondition boundary = ZERO) const {
         int ix = (int)fx;
         int iy = (int)fy;
         const int LEFT = -2;
@@ -259,12 +239,23 @@ class Image {
         sample2D(fx, fy, 0, result);
     }
 
+    void sample2D(float fx, float fy, float *result) const {
+        sample2D(fx, fy, 0, result);
+    }
 
     void sample2DLinear(float fx, float fy, vector<float> &result) const {
         sample2DLinear(fx, fy, 0, result);
     }
 
+    void sample2DLinear(float fx, float fy, float *result) const {
+        sample2DLinear(fx, fy, 0, result);
+    }
+
     void sample2DLinear(float fx, float fy, int t, vector<float> &result) const {
+	sample2DLinear(fx, fy, t, &result[0]);
+    }
+
+    void sample2DLinear(float fx, float fy, int t, float *result) const {
         int ix = (int)fx;
         int iy = (int)fy;
         fx -= ix;
@@ -279,6 +270,10 @@ class Image {
     }
 
     void sample3DLinear(float fx, float fy, float ft, vector<float> &result) const {
+	sample3DLinear(fx, fy, ft, &result[0]);
+    }
+
+    void sample3DLinear(float fx, float fy, float ft, float *result) const {
         int ix = (int)fx;
         int iy = (int)fy;
         int it = (int)ft;
@@ -300,7 +295,13 @@ class Image {
 
     }
 
-    void sample3D(float fx, float fy, float ft, vector<float> &result, BoundaryCondition boundary = ZERO) const {
+    void sample3D(float fx, float fy, float ft, 
+		  vector<float> &result, BoundaryCondition boundary = ZERO) const {
+	sample3D(fx, fy, ft, &result[0], boundary);
+    }
+
+    void sample3D(float fx, float fy, float ft, 
+		  float *result, BoundaryCondition boundary = ZERO) const {
         int ix = (int)fx;
         int iy = (int)fy;
         int it = (int)ft;
