@@ -434,14 +434,12 @@ void Offset::help() {
 
 bool Offset::test() {
     Image a(101, 128, 4, 3);
-    vector<float> offset(3);
-    offset[0] = 1;
-    offset[1] = 2;
-    offset[2] = 3;
     Noise::apply(a, -1, 1);
     float before = a(10, 2, 1, 2);
-    a += offset;
-    if (a(10, 2, 1, 2) != before + offset[2]) return false;
+    a.channel(0) += 1;
+    a.channel(1) += 2;
+    a.channel(2) += 3;
+    if (a(10, 2, 1, 2) != before + 3) return false;
     before = a(10, 2, 1, 2);
     a += 17.0f;
     if (a(10, 2, 1, 2) != before + 17.0f) return false;    
@@ -449,12 +447,17 @@ bool Offset::test() {
 }
 
 void Offset::parse(vector<string> args) {
+    assert(args.size() == 1 || (int)args.size() == stack(0).channels, 
+	   "-offset takes either one argument, or one argument per channel\n");
+
     vector<float> fargs;
     for (size_t i = 0; i < args.size(); i++) {
         fargs.push_back(readFloat(args[i]));
     }
 
-    stack(0) += fargs;
+    for (int c = 0; c < stack(0).channels; c++) {
+	stack(0).channel(c) += fargs[c % fargs.size()];
+    }
 }
 
 void Scale::help() {
@@ -465,14 +468,12 @@ void Scale::help() {
 
 bool Scale::test() {
     Image a(101, 128, 4, 3);
-    vector<float> offset(3);
-    offset[0] = 1;
-    offset[1] = 2;
-    offset[2] = 3;
-    Noise::apply(a, -1, 1);
+    Noise::apply(a, -1, 1);    
     float before = a(10, 2, 1, 2);
-    a *= offset;
-    if (a(10, 2, 1, 2) != before * offset[2]) return false;
+    a.channel(0) *= 1;
+    a.channel(1) *= 2;
+    a.channel(2) *= 3;
+    if (a(10, 2, 1, 2) != before * 3) return false;
     before = a(10, 2, 1, 2);
     a *= 17.0f;
     if (a(10, 2, 1, 2) != before * 17.0f) return false;    
@@ -480,12 +481,17 @@ bool Scale::test() {
 }
 
 void Scale::parse(vector<string> args) {
+    assert(args.size() == 1 || (int)args.size() == stack(0).channels, 
+	   "-scale takes either one argument, or one argument per channel\n");
+
     vector<float> fargs;
     for (size_t i = 0; i < args.size(); i++) {
         fargs.push_back(readFloat(args[i]));
     }
 
-    stack(0) *= fargs;
+    for (int c = 0; c < stack(0).channels; c++) {
+	stack(0).channel(c) *= fargs[c % fargs.size()];
+    }
 }
 
 void Gamma::help() {
@@ -496,16 +502,14 @@ void Gamma::help() {
 
 bool Gamma::test() {
     Image a(101, 128, 4, 3);
-    vector<float> vec(3);
-    vec[0] = 1;
-    vec[1] = 2;
-    vec[2] = 3;
     Noise::apply(a, 1, 10);
-    vector<float> before(3);
+    float before[3];
     before[0] = a(10, 2, 1, 0);
     before[1] = a(10, 2, 1, 1);
     before[2] = a(10, 2, 1, 2);
-    Gamma::apply(a, vec);
+    Gamma::apply(a.channel(0), 1);
+    Gamma::apply(a.channel(1), 2);
+    Gamma::apply(a.channel(2), 3);
     if (!nearly_equal(a(10, 2, 1, 0), powf(before[0], 1))) return false;
     if (!nearly_equal(a(10, 2, 1, 1), powf(before[1], 2))) return false;
     if (!nearly_equal(a(10, 2, 1, 2), powf(before[2], 3))) return false;
@@ -513,39 +517,26 @@ bool Gamma::test() {
 }
 
 void Gamma::parse(vector<string> args) {
-    vector<float> fargs;
+    assert(args.size() == 1 || (int)args.size() == stack(0).channels, 
+	   "-gamma takes either one argument, or one argument per channel\n");
+
+    float fargs[args.size()];
     for (size_t i = 0; i < args.size(); i++) {
-        fargs.push_back(readFloat(args[i]));
+	fargs[i] = readFloat(args[i]);
     }
 
-    if (args.size() == 1) apply(stack(0), fargs[0]);
-    else apply(stack(0), fargs);
+    Image im = stack(0);
+    for (int c = 0; c < stack(0).channels; c++) {
+	float gamma = fargs[c % args.size()];
+	apply(im.channel(c), gamma);
+    }
 }
 
 void Gamma::apply(Image a, float gamma) {
-    for (int c = 0; c < a.channels; c++) {	
-	for (int t = 0; t < a.frames; t++) {
-	    for (int y = 0; y < a.height; y++) {
-		for (int x = 0; x < a.width; x++) {
-		    float val = a(x, y, t, c);
-                    if (val > 0) {
-                        val = powf(val, gamma);
-                    } else {
-                        val = -powf(-val, gamma);
-                    }
-		    a(x, y, t, c) = val;
-                }
-            }
-        }
-    }
-}
-
-void Gamma::apply(Image a, vector<float> args) {
-    assert(args.size() == (size_t)a.channels, 
-	   "-gamma takes either 1 argument, or 1 argument per channel\n");
-    for (int c = 0; c < a.channels; c++) {
-	apply(a.channel(c), args[c]);
-    }
+    a.set(
+	Lazy::IfThenElse(a > 0, 
+			 Lazy::pow(a, gamma), 
+			 -Lazy::pow(-a, gamma)));
 }
 
 void Mod::help() {
@@ -566,33 +557,26 @@ bool Mod::test() {
 }
 
 void Mod::parse(vector<string> args) {
-    vector<float> fargs;
+    assert(args.size() == 1 || (int)args.size() == stack(0).channels, 
+	   "-gamma takes either one argument, or one argument per channel\n");
+
+    float fargs[args.size()];
     for (size_t i = 0; i < args.size(); i++) {
-        fargs.push_back(readFloat(args[i]));
+	fargs[i] = readFloat(args[i]);
     }
 
-    apply(stack(0), fargs);
-}
-
-void Mod::apply(Image a, float mod) {
-    for (int c = 0; c < a.channels; c++) {		    
-	for (int t = 0; t < a.frames; t++) {
-	    for (int y = 0; y < a.height; y++) {
-		for (int x = 0; x < a.width; x++) {
-		    float val = fmod(a(x, y, t, c), mod);
-		    if (val < 0) val += mod;
-                    a(x, y, t, c) = val;
-                }
-            }
-        }
+    Image im = stack(0);
+    for (int c = 0; c < stack(0).channels; c++) {
+	float m = fargs[c % args.size()];
+	apply(im.channel(c), m);
     }
 }
 
-void Mod::apply(Image a, vector<float> args) {
-    assert(args.size() == (size_t)a.channels, "-mod takes either 1 argument, or 1 argument per channel\n");
-    for (int c = 0; c < a.channels; c++) {
-	apply(a.channel(c), args[c]);
-    }
+void Mod::apply(Image a, float m) {
+    a.set(Lazy::IfThenElse(
+	      a > 0, 
+	      Lazy::fmod(a, m), 
+	      Lazy::fmod(a, m) + m));
 }
 
 void Clamp::help() {
@@ -624,18 +608,7 @@ void Clamp::parse(vector<string> args) {
 }
 
 void Clamp::apply(Image a, float lower, float upper) {
-    for (int c = 0; c < a.channels; c++) {
-	for (int t = 0; t < a.frames; t++) {
-	    for (int y = 0; y < a.height; y++) {
-		for (int x = 0; x < a.width; x++) {
-		    float val = a(x, y, t, c);
-                    val = max(lower, val);
-		    val = min(upper, val);
-		    a(x, y, t, c) = val;
-                }
-            }
-        }
-    }
+    a.set(Lazy::clamp(a, lower, upper));
 }
 
 void DeNaN::help() {
@@ -669,19 +642,15 @@ void DeNaN::parse(vector<string> args) {
     }
 }
 
-void DeNaN::apply(Image a, float replacement) {
-    for (int c = 0; c < a.channels; c++) {
-	for (int t = 0; t < a.frames; t++) {
-	    for (int y = 0; y < a.height; y++) {
-		for (int x = 0; x < a.width; x++) {
-		    float val = a(x, y, t, c);
-		    if (isnan(val)) {
-			a(x, y, t, c) = replacement; 
-		    }
-                }
-            }
-        }
+namespace {
+    // A scalar version of DeNan. We'll lift it to an image version using the Lazy::Lift operator.
+    float denan(float a, float replacement) {
+	if (isnan(a)) return replacement;
+	return a;
     }
+}
+void DeNaN::apply(Image a, float replacement) {
+    a.set(Lazy::Lift2<denan, Image, Lazy::Const>(a, replacement));
 }
 
 void Threshold::help() {
@@ -697,20 +666,11 @@ bool Threshold::test() {
 
 void Threshold::parse(vector<string> args) {
     assert(args.size() == 1, "-threshold takes exactly one argument\n");
-    apply(stack(0), readFloat(args[0]));
+    stack(0).set(stack(0) > readFloat(args[0]));
 }
 
-
-void Threshold::apply(Image a, float threshold) {
-    for (int c = 0; c < a.channels; c++) {
-	for (int t = 0; t < a.frames; t++) {
-	    for (int y = 0; y < a.height; y++) {
-		for (int x = 0; x < a.width; x++) {
-                    a(x, y, t, c) = a(x, y, t, c) > threshold ? 1.0f : 0.0f;
-                }
-            }
-        }
-    }
+void Threshold::apply(Image a, float val) {
+    a.set(a > val);
 }
 
 void Normalize::help() {
@@ -787,17 +747,8 @@ void Quantize::parse(vector<string> args) {
 }
 
 void Quantize::apply(Image a, float increment) {
-    for (int c = 0; c < a.channels; c++) {
-	for (int t = 0; t < a.frames; t++) {
-	    for (int y = 0; y < a.height; y++) {
-		for (int x = 0; x < a.width; x++) {
-		    float val = fmodf(a(x, y, t, c), increment);
-		    if (val < 0) val += increment;
-                    a(x, y, t, c) -= val;
-                }
-            }
-        }
-    }
+    // Mod does the wrong thing when its arg is less than zero
+    a.set(a - Lazy::fmod(a, increment) - Lazy::Select(a > 0, 0, increment));
 }
 
 #include "footer.h"

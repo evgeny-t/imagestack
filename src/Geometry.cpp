@@ -631,9 +631,14 @@ void AffineWarp::parse(vector<string> args) {
 
 Image AffineWarp::apply(Image im, vector<double> matrix) {
 
+    assert(matrix.size() == 6, "An affine warp requires a vector with 6 entries\n");
+    return apply(im, &matrix[0]);
+}
+    
+Image AffineWarp::apply(Image im, double *matrix) {
     Image out(im.width, im.height, im.frames, im.channels);
 
-    vector<float> sample(im.channels);
+    float sample[im.channels];
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
             for (int x = 0; x < im.width; x++) {
