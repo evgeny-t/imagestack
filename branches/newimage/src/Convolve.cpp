@@ -57,9 +57,7 @@ bool Convolve::test() {
 	.region(13, 13, 13, 1, 5, 5, 5, 1)
 	.set(1*kernel.channel(2) + 2*kernel.channel(3));
     Image result = Convolve::apply(impulse, kernel, Zero, Multiply::Inner);
-    Stats s(result - correct);
-    return (nearly_equal(s.mean()*1000, 0) &&
-	    nearly_equal(s.variance()*1000, 0));
+    return nearlyEqual(result, correct);
 }
 
 void Convolve::parse(vector<string> args) {

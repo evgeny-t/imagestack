@@ -2,6 +2,7 @@
 #include "main.h"
 #include "time.h"
 #include "Parser.h"
+#include "Statistics.h"
 #ifndef WIN32
 #include <sys/time.h>
 #endif
@@ -39,6 +40,11 @@ int randomInt(int min, int max) {
 
 float randomFloat(float min, float max) {
     return ((float)rand()/(RAND_MAX+1.0)) * (max - min) + min;
+}
+
+bool nearlyEqual(Image a, Image b) {
+    Stats s(a-b);
+    return (nearlyEqual(s.mean(), 0) && nearlyEqual(s.variance(), 0));
 }
 
 #ifdef WIN32

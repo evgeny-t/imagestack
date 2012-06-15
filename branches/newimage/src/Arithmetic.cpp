@@ -510,9 +510,9 @@ bool Gamma::test() {
     Gamma::apply(a.channel(0), 1);
     Gamma::apply(a.channel(1), 2);
     Gamma::apply(a.channel(2), 3);
-    if (!nearly_equal(a(10, 2, 1, 0), powf(before[0], 1))) return false;
-    if (!nearly_equal(a(10, 2, 1, 1), powf(before[1], 2))) return false;
-    if (!nearly_equal(a(10, 2, 1, 2), powf(before[2], 3))) return false;
+    if (!nearlyEqual(a(10, 2, 1, 0), powf(before[0], 1))) return false;
+    if (!nearlyEqual(a(10, 2, 1, 1), powf(before[1], 2))) return false;
+    if (!nearlyEqual(a(10, 2, 1, 2), powf(before[2], 3))) return false;
     return true;
 }
 

@@ -44,7 +44,7 @@ inline T clamp(const T &a, const T &b, const T &c) {
 }
 
 // Equal to within 1/100. Useful for testing
-static inline bool nearly_equal(float a, float b) {
+static inline bool nearlyEqual(float a, float b) {
     if (fabs(b) < 1) return fabs(a-b) < 0.01;
     return fabs(a/b - 1.0) < 0.01;
 }

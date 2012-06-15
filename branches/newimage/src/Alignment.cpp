@@ -866,9 +866,7 @@ bool Align::test() {
     b *= 0.9;
     Image result = Align::apply(a, b, Perspective);
     Image correct = Rotate::apply(b, -37);
-    result -= correct;
-    Stats s(result);
-    return (nearly_equal(s.mean(), 0) && nearly_equal(s.variance(), 0));
+    return nearlyEqual(result, correct);
 }
 
 void Align::parse(vector<string> args) {
