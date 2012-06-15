@@ -30,6 +30,8 @@ using ::std::map;
 using ::std::list;
 using ::std::swap;
 using ::std::isfinite;
+using ::std::isinf;
+using ::std::isnan;
 
 #ifdef WIN32
 #include <windows.h>
