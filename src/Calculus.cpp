@@ -108,10 +108,7 @@ bool Integrate::test() {
     Image b = a.copy();
     Gradient::apply(b, "xyt");
     Integrate::apply(b, "xty");
-    a -= b;
-    Stats s(a);
-    return (nearly_equal(s.mean(), 0) &&
-	    nearly_equal(s.variance(), 0));
+    return nearlyEqual(a, b);
 }
 
 void Integrate::parse(vector<string> args) {
@@ -176,9 +173,7 @@ bool GradMag::test() {
     Image dy = a.copy();
     Gradient::apply(dy, 'y');
     GradMag::apply(a);
-    Stats s(a - (dx*dx + dy*dy));
-    return (nearly_equal(s.mean(), 0) &&
-	    nearly_equal(s.variance(), 0));    
+    return nearlyEqual(a, dx*dx + dy*dy);
 }
 
 
@@ -221,10 +216,7 @@ bool Poisson::test() {
     Image dy = a.copy();
     Gradient::apply(dy, 'y');
     Image b = Poisson::apply(dx, dy, 0.00001);
-    a -= b;
-    Stats s(a);
-    return (nearly_equal(s.mean(), 0) &&
-	    nearly_equal(s.variance(), 0));    
+    return nearlyEqual(a, b);
 }
 
 void Poisson::parse(vector<string> args) {

@@ -174,16 +174,16 @@ bool Statistics::test() {
 	Stats s(a);
 	
 	printf("Sum: %f\n", s.sum());	
-	if (!nearly_equal(s.sum(), 160*300*30*2*10)) continue;
+	if (!nearlyEqual(s.sum(), 160*300*30*2*10)) continue;
 	
 	printf("Mean: %f\n", s.mean());
-	if (!nearly_equal(s.mean(), 10)) continue;
+	if (!nearlyEqual(s.mean(), 10)) continue;
 	
 	printf("Minimum: %f\n", s.minimum());
-	if (!nearly_equal(s.minimum(), 0)) continue;
+	if (!nearlyEqual(s.minimum(), 0)) continue;
 	
 	printf("Maximum: %f\n", s.maximum());
-	if (!nearly_equal(s.maximum(), 20)) continue;
+	if (!nearlyEqual(s.maximum(), 20)) continue;
 	
 	printf("NaNs: %d\n", s.nans());
 	if (s.nans() != 0) continue;
@@ -198,27 +198,27 @@ bool Statistics::test() {
 	       s.covariance(0, 0), s.covariance(1, 0),
 	       s.covariance(0, 1), s.covariance(1, 1));
 	// variance of a uniform distribution is (b - a)^2 / 12
-	if (!nearly_equal(s.covariance(0, 0), 2*100/12.0f)) continue;
-	if (!nearly_equal(s.covariance(1, 1), 2*100/12.0f)) continue;
-	if (!nearly_equal(s.covariance(0, 1), 0)) continue;
-	if (!nearly_equal(s.covariance(1, 0), 0)) continue;
+	if (!nearlyEqual(s.covariance(0, 0), 2*100/12.0f)) continue;
+	if (!nearlyEqual(s.covariance(1, 1), 2*100/12.0f)) continue;
+	if (!nearlyEqual(s.covariance(0, 1), 0)) continue;
+	if (!nearlyEqual(s.covariance(1, 0), 0)) continue;
 	
 	printf("skew: %f\n", s.skew());
 	// A tent is symmetric about the mean
-	if (!nearly_equal(s.skew(), 0)) continue;
+	if (!nearlyEqual(s.skew(), 0)) continue;
 	
 	printf("kurtosis: %f\n", s.kurtosis());
 	// Kurtosis of uniform is -1.2. 
 	// Kurtosis of sum of n vars = 1/n^2 * sum of kurtosis
 	// So kurtosis of tent = 1/4 * (-1.2 + -1.2) = -0.6
-	if (!nearly_equal(s.kurtosis(), -0.6)) continue;
+	if (!nearlyEqual(s.kurtosis(), -0.6)) continue;
 	
 	printf("barycenter: %f %f\n", s.barycenterX(0), s.barycenterY(0));
 	printf("barycenter: %f %f\n", s.barycenterX(1), s.barycenterY(1));
-	if (!nearly_equal(s.barycenterX(0), 79.5f)) continue;
-	if (!nearly_equal(s.barycenterY(0), 149.5f)) continue;
-	if (!nearly_equal(s.barycenterX(1), 79.5f)) continue;
-	if (!nearly_equal(s.barycenterY(1), 149.5f)) continue;
+	if (!nearlyEqual(s.barycenterX(0), 79.5f)) continue;
+	if (!nearlyEqual(s.barycenterY(0), 149.5f)) continue;
+	if (!nearlyEqual(s.barycenterX(1), 79.5f)) continue;
+	if (!nearlyEqual(s.barycenterY(1), 149.5f)) continue;
 	
 	printf("spatial variance: %f %f\n", s.spatialVarianceX(1), s.spatialVarianceY(1));
 	// What should the spatial variance be?
@@ -391,9 +391,9 @@ bool Histogram::test() {
 	for (int bucket = 0; bucket < 17; bucket++) {
 	    float val = hist(bucket, 0, 0, c);
 	    sum += val;
-	    if (!nearly_equal(val, expected)) return false;
+	    if (!nearlyEqual(val, expected)) return false;
 	}
-	if (!nearly_equal(sum, 1)) return false;
+	if (!nearlyEqual(sum, 1)) return false;
     }
 
     return true;
@@ -483,9 +483,9 @@ bool Equalize::test() {
 	for (int bucket = 0; bucket < 17; bucket++) {
 	    float val = hist(bucket, 0, 0, c);
 	    sum += val;
-	    if (!nearly_equal(val, expected)) return false;
+	    if (!nearlyEqual(val, expected)) return false;
 	}
-	if (!nearly_equal(sum, 1)) return false;
+	if (!nearlyEqual(sum, 1)) return false;
     }
 
     return true;
@@ -561,7 +561,7 @@ bool HistogramMatch::test() {
 
     for (int c = 0; c < a.channels; c++) {
 	for (int x = 0; x < ha.width; x++) {
-	    if (!nearly_equal(ha(x, 0, 0, c), hb(x, 0, 0, c))) return false;
+	    if (!nearlyEqual(ha(x, 0, 0, c), hb(x, 0, 0, c))) return false;
 	}
     }
     return true;
@@ -673,8 +673,8 @@ bool Shuffle::test() {
     // sum should be pretty uniform
     sum /= (100 * a.width * a.height * a.frames);
     Stats stats(sum);
-    if (!nearly_equal(stats.mean(), 0.5)) return false;
-    if (!nearly_equal(stats.variance(), 0)) return false;
+    if (!nearlyEqual(stats.mean(), 0.5)) return false;
+    if (!nearlyEqual(stats.variance(), 0)) return false;
     return true;
 }
 
@@ -750,9 +750,9 @@ bool KMeans::test() {
 	for (int y = 0; y < a.height; y++) {
 	    for (int x = 0; x < a.width; x++) {
 		float R = a(x, y, t, 0), G = a(x, y, t, 1), B = a(x, y, t, 2);
-		bool ok = ((nearly_equal(R, 1) && nearly_equal(G, 5) && nearly_equal(B, 4)) ||
-			   (nearly_equal(R, 5) && nearly_equal(G, 2) && nearly_equal(B, -4)) ||
-			   (nearly_equal(R, 2) && nearly_equal(G, 2) && nearly_equal(B, 2)));
+		bool ok = ((nearlyEqual(R, 1) && nearlyEqual(G, 5) && nearlyEqual(B, 4)) ||
+			   (nearlyEqual(R, 5) && nearlyEqual(G, 2) && nearlyEqual(B, -4)) ||
+			   (nearlyEqual(R, 2) && nearlyEqual(G, 2) && nearlyEqual(B, 2)));
 		if (!ok) {
 		    printf("%d %d %f %f %f\n", x, y, R, G, B);
 		    return false;
@@ -954,7 +954,7 @@ bool Sort::test() {
 	}
 	for (int x = 0; x < h1.width; x++) {
 	    for (int c = 0; c < h1.channels; c++) {
-		if (!nearly_equal(h1(x, 0, 0, c), h2(x, 0, 0, c))) return false;
+		if (!nearlyEqual(h1(x, 0, 0, c), h2(x, 0, 0, c))) return false;
 	    }
 	}
     } { // test y
@@ -973,7 +973,7 @@ bool Sort::test() {
 	}
 	for (int x = 0; x < h1.width; x++) {
 	    for (int c = 0; c < h1.channels; c++) {
-		if (!nearly_equal(h1(x, 0, 0, c), h2(x, 0, 0, c))) return false;
+		if (!nearlyEqual(h1(x, 0, 0, c), h2(x, 0, 0, c))) return false;
 	    }
 	}
     } { // test t
@@ -992,7 +992,7 @@ bool Sort::test() {
 	}
 	for (int x = 0; x < h1.width; x++) {
 	    for (int c = 0; c < h1.channels; c++) {
-		if (!nearly_equal(h1(x, 0, 0, c), h2(x, 0, 0, c))) return false;
+		if (!nearlyEqual(h1(x, 0, 0, c), h2(x, 0, 0, c))) return false;
 	    }
 	}
     } { // test c
@@ -1115,7 +1115,7 @@ bool DimensionReduction::test() {
 	for (int x = 0; x < a.width; x++) {
 	    // Check b belongs to the correct subspace.	    
 	    //printf("%f %f %f %f\n", b(x, y, 0), b(x, y, 1), 6*b(x, y, 0) + 2 * b(x, y, 1), b(x, y, 2));
-	    if (!nearly_equal(b(x, y, 2), 6 * b(x, y, 0) + 2 * b(x, y, 1))) return false;
+	    if (!nearlyEqual(b(x, y, 2), 6 * b(x, y, 0) + 2 * b(x, y, 1))) return false;
 	}
     }
     
@@ -1265,17 +1265,17 @@ bool LocalMaxima::test() {
 
     if (results.size() != 3) return false;
 
-    if (!nearly_equal(results[0].x, 90)) return false;
-    if (!nearly_equal(results[0].y, 90)) return false;
-    if (!nearly_equal(results[0].t, 2)) return false;    
+    if (!nearlyEqual(results[0].x, 90)) return false;
+    if (!nearlyEqual(results[0].y, 90)) return false;
+    if (!nearlyEqual(results[0].t, 2)) return false;    
 
-    if (!nearly_equal(results[1].x, 4)) return false;
-    if (!nearly_equal(results[1].y, 6)) return false;
-    if (!nearly_equal(results[1].t, 2)) return false;
+    if (!nearlyEqual(results[1].x, 4)) return false;
+    if (!nearlyEqual(results[1].y, 6)) return false;
+    if (!nearlyEqual(results[1].t, 2)) return false;
 
-    if (!nearly_equal(results[2].x, 15)) return false;
-    if (!nearly_equal(results[2].y, 15)) return false;
-    if (!nearly_equal(results[2].t, 19)) return false;
+    if (!nearlyEqual(results[2].x, 15)) return false;
+    if (!nearlyEqual(results[2].y, 15)) return false;
+    if (!nearlyEqual(results[2].t, 19)) return false;
 
     return true;
 }
@@ -1628,7 +1628,7 @@ bool PCA::test() {
 	float dist_a = da0*da0 + da1*da1 + da2*da2;
 	if (dist_a < 0.1) continue;
 	float dist_b = db0*db0 + db1*db1;
-	if (!nearly_equal(dist_a, dist_b)) return false;
+	if (!nearlyEqual(dist_a, dist_b)) return false;
     }
 
     return true;

@@ -22,21 +22,13 @@ bool Haar::test() {
 
     // Top left 16x16 should be a downsampled version of the original
     Image small = Downsample::apply(a, 16, 16, 1);
-    small -= b.region(0, 0, 0, 0, 16, 16, 3, 1);
-    Stats s(small);
-    if (!nearly_equal(s.mean()*100, 0)) return false;
-    if (!nearly_equal(s.variance()*100, 0)) return false;
+    if (!nearlyEqual(small, b.region(0, 0, 0, 0, 16, 16, 3, 1))) return false;
 
     // Bottom right 128x128 should be a subsampled derivative
     Image deriv = a.copy();
     Gradient::apply(deriv, "xy");
     deriv = Subsample::apply(deriv, 2, 2, 1, 1);
-    deriv -= b.region(128, 128, 0, 0, 128, 128, 3, 1);
-    s = Stats(deriv);
-    if (!nearly_equal(s.mean()*100, 0)) return false;
-    if (!nearly_equal(s.variance()*100, 0)) return false;
-
-    return true;
+    return nearlyEqual(deriv, b.region(128, 128, 0, 0, 128, 128, 3, 1));
 }
 
 void Haar::parse(vector<string> args) {
@@ -121,11 +113,7 @@ bool InverseHaar::test() {
     Image b = a.copy();
     Haar::apply(b, 3);
     InverseHaar::apply(b, 3);
-    b -= a;
-    Stats s(b);
-    if (!nearly_equal(s.mean(), 0)) return false;
-    if (!nearly_equal(s.variance(), 0)) return false;    
-    return true;
+    return nearlyEqual(a, b);
 }
 
 void InverseHaar::parse(vector<string> args) {
@@ -234,10 +222,8 @@ bool Daubechies::test() {
     b = Convolve::apply(b, Transpose::apply(filter, 'x', 'y'));
     b = Subsample::apply(b, 2, 2, 0, 0);
     Daubechies::apply(a);
-    b -= a.region(128, 128, 0, 0, 128, 128, 3, 3);
-    Stats s(b.region(0, 0, 0, 0, 100, 100, 3, 3));    
-    return (nearly_equal(s.mean(), 0) &&
-	    nearly_equal(s.variance(), 0));
+    return nearlyEqual(b.region(0, 0, 0, 0, 100, 100, 3, 3), 
+		       a.region(128, 128, 0, 0, 100, 100, 3, 3));
 }
 
 void Daubechies::parse(vector<string> args) {
@@ -331,10 +317,7 @@ bool InverseDaubechies::test() {
     Image b = a.copy();
     Daubechies::apply(b);
     InverseDaubechies::apply(b);
-    b -= a;
-    Stats s(b);
-    return (nearly_equal(s.mean(), 0) &&
-	    nearly_equal(s.variance(), 0));    
+    return nearlyEqual(a, b);
 }
 
 void InverseDaubechies::parse(vector<string> args) {

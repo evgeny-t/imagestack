@@ -81,6 +81,9 @@ float currentTime();
 // pretty-print some help text, by word wrapping at 79 chars
 void pprintf(const char *str);
 
+// Check if two images are nearly equal for unit testing
+bool nearlyEqual(Image a, Image b);
+
 // The map of operations, which converts strings to operation
 // objects. Only meta-operations like help should need to access this.
 extern map<string, Operation *> operationMap;

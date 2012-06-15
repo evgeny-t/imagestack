@@ -32,13 +32,13 @@ bool GaussianBlur::test() {
 	    for (int x = 0; x < 21; x++) {		
 		float fx = (x - 10.0f)/0.7f;
 		float correct = expf(-0.5f*(fx*fx + fy*fy + ft*ft))*ratio;
-		if (!nearly_equal(blurry(x, y, t, 0), correct*1)) return false;
-		if (!nearly_equal(blurry(x, y, t, 1), correct*2)) return false;
-		if (!nearly_equal(blurry(x, y, t, 2), correct*3)) return false;
+		if (!nearlyEqual(blurry(x, y, t, 0), correct*1)) return false;
+		if (!nearlyEqual(blurry(x, y, t, 1), correct*2)) return false;
+		if (!nearlyEqual(blurry(x, y, t, 2), correct*3)) return false;
 	    }
 	}
     }
-    return nearly_equal(Stats(blurry).sum(), 6);
+    return nearlyEqual(Stats(blurry).sum(), 6);
 }
 
 void GaussianBlur::parse(vector<string> args) {
@@ -160,10 +160,7 @@ bool FastBlur::test() {
     Noise::apply(a, 0, 1);
     Image b = GaussianBlur::apply(a, 2.3, 1.3, 1.2);
     FastBlur::apply(a, 2.3, 1.3, 1.2);
-    a -= b;
-    Stats s(a);
-    return (nearly_equal(s.mean(), 0) &&
-	    nearly_equal(s.variance(), 0));
+    return nearlyEqual(a, b);
 }
 
 void FastBlur::parse(vector<string> args) {
@@ -491,9 +488,9 @@ bool RectFilter::test() {
 			       y > 7 && y < 13 && 
 			       t > 6 && t < 14);
 		float correct = inside ? 1.0f/(3*5*7) : 0.0f;
-		if (!nearly_equal(impulse(x, y, t, 0), correct*1)) return false;
-		if (!nearly_equal(impulse(x, y, t, 1), correct*2)) return false;
-		if (!nearly_equal(impulse(x, y, t, 2), correct*3)) return false;
+		if (!nearlyEqual(impulse(x, y, t, 0), correct*1)) return false;
+		if (!nearlyEqual(impulse(x, y, t, 1), correct*2)) return false;
+		if (!nearlyEqual(impulse(x, y, t, 2), correct*3)) return false;
 	    }
 	}
     }
@@ -727,13 +724,13 @@ bool LanczosBlur::test() {
 		float fx = (x - 10.0f)/1.7f;
 		fx = (fx == 0) ? 1 : (sinc(fx) * sinc(fx/3));
 		float correct = fx*fy*ft*ratio;
-		if (!nearly_equal(blurry(x, y, t, 0), correct*1)) return false;
-		if (!nearly_equal(blurry(x, y, t, 1), correct*2)) return false;
-		if (!nearly_equal(blurry(x, y, t, 2), correct*3)) return false;
+		if (!nearlyEqual(blurry(x, y, t, 0), correct*1)) return false;
+		if (!nearlyEqual(blurry(x, y, t, 1), correct*2)) return false;
+		if (!nearlyEqual(blurry(x, y, t, 2), correct*3)) return false;
 	    }
 	}
     }
-    return nearly_equal(Stats(blurry).sum(), 6);
+    return nearlyEqual(Stats(blurry).sum(), 6);
 }
 
 void LanczosBlur::parse(vector<string> args) {
@@ -836,7 +833,7 @@ bool MinFilter::test() {
     Image b = a.copy();
     MinFilter::apply(b, 3);
     a -= b;
-    return nearly_equal(Stats(a).minimum(), 0);
+    return nearlyEqual(Stats(a).minimum(), 0);
 }
 
 void MinFilter::parse(vector<string> args) {
@@ -930,7 +927,7 @@ bool MaxFilter::test() {
     Noise::apply(a, 0, 1);
     Image b = a.copy();
     MaxFilter::apply(b, 3);
-    return nearly_equal(Stats(b-a).minimum(), 0);
+    return nearlyEqual(Stats(b-a).minimum(), 0);
 }
 
 void MaxFilter::parse(vector<string> args) {
@@ -1048,7 +1045,7 @@ bool PercentileFilter::test() {
     Noise::apply(a, 0, 2);
     Image b = PercentileFilter::apply(a, 5, 0.75);
     Stats s(b);    
-    return nearly_equal(s.mean(), 1.5) && nearly_equal(s.variance(), 0);
+    return nearlyEqual(s.mean(), 1.5) && nearlyEqual(s.variance(), 0);
 }
 
 void PercentileFilter::parse(vector<string> args) {
@@ -1313,12 +1310,12 @@ bool CircularFilter::test() {
 	for (int x = 0; x < 21; x++) {		
 	    float fx = (x - 10.0f)/5;
 	    float correct = (fx*fx + fy*fy) <= 1 ? ratio : 0;
-	    if (!nearly_equal(blurry(x, y, 0, 0), correct*1)) return false;
-	    if (!nearly_equal(blurry(x, y, 0, 1), correct*2)) return false;
-	    if (!nearly_equal(blurry(x, y, 0, 2), correct*3)) return false;
+	    if (!nearlyEqual(blurry(x, y, 0, 0), correct*1)) return false;
+	    if (!nearlyEqual(blurry(x, y, 0, 1), correct*2)) return false;
+	    if (!nearlyEqual(blurry(x, y, 0, 2), correct*3)) return false;
 	}
     }
-    return nearly_equal(Stats(blurry).sum(), 6);
+    return nearlyEqual(Stats(blurry).sum(), 6);
 }
 
 void CircularFilter::parse(vector<string> args) {
@@ -1405,7 +1402,7 @@ bool Envelope::test() {
 	Image b = a.copy();
 	Envelope::apply(b, Upper, 3);
 	b -= a;
-	if (!nearly_equal(Stats(b).minimum(), 0)) return false;
+	if (!nearlyEqual(Stats(b).minimum(), 0)) return false;
     }
 
     {
@@ -1414,7 +1411,7 @@ bool Envelope::test() {
 	Image b = a.copy();
 	Envelope::apply(b, Lower, 3);
 	a -= b;
-	if (!nearly_equal(Stats(a).minimum(), 0)) return false;
+	if (!nearlyEqual(Stats(a).minimum(), 0)) return false;
     }
     
     return true;

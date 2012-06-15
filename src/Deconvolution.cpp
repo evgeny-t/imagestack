@@ -58,12 +58,9 @@ bool Deconvolve::test() {
 	   shanStats.mean(), shanStats.variance(),
 	   choStats.mean(), choStats.variance(),
 	   levinStats.mean(), levinStats.variance());
-    return (nearly_equal(shanStats.mean(), 0) &&
-	    nearly_equal(shanStats.variance(), 0) &&
-	    nearly_equal(choStats.mean(), 0) &&
-	    nearly_equal(choStats.variance(), 0) &&
-	    nearly_equal(levinStats.mean(), 0) &&
-	    nearly_equal(levinStats.variance(), 0));	    
+    return (nearlyEqual(shanResult, input) &&
+	    nearlyEqual(choResult, input) &&
+	    nearlyEqual(levinResult, input));
 }
 
 void Deconvolve::parse(vector<string> args) {

@@ -556,19 +556,19 @@ namespace Lazy {
 		union {		   
 		    float f[vec_width];
 		    vec_type v;
-		} vb, vres;
+		} vb;
 		vb.v = b.vec(x);
-		vres.f[0] = (*fn)(vb.f[0]);
-		vres.f[1] = (*fn)(vb.f[1]);
-		vres.f[2] = (*fn)(vb.f[2]);
-		vres.f[3] = (*fn)(vb.f[3]);
+		vb.f[0] = (*fn)(vb.f[0]);
+		vb.f[1] = (*fn)(vb.f[1]);
+		vb.f[2] = (*fn)(vb.f[2]);
+		vb.f[3] = (*fn)(vb.f[3]);
 		#ifdef __AVX__
-		vres.f[4] = (*fn)(vb.f[4]);
-		vres.f[5] = (*fn)(vb.f[5]);
-		vres.f[6] = (*fn)(vb.f[6]);
-		vres.f[7] = (*fn)(vb.f[7]);
+		vb.f[4] = (*fn)(vb.f[4]);
+		vb.f[5] = (*fn)(vb.f[5]);
+		vb.f[6] = (*fn)(vb.f[6]);
+		vb.f[7] = (*fn)(vb.f[7]);
 		#endif
-		return vres.v;
+		return vb.v;
 	    }
 	    vec_type vec_bool(int x) const {
 		return vec_is_non_zero(vec(x));
@@ -599,20 +599,20 @@ namespace Lazy {
 		union {		   
 		    float f[vec_width];
 		    vec_type v;
-		} va, vb, vres;
+		} va, vb;
 		va.v = a.vec(x);
 		vb.v = b.vec(x);
-		vres.f[0] = (*fn)(va.f[0], vb.f[0]);
-		vres.f[1] = (*fn)(va.f[1], vb.f[1]);
-		vres.f[2] = (*fn)(va.f[2], vb.f[2]);
-		vres.f[3] = (*fn)(va.f[3], vb.f[3]);
+		vb.f[0] = (*fn)(va.f[0], vb.f[0]);
+		vb.f[1] = (*fn)(va.f[1], vb.f[1]);
+		vb.f[2] = (*fn)(va.f[2], vb.f[2]);
+		vb.f[3] = (*fn)(va.f[3], vb.f[3]);
 		#ifdef __AVX__
-		vres.f[4] = (*fn)(va.f[4], vb.f[4]);
-		vres.f[5] = (*fn)(va.f[5], vb.f[5]);
-		vres.f[6] = (*fn)(va.f[6], vb.f[6]);
-		vres.f[7] = (*fn)(va.f[7], vb.f[7]);
+		vb.f[4] = (*fn)(va.f[4], vb.f[4]);
+		vb.f[5] = (*fn)(va.f[5], vb.f[5]);
+		vb.f[6] = (*fn)(va.f[6], vb.f[6]);
+		vb.f[7] = (*fn)(va.f[7], vb.f[7]);
 		#endif
-		return vres.v;
+		return vb.v;
 	    }
 	    vec_type vec_bool(int x) const {
 		return vec_is_non_zero(vec(x));

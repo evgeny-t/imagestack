@@ -98,7 +98,7 @@ bool Downsample::test() {
         int y = randomInt(0, a2.height-1);
         int t = randomInt(0, a2.frames-1);
         int c = randomInt(0, a2.channels-1);
-        if (!nearly_equal(a(x, y, t, c), a2(x, y, t, c))) return false;
+        if (!nearlyEqual(a(x, y, t, c), a2(x, y, t, c))) return false;
     }
     return true;
 }
@@ -172,8 +172,8 @@ bool Resample::test() {
     if (b.width != 225 || b.height != 175 || b.frames != 3) return false;
     Image a2 = Resample::apply(b, 50, 50, 3);
     Stats s1(a), s2(a2);
-    if (!nearly_equal(s1.mean(), s2.mean())) return false;
-    if (!nearly_equal(s1.variance(), s2.variance())) return false;
+    if (!nearlyEqual(s1.mean(), s2.mean())) return false;
+    if (!nearlyEqual(s1.variance(), s2.variance())) return false;
     
     for (int c = 0; c < a.channels; c++) {
         for (int t = 0; t < a.frames; t++) {
@@ -574,8 +574,8 @@ bool Rotate::test() {
         int y = randomInt(10, a.height-11);
         int t = randomInt(0, a.frames-1);
         for (int c = 0; c < a.channels; c++) {
-            if (!nearly_equal(a(x, y, t, c),
-                              b(a.width-1-x, a.height-1-y, t, c))) {
+            if (!nearlyEqual(a(x, y, t, c),
+			     b(a.width-1-x, a.height-1-y, t, c))) {
                 return false;
             }
         }
@@ -1174,11 +1174,11 @@ bool Translate::test() {
     b = Translate::apply(b, -17.5, 2.5, 0.5);
     b = Translate::apply(b, 10.0, -1.25, -0.25);
     b = Translate::apply(b, 7.5, -1.25, -0.25);
-    
+
     b -= a;
     Stats s(b.region(40, 10, 10, 0, 
 		     40, 80, 1, 4));
-    return (nearly_equal(s.mean(), 0) && nearly_equal(s.variance(), 0));
+    return (nearlyEqual(s.mean(), 0) && nearlyEqual(s.variance(), 0));
 }
 
 void Translate::parse(vector<string> args) {
@@ -1456,8 +1456,8 @@ bool Tile::test() {
     Noise::apply(a, 0, 1);
     Image b = Tile::apply(a, 5, 4, 3);
     Stats sa(a), sb(b);
-    return (nearly_equal(sa.mean(), sb.mean()) && 
-	    nearly_equal(sa.variance(), sb.variance()));
+    return (nearlyEqual(sa.mean(), sb.mean()) && 
+	    nearlyEqual(sa.variance(), sb.variance()));
 }
 
 void Tile::parse(vector<string> args) {
@@ -1512,8 +1512,8 @@ bool Subsample::test() {
     Noise::apply(a, 0, 1);
     Image b = Subsample::apply(a, 2, 3, 1, 0, 1, 0);
     Stats sa(a), sb(b);
-    return (nearly_equal(sa.mean(), sb.mean()) && 
-	    nearly_equal(sa.variance(), sb.variance()));
+    return (nearlyEqual(sa.mean(), sb.mean()) && 
+	    nearlyEqual(sa.variance(), sb.variance()));
 }
 
 void Subsample::parse(vector<string> args) {
@@ -1585,8 +1585,8 @@ bool TileFrames::test() {
     Noise::apply(a, 0, 1);
     Image b = TileFrames::apply(a, 5, 4);
     Stats sa(a), sb(b);
-    return (nearly_equal(sa.mean(), sb.mean()) && 
-	    nearly_equal(sa.variance(), sb.variance()));
+    return (nearlyEqual(sa.mean(), sb.mean()) && 
+	    nearlyEqual(sa.variance(), sb.variance()));
 }
 
 void TileFrames::parse(vector<string> args) {
@@ -1714,9 +1714,7 @@ bool Warp::test() {
 	}
     }
     Image warped2 = Warp::apply(warpField, a);
-    Stats s(warped2 - warped);
-    return (nearly_equal(s.mean(), 0) && 
-	    nearly_equal(s.variance(), 0));
+    return nearlyEqual(warped, warped2);
 }
 
 void Warp::parse(vector<string> args) {
@@ -1777,8 +1775,8 @@ bool Reshape::test() {
     Noise::apply(a, -4, 2);
     Image b = Reshape::apply(a, 2, 23, 123, 23);
     Stats sa(a), sb(b);
-    return (nearly_equal(sa.mean(), sb.mean()) &&
-	    nearly_equal(sa.variance(), sb.variance()));	    
+    return (nearlyEqual(sa.mean(), sb.mean()) &&
+	    nearlyEqual(sa.variance(), sb.variance()));	    
 }
 
 void Reshape::parse(vector<string> args) {
