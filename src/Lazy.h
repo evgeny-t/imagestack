@@ -2,6 +2,7 @@
 #define IMAGESTACK_FUNC_H
 
 #include <immintrin.h>
+#include <stdint.h>
 #include "header.h"
 
 // This file defines a set of image-like function objects. They
@@ -17,7 +18,7 @@ namespace Lazy {
 
 #ifdef __AVX__
 #define VECTORIZE
-    typedef __v8sf vec_type;
+    typedef __m256 vec_type;
     const int vec_width = 8;
     static const vec_type vec_true() {
 	vec_type va;
@@ -32,7 +33,7 @@ namespace Lazy {
 #else
 #ifdef __SSE__
 #define VECTORIZE
-    typedef __v4sf vec_type;
+    typedef __m128 vec_type;
     const int vec_width = 4;
     static const vec_type vec_true() {
 	vec_type va;
@@ -214,8 +215,12 @@ namespace Lazy {
 	    float operator[](int x) const {return a[x] + b[x];}
             #ifdef VECTORIZE
 	    vec_type vec(int x) const {
-		return a.vec(x) + b.vec(x);
-	    }
+            #ifdef __AVX__
+			return _mm256_add_ps(a.vec(x), b.vec(x));
+            #else
+			return _mm_add_ps(a.vec(x), b.vec(x));
+            #endif
+		}
 	    vec_type vec_bool(int x) const {
 		return vec_is_non_zero(vec(x));
 	    }
@@ -242,7 +247,11 @@ namespace Lazy {
 	    float operator[](int x) const {return a[x] - b[x];}
             #ifdef VECTORIZE
 	    vec_type vec(int x) const {
-		return a.vec(x) - b.vec(x);
+			#ifdef __AVX__
+			return _mm256_sub_ps(a.vec(x), b.vec(x));
+            #else
+			return _mm_sub_ps(a.vec(x), b.vec(x));
+            #endif
 	    }
 	    vec_type vec_bool(int x) const {
 		return vec_is_non_zero(vec(x));
@@ -270,7 +279,11 @@ namespace Lazy {
 	    float operator[](int x) const {return a[x] * b[x];}
             #ifdef VECTORIZE
 	    vec_type vec(int x) const {
-		return a.vec(x) * b.vec(x);
+		    #ifdef __AVX__
+			return _mm256_mul_ps(a.vec(x), b.vec(x));
+            #else
+			return _mm_mul_ps(a.vec(x), b.vec(x));
+            #endif
 	    }
 	    vec_type vec_bool(int x) const {
 		return vec_is_non_zero(vec(x));
@@ -298,7 +311,11 @@ namespace Lazy {
 	    float operator[](int x) const {return a[x] / b[x];}
             #ifdef VECTORIZE
 	    vec_type vec(int x) const {
-		return a.vec(x) / b.vec(x);
+            #ifdef __AVX__
+			return _mm256_div_ps(a.vec(x), b.vec(x));
+            #else
+			return _mm_div_ps(a.vec(x), b.vec(x));
+            #endif
 	    }
 	    vec_type vec_bool(int x) const {
 		// just check the numerator

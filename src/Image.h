@@ -525,12 +525,12 @@ class Image {
         Iter(const float *a) : addr(a) {}
 	float operator[](int x) const {return addr[x];}
 	#ifdef __AVX__
-	__v8sf vec(int x) const {
+	__m256 vec(int x) const {
 	    return _mm256_loadu_ps(addr + x);
 	}
 	#else 
 	#ifdef __SSE__
-	__v4sf vec(int x) const {
+	__m128 vec(int x) const {
 	    return _mm_loadu_ps(addr + x);
 	}
 	#endif
