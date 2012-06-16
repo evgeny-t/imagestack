@@ -18,7 +18,7 @@ int main(int argc, const char **argv) {
         for (int y = 0; y < im.height; y++) {
             for (int x = 0; x < im.width; x++) {
                 for (int c = 0; c < im.channels; c++) {
-                    im(x, y, t)[c] = 1 - im(x, y, t)[c];
+                    im(x, y, t, c) = 1 - im(x, y, t, c);
                 }
             }
         }

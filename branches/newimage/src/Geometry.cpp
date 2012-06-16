@@ -638,7 +638,7 @@ Image AffineWarp::apply(Image im, vector<double> matrix) {
 Image AffineWarp::apply(Image im, double *matrix) {
     Image out(im.width, im.height, im.frames, im.channels);
 
-    float sample[im.channels];
+    vector<float> sample(im.channels);
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
             for (int x = 0; x < im.width; x++) {

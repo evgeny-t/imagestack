@@ -21,8 +21,8 @@ bool Haar::test() {
     Haar::apply(b, 4);
 
     // Top left 16x16 should be a downsampled version of the original
-    Image small = Downsample::apply(a, 16, 16, 1);
-    if (!nearlyEqual(small, b.region(0, 0, 0, 0, 16, 16, 3, 1))) return false;
+    Image smaller = Downsample::apply(a, 16, 16, 1);
+    if (!nearlyEqual(smaller, b.region(0, 0, 0, 0, 16, 16, 3, 1))) return false;
 
     // Bottom right 128x128 should be a subsampled derivative
     Image deriv = a.copy();

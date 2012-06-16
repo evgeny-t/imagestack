@@ -124,23 +124,28 @@ class Image {
 	set((*this) / f);
     }
 
-    template<typename T, typename Enable = typename T::Lazy>
-    void operator+=(const T other) const {
+	template<typename A, typename B, typename Enable = typename A::Lazy>
+	struct LazyCheck {
+		typedef B result;
+	};
+
+    template<typename T>
+    typename LazyCheck<T, void>::result operator+=(const T other) const {
 	set((*this) + other);
     }
 
-    template<typename T, typename Enable = typename T::Lazy>
-    void operator*=(const T other) const {
+    template<typename T>
+    typename LazyCheck<T, void>::result operator*=(const T other) const {
 	set((*this) * other);
     }
 
-    template<typename T, typename Enable = typename T::Lazy>
-    void operator-=(const T other) const {
+    template<typename T>
+    typename LazyCheck<T, void>::result operator-=(const T other) const {
 	set((*this) - other);
     }
 
-    template<typename T, typename Enable = typename T::Lazy>
-    void operator/=(const T other) const {
+    template<typename T>
+    typename LazyCheck<T, void>::result operator/=(const T other) const {
 	set((*this) / other);
     }
 
@@ -423,8 +428,8 @@ class Image {
     // Evaluate a function-like object defined in Lazy.h
     // The second template argument prevents instantiations from
     // things that don't have a nested ::Lazy type
-    template<typename T, typename Enable = typename T::Lazy>
-    void set(const T func) const {
+    template<typename T>
+    void set(const T func, const typename T::Lazy *enable = NULL) const {
 	{
 	    int w = func.getWidth(), h = func.getHeight(),
 		f = func.getFrames(), c = func.getChannels();
@@ -517,6 +522,7 @@ class Image {
     int getChannels() const {return channels;}
     struct Iter {
 	const float * const addr;
+        Iter(const float *a) : addr(a) {}
 	float operator[](int x) const {return addr[x];}
 	#ifdef __AVX__
 	__v8sf vec(int x) const {
@@ -531,14 +537,14 @@ class Image {
 	#endif
     };
     Iter scanline(int y, int t, int c) const {
-	return {base + y*ystride + t*tstride + c*cstride};
+        return Iter(base + y*ystride + t*tstride + c*cstride);
     }
 
     // Construct an image from a function-like thing
-    template<typename T, typename Enable = typename T::Lazy>    
-    Image(const T func) :
+    template<typename T>    
+    Image(const T func, const typename T::Lazy *ptr = NULL) :
 	width(0), height(0), frames(0), channels(0), 
-	ystride(0), tstride(0), cstride(0), data(), base(NULL) {
+	ystride(0), tstride(0), cstride(0), data(), base(NULL) { 
 	assert(func.getWidth() && func.getHeight() && func.getFrames() && func.getChannels(),
 	       "Can only construct an image from a bounded expression\n");
 	(*this) = Image(func.getWidth(), func.getHeight(), func.getFrames(), func.getChannels());

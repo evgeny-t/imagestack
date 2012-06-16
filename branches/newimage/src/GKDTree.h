@@ -339,7 +339,7 @@ class GKDTree {
             return new Leaf(leaves++, data, nData, dimensions);
         } else {
 
-            float mins[dimensions], maxs[dimensions];
+            vector<float> mins(dimensions), maxs(dimensions);
                     
             // calculate the data bounds in every dimension
             for (int i = 0; i < dimensions; i++) {
