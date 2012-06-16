@@ -520,7 +520,7 @@ void Gamma::parse(vector<string> args) {
     assert(args.size() == 1 || (int)args.size() == stack(0).channels, 
 	   "-gamma takes either one argument, or one argument per channel\n");
 
-    float fargs[args.size()];
+    vector<float> fargs(args.size());
     for (size_t i = 0; i < args.size(); i++) {
 	fargs[i] = readFloat(args[i]);
     }
@@ -560,7 +560,7 @@ void Mod::parse(vector<string> args) {
     assert(args.size() == 1 || (int)args.size() == stack(0).channels, 
 	   "-gamma takes either one argument, or one argument per channel\n");
 
-    float fargs[args.size()];
+    vector<float> fargs(args.size());
     for (size_t i = 0; i < args.size(); i++) {
 	fargs[i] = readFloat(args[i]);
     }

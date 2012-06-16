@@ -29,16 +29,29 @@ using ::std::make_pair;
 using ::std::map;
 using ::std::list;
 using ::std::swap;
+
+#ifdef _MSC_VER
+#define isnan _isnan
+#define isfinite _finite
+inline float isinf(float x) {
+    return (!_finite(x) && !_isnan(x));
+}
+#else
 using ::std::isfinite;
-#ifdef WIN32
+#endif
+
+#ifdef __CYGWIN__
 using ::std::isinf;
 using ::std::isnan;
+#endif
+
+#ifdef _MSC_VER
 #endif
 
 #ifdef WIN32
 #include <windows.h>
 #include <float.h>
-//#define isfinite _finite
+#define isfinite _finite
 #define popen _popen
 #define pclose _pclose
 #endif

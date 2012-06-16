@@ -210,6 +210,7 @@ namespace Lazy {
 	struct Iter {
 	    typename A::Iter a; 
 	    typename B::Iter b;
+            Iter(typename A::Iter a_, typename B::Iter b_) : a(a_), b(b_) {}
 	    float operator[](int x) const {return a[x] + b[x];}
             #ifdef VECTORIZE
 	    vec_type vec(int x) const {
@@ -221,7 +222,8 @@ namespace Lazy {
             #endif
 	};
 	Iter scanline(int y, int t, int c) const {
-	    return {BinaryOp<A, B>::a.scanline(y, t, c), BinaryOp<A, B>::b.scanline(y, t, c)};
+	    return Iter(BinaryOp<A, B>::a.scanline(y, t, c), 
+                        BinaryOp<A, B>::b.scanline(y, t, c));
 	}
     };
 
@@ -236,6 +238,7 @@ namespace Lazy {
 	struct Iter {
 	    typename A::Iter a; 
 	    typename B::Iter b;
+            Iter(typename A::Iter a_, typename B::Iter b_) : a(a_), b(b_) {}
 	    float operator[](int x) const {return a[x] - b[x];}
             #ifdef VECTORIZE
 	    vec_type vec(int x) const {
@@ -247,7 +250,8 @@ namespace Lazy {
             #endif
 	};
 	Iter scanline(int y, int t, int c) const {
-	    return {BinaryOp<A, B>::a.scanline(y, t, c), BinaryOp<A, B>::b.scanline(y, t, c)};
+	    return Iter(BinaryOp<A, B>::a.scanline(y, t, c), 
+                        BinaryOp<A, B>::b.scanline(y, t, c));
 	}
     };
 
@@ -262,6 +266,7 @@ namespace Lazy {
 	struct Iter {
 	    typename A::Iter a; 
 	    typename B::Iter b;
+            Iter(typename A::Iter a_, typename B::Iter b_) : a(a_), b(b_) {}
 	    float operator[](int x) const {return a[x] * b[x];}
             #ifdef VECTORIZE
 	    vec_type vec(int x) const {
@@ -273,7 +278,8 @@ namespace Lazy {
             #endif
 	};
 	Iter scanline(int y, int t, int c) const {
-	    return {BinaryOp<A, B>::a.scanline(y, t, c), BinaryOp<A, B>::b.scanline(y, t, c)};
+	    return Iter(BinaryOp<A, B>::a.scanline(y, t, c), 
+                        BinaryOp<A, B>::b.scanline(y, t, c));
 	}
     };
 
@@ -288,6 +294,7 @@ namespace Lazy {
 	struct Iter {
 	    typename A::Iter a; 
 	    typename B::Iter b;
+            Iter(typename A::Iter a_, typename B::Iter b_) : a(a_), b(b_) {}
 	    float operator[](int x) const {return a[x] / b[x];}
             #ifdef VECTORIZE
 	    vec_type vec(int x) const {
@@ -300,7 +307,8 @@ namespace Lazy {
             #endif
 	};
 	Iter scanline(int y, int t, int c) const {
-	    return {BinaryOp<A, B>::a.scanline(y, t, c), BinaryOp<A, B>::b.scanline(y, t, c)};
+	    return Iter(BinaryOp<A, B>::a.scanline(y, t, c), 
+                        BinaryOp<A, B>::b.scanline(y, t, c));
 	}
     };
 
@@ -310,13 +318,14 @@ namespace Lazy {
 	typedef _Min<typename A::Lazy, typename B::Lazy> Lazy;
 	_Min(const A a_, const B b_) : BinaryOp<A, B>(a_, b_) {}
 	float operator()(int x, int y, int t, int c) const {
-	    return min(BinaryOp<A, B>::a(x, y, t, c), BinaryOp<A, B>::b(x, y, t, c));
+	    return std::min(BinaryOp<A, B>::a(x, y, t, c), BinaryOp<A, B>::b(x, y, t, c));
 	}
 
 	struct Iter {
 	    typename A::Iter a; 
 	    typename B::Iter b;
-	    float operator[](int x) const {return a[x] / b[x];}
+            Iter(typename A::Iter a_, typename B::Iter b_) : a(a_), b(b_) {}
+	    float operator[](int x) const {return std::min(a[x], b[x]);}
             #ifdef VECTORIZE
 	    vec_type vec(int x) const {		
 		#ifdef __AVX__
@@ -331,7 +340,8 @@ namespace Lazy {
             #endif
 	};
 	Iter scanline(int y, int t, int c) const {
-	    return {BinaryOp<A, B>::a.scanline(y, t, c), BinaryOp<A, B>::b.scanline(y, t, c)};
+	    return Iter(BinaryOp<A, B>::a.scanline(y, t, c), 
+                        BinaryOp<A, B>::b.scanline(y, t, c));
 	}
     };
 
@@ -340,13 +350,14 @@ namespace Lazy {
 	typedef _Max<typename A::Lazy, typename B::Lazy> Lazy;
 	_Max(const A a_, const B b_) : BinaryOp<A, B>(a_, b_) {}
 	float operator()(int x, int y, int t, int c) const {
-	    return max(BinaryOp<A, B>::a(x, y, t, c), BinaryOp<A, B>::b(x, y, t, c));
+	    return std::max(BinaryOp<A, B>::a(x, y, t, c), BinaryOp<A, B>::b(x, y, t, c));
 	}
 
 	struct Iter {
 	    typename A::Iter a; 
 	    typename B::Iter b;
-	    float operator[](int x) const {return a[x] / b[x];}
+            Iter(typename A::Iter a_, typename B::Iter b_) : a(a_), b(b_) {}
+	    float operator[](int x) const {return std::max(a[x], b[x]);}
             #ifdef VECTORIZE
 	    vec_type vec(int x) const {		
 		#ifdef __AVX__
@@ -361,7 +372,8 @@ namespace Lazy {
             #endif
 	};
 	Iter scanline(int y, int t, int c) const {
-	    return {BinaryOp<A, B>::a.scanline(y, t, c), BinaryOp<A, B>::b.scanline(y, t, c)};
+	    return Iter(BinaryOp<A, B>::a.scanline(y, t, c), 
+                        BinaryOp<A, B>::b.scanline(y, t, c));
 	}
     };
 
@@ -509,6 +521,7 @@ namespace Lazy {
 	struct Iter {
 	    typename A::Iter a; 
 	    typename B::Iter b;
+            Iter(typename A::Iter a_, typename B::Iter b_) : a(a_), b(b_) {}
 	    float operator[](int x) const {
 		return C::cmp(a[x], b[x]) ? 1 : 0;
 	    }
@@ -529,7 +542,8 @@ namespace Lazy {
 	    #endif
 	};
 	Iter scanline(int y, int t, int c) const {
-	    return {BinaryOp<A, B>::a.scanline(y, t, c), BinaryOp<A, B>::b.scanline(y, t, c)};
+	    return Iter(BinaryOp<A, B>::a.scanline(y, t, c), 
+				BinaryOp<A, B>::b.scanline(y, t, c));
 	}
     };
     
@@ -550,6 +564,7 @@ namespace Lazy {
 
 	struct Iter {
 	    typename B::Iter b;
+            Iter(typename B::Iter b_) : b(b_) {}
 	    float operator[](int x) const {return (*fn)(b[x]);}
             #ifdef VECTORIZE
 	    vec_type vec(int x) const {
@@ -576,7 +591,7 @@ namespace Lazy {
             #endif
 	};
 	Iter scanline(int y, int t, int c) const {
-	    return {b.scanline(y, t, c)};
+	    return Iter(b.scanline(y, t, c));
 	}
     };
 
@@ -593,6 +608,7 @@ namespace Lazy {
 	struct Iter {
 	    typename A::Iter a;
 	    typename B::Iter b;
+            Iter(typename A::Iter a_, typename B::Iter b_) : a(a_), b(b_) {}
 	    float operator[](int x) const {return (*fn)(a[x], b[x]);}
             #ifdef VECTORIZE
 	    vec_type vec(int x) const {
@@ -620,8 +636,8 @@ namespace Lazy {
             #endif
 	};
 	Iter scanline(int y, int t, int c) const {
-	    return {BinaryOp<A, B>::a.scanline(y, t, c),
-		    BinaryOp<A, B>::b.scanline(y, t, c)};
+	    return Iter(BinaryOp<A, B>::a.scanline(y, t, c),
+		    BinaryOp<A, B>::b.scanline(y, t, c));
 	}
     };
 
@@ -877,6 +893,9 @@ namespace Lazy {
 	    typename A::Iter a;
 	    typename B::Iter b;
 	    typename C::Iter c;
+            Iter(typename A::Iter a_,
+                 typename B::Iter b_,
+                 typename C::Iter c_) : a(a_), b(b_), c(c_) {}
 	    float operator[](int x) const {
 		return a[x] ? b[x] : c[x];
 	    }
@@ -899,9 +918,9 @@ namespace Lazy {
 	    
 	};
 	Iter scanline(int y, int t, int c_) const {
-	    return {TernaryOp<A, B, C>::a.scanline(y, t, c_), 
-		    TernaryOp<A, B, C>::b.scanline(y, t, c_), 
-		    TernaryOp<A, B, C>::c.scanline(y, t, c_)};
+	    return Iter(TernaryOp<A, B, C>::a.scanline(y, t, c_), 
+                        TernaryOp<A, B, C>::b.scanline(y, t, c_), 
+                        TernaryOp<A, B, C>::c.scanline(y, t, c_));
 	}
     };
 
@@ -944,6 +963,9 @@ namespace Lazy {
 	    typename A::Iter a;
 	    typename B::Iter b;
 	    typename C::Iter c;
+            Iter(typename A::Iter a_,
+                 typename B::Iter b_,
+                 typename C::Iter c_) : a(a_), b(b_), c(c_) {}
 	    float operator[](int x) const {
 		return a[x] ? b[x] : c[x];
 	    }
@@ -966,9 +988,9 @@ namespace Lazy {
 	    
 	};
 	Iter scanline(int y, int t, int c_) const {
-	    return {TernaryOp<A, B, C>::a.scanline(y, t, c_), 
-		    TernaryOp<A, B, C>::b.scanline(y, t, c_), 
-		    TernaryOp<A, B, C>::c.scanline(y, t, c_)};
+	    return Iter(TernaryOp<A, B, C>::a.scanline(y, t, c_), 
+                        TernaryOp<A, B, C>::b.scanline(y, t, c_), 
+                        TernaryOp<A, B, C>::c.scanline(y, t, c_));
 	}
     };
 
@@ -999,162 +1021,362 @@ namespace Lazy {
 
 
 template<typename A, typename B>
-Lazy::Add<typename A::Lazy, typename B::Lazy> operator+(const A a, const B b) {
-    return Lazy::Add<A, B>(a, b);
+Lazy::Add<typename A::Lazy, typename B::Lazy> operator+(A a, B b) {
+    return Lazy::Add<typename A::Lazy, typename B::Lazy>(a, b);
 }
 
 template<typename B>
-Lazy::Add<Lazy::Const, typename B::Lazy> operator+(const float a, const B b) {
-    return Lazy::Add<Lazy::Const, B>(Lazy::Const(a), b);
+Lazy::Add<Lazy::Const, typename B::Lazy> operator+(float a, B b) {
+    return Lazy::Const(a) + b;
 }
 
 template<typename A>
-Lazy::Add<typename A::Lazy, Lazy::Const> operator+(const A a, const float b) {
-    return Lazy::Add<A, Lazy::Const>(a, Lazy::Const(b));
+Lazy::Add<typename A::Lazy, Lazy::Const> operator+(A a, float b) {
+    return a + Lazy::Const(b);
 }
 
+template<typename B>
+Lazy::Add<Lazy::Const, typename B::Lazy> operator+(double a, B b) {
+    return Lazy::Const(a) + b;
+}
+
+template<typename A>
+Lazy::Add<typename A::Lazy, Lazy::Const> operator+(A a, double b) {
+    return a + Lazy::Const(b);
+}
+
+template<typename B>
+Lazy::Add<Lazy::Const, typename B::Lazy> operator+(int a, B b) {
+    return Lazy::Const(a) + b;
+}
+
+template<typename A>
+Lazy::Add<typename A::Lazy, Lazy::Const> operator+(A a, int b) {
+    return a + Lazy::Const(b);
+}
 
 template<typename A, typename B>
-Lazy::Sub<typename A::Lazy, typename B::Lazy> operator-(const A a, const B b) {
+Lazy::Sub<typename A::Lazy, typename B::Lazy> operator-(A a, B b) {
     return Lazy::Sub<A, B>(a, b);
 }
 
 template<typename B>
-Lazy::Sub<Lazy::Const, typename B::Lazy> operator-(const float a, const B b) {
-    return Lazy::Sub<Lazy::Const, B>(Lazy::Const(a), b);
+Lazy::Sub<Lazy::Const, typename B::Lazy> operator-(float a, B b) {
+    return Lazy::Const(a) - b;
 }
 
 template<typename A>
-Lazy::Sub<typename A::Lazy, Lazy::Const> operator-(const A a, const float b) {
-    return Lazy::Sub<A, Lazy::Const>(a, Lazy::Const(b));
+Lazy::Sub<typename A::Lazy, Lazy::Const> operator-(A a, float b) {
+    return a - Lazy::Const(b);
+}
+
+template<typename B>
+Lazy::Sub<Lazy::Const, typename B::Lazy> operator-(double a, B b) {
+    return Lazy::Const(a) - b;
 }
 
 template<typename A>
-Lazy::Sub<Lazy::Const, typename A::Lazy> operator-(const A a) {
-    return Lazy::Sub<Lazy::Const, A>(0, a);
+Lazy::Sub<typename A::Lazy, Lazy::Const> operator-(A a, double b) {
+    return a - Lazy::Const(b);
+}
+
+template<typename B>
+Lazy::Sub<Lazy::Const, typename B::Lazy> operator-(int a, B b) {
+    return Lazy::Const(a) - b;
+}
+
+template<typename A>
+Lazy::Sub<typename A::Lazy, Lazy::Const> operator-(A a, int b) {
+    return a - Lazy::Const(b);
+}
+
+template<typename A>
+Lazy::Sub<Lazy::Const, typename A::Lazy> operator-(A a) {
+    return Lazy::Const(0) - a;
 }
 
 template<typename A, typename B>
-Lazy::Mul<typename A::Lazy, typename B::Lazy> operator*(const A a, const B b) {
+Lazy::Mul<typename A::Lazy, typename B::Lazy> operator*(A a, B b) {
     return Lazy::Mul<A, B>(a, b);
 }
 
 template<typename B>
-Lazy::Mul<Lazy::Const, typename B::Lazy> operator*(const float a, const B b) {
-    return Lazy::Mul<Lazy::Const, B>(Lazy::Const(a), b);
+Lazy::Mul<Lazy::Const, typename B::Lazy> operator*(float a, B b) {
+    return Lazy::Const(a)*b;
 }
 
 template<typename A>
-Lazy::Mul<typename A::Lazy, Lazy::Const> operator*(const A a, const float b) {
-    return Lazy::Mul<A, Lazy::Const>(a, Lazy::Const(b));
+Lazy::Mul<typename A::Lazy, Lazy::Const> operator*(A a, float b) {
+    return a*Lazy::Const(b);
+}
+
+template<typename B>
+Lazy::Mul<Lazy::Const, typename B::Lazy> operator*(double a, B b) {
+    return Lazy::Const(a)*b;
+}
+
+template<typename A>
+Lazy::Mul<typename A::Lazy, Lazy::Const> operator*(A a, double b) {
+    return a*Lazy::Const(b);
+}
+
+template<typename B>
+Lazy::Mul<Lazy::Const, typename B::Lazy> operator*(int a, B b) {
+    return Lazy::Const(a)*b;
+}
+
+template<typename A>
+Lazy::Mul<typename A::Lazy, Lazy::Const> operator*(A a, int b) {
+    return a*Lazy::Const(b);
 }
 
 template<typename A, typename B>
-Lazy::Div<typename A::Lazy, typename B::Lazy> operator/(const A a, const B b) {
+Lazy::Div<typename A::Lazy, typename B::Lazy> operator/(A a, B b) {
     return Lazy::Div<A, B>(a, b);
 }
 
 template<typename B>
-Lazy::Div<Lazy::Const, typename B::Lazy> operator/(const float a, const B b) {
-    return Lazy::Div<Lazy::Const, B>(Lazy::Const(a), b);
+Lazy::Div<Lazy::Const, typename B::Lazy> operator/(float a, B b) {
+    return Lazy::Const(a)/b;
 }
 
 template<typename A>
-Lazy::Mul<typename A::Lazy, Lazy::Const> operator/(const A a, const float b) {
+Lazy::Mul<typename A::Lazy, Lazy::Const> operator/(A a, float b) {
     // replace expr / const with expr * (1/const)
-    return Lazy::Mul<A, Lazy::Const>(a, Lazy::Const(1.0f/b));
+    return a * Lazy::Const(1.0f/b);
+}
+
+template<typename B>
+Lazy::Div<Lazy::Const, typename B::Lazy> operator/(double a, B b) {
+    return Lazy::Const(a)/b;
+}
+
+template<typename A>
+Lazy::Mul<typename A::Lazy, Lazy::Const> operator/(A a, double b) {
+    // replace expr / const with expr * (1/const)
+    return a * Lazy::Const(1.0f/b);
+}
+
+template<typename B>
+Lazy::Div<Lazy::Const, typename B::Lazy> operator/(int a, B b) {
+    return Lazy::Const(a)/b;
+}
+
+template<typename A>
+Lazy::Mul<typename A::Lazy, Lazy::Const> operator/(A a, int b) {
+    // replace expr / const with expr * (1/const)
+    return a * Lazy::Const(1.0f/b);
 }
 
 template<typename A, typename B>
-Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::GT> operator>(const A a, const B b) {
+Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::GT> operator>(A a, B b) {
     return Lazy::Cmp<A, B, Lazy::GT>(a, b);
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::GT> operator>(const A a, const float b) {
-    return Lazy::Cmp<A, Lazy::Const, Lazy::GT>(a, Lazy::Const(b));
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::GT> operator>(A a, float b) {
+    return a > Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::GT> operator>(const float a, const B b) {
-    return Lazy::Cmp<Lazy::Const, B, Lazy::GT>(Lazy::Const(a), b);
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::GT> operator>(float a, B b) {
+    return Lazy::Const(a) > b;
+}
+
+template<typename A>
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::GT> operator>(A a, double b) {
+    return a > Lazy::Const(b);
+}
+
+template<typename B>
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::GT> operator>(double a, B b) {
+    return Lazy::Const(a) > b;
+}
+
+template<typename A>
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::GT> operator>(A a, int b) {
+    return a > Lazy::Const(b);
+}
+
+template<typename B>
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::GT> operator>(int a, B b) {
+    return Lazy::Const(a) > b;
 }
 
 template<typename A, typename B>
-Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::LT> operator<(const A a, const B b) {
+Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::LT> operator<(A a, B b) {
     return Lazy::Cmp<A, B, Lazy::LT>(a, b);
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::LT> operator<(const A a, const float b) {
-    return Lazy::Cmp<A, Lazy::Const, Lazy::LT>(a, Lazy::Const(b));
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::LT> operator<(A a, float b) {
+    return a < Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::LT> operator<(const float a, const B b) {
-    return Lazy::Cmp<Lazy::Const, B, Lazy::LT>(Lazy::Const(a), b);
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::LT> operator<(float a, B b) {
+    Lazy::Const(a) < b;
+}
+
+template<typename A>
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::LT> operator<(A a, double b) {
+    return a < Lazy::Const(b);
+}
+
+template<typename B>
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::LT> operator<(double a, B b) {
+    Lazy::Const(a) < b;
+}
+
+template<typename A>
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::LT> operator<(A a, int b) {
+    return a < Lazy::Const(b);
+}
+
+template<typename B>
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::LT> operator<(int a, B b) {
+    Lazy::Const(a) < b;
 }
 
 template<typename A, typename B>
-Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::GE> operator>=(const A a, const B b) {
+Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::GE> operator>=(A a, B b) {
     return Lazy::Cmp<A, B, Lazy::GE>(a, b);
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::GE> operator>=(const A a, const float b) {
-    return Lazy::Cmp<A, Lazy::Const, Lazy::GE>(a, Lazy::Const(b));
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::GE> operator>=(A a, float b) {
+    return a >= Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::GE> operator>=(const float a, const B b) {
-    return Lazy::Cmp<Lazy::Const, B, Lazy::GE>(Lazy::Const(a), b);
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::GE> operator>=(float a, B b) {
+    return Lazy::Const(a) >= b;
+}
+
+template<typename A>
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::GE> operator>=(A a, double b) {
+    return a >= Lazy::Const(b);
+}
+
+template<typename B>
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::GE> operator>=(double a, B b) {
+    return Lazy::Const(a) >= b;
+}
+
+template<typename A>
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::GE> operator>=(A a, int b) {
+    return a >= Lazy::Const(b);
+}
+
+template<typename B>
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::GE> operator>=(int a, B b) {
+    return Lazy::Const(a) >= b;
 }
 
 template<typename A, typename B>
-Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::LE> operator<=(const A a, const B b) {
+Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::LE> operator<=(A a, B b) {
     return Lazy::Cmp<A, B, Lazy::LE>(a, b);
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::LE> operator<=(const A a, const float b) {
-    return Lazy::Cmp<A, Lazy::Const, Lazy::LE>(a, Lazy::Const(b));
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::LE> operator<=(A a, float b) {
+    return a <= Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::LE> operator<=(const float a, const B b) {
-    return Lazy::Cmp<Lazy::Const, B, Lazy::LE>(Lazy::Const(a), b);
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::LE> operator<=(float a, B b) {
+    return Lazy::Const(a) <= b;
+}
+
+template<typename A>
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::LE> operator<=(A a, double b) {
+    return a <= Lazy::Const(b);
+}
+
+template<typename B>
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::LE> operator<=(double a, B b) {
+    return Lazy::Const(a) <= b;
+}
+
+template<typename A>
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::LE> operator<=(A a, int b) {
+    return a <= Lazy::Const(b);
+}
+
+template<typename B>
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::LE> operator<=(int a, B b) {
+    return Lazy::Const(a) <= b;
 }
 
 template<typename A, typename B>
-Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::EQ> operator==(const A a, const B b) {
+Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::EQ> operator==(A a, B b) {
     return Lazy::Cmp<A, B, Lazy::EQ>(a, b);
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::EQ> operator==(const A a, const float b) {
-    return Lazy::Cmp<A, Lazy::Const, Lazy::EQ>(a, Lazy::Const(b));
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::EQ> operator==(A a, float b) {
+    return a == Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::EQ> operator==(const float a, const B b) {
-    return Lazy::Cmp<Lazy::Const, B, Lazy::EQ>(Lazy::Const(a), b);
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::EQ> operator==(float a, B b) {
+    return Lazy::Const(a) == b;
+}
+
+template<typename A>
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::EQ> operator==(A a, double b) {
+    return a == Lazy::Const(b);
+}
+
+template<typename B>
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::EQ> operator==(double a, B b) {
+    return Lazy::Const(a) == b;
+}
+
+template<typename A>
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::EQ> operator==(A a, int b) {
+    return a == Lazy::Const(b);
+}
+
+template<typename B>
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::EQ> operator==(int a, B b) {
+    return Lazy::Const(a) == b;
 }
 
 template<typename A, typename B>
-Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::NEQ> operator!=(const A a, const B b) {
+Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::NEQ> operator!=(A a, B b) {
     return Lazy::Cmp<A, B, Lazy::NEQ>(a, b);
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::NEQ> operator!=(const A a, const float b) {
-    return Lazy::Cmp<A, Lazy::Const, Lazy::NEQ>(a, Lazy::Const(b));
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::NEQ> operator!=(A a, float b) {
+    return a != Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::NEQ> operator!=(const float a, const B b) {
-    return Lazy::Cmp<Lazy::Const, B, Lazy::NEQ>(Lazy::Const(a), b);
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::NEQ> operator!=(float a, B b) {
+    return Lazy::Const(a) != b;
 }
 
+template<typename A>
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::NEQ> operator!=(A a, double b) {
+    return a != Lazy::Const(b);
+}
+
+template<typename B>
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::NEQ> operator!=(double a, B b) {
+    return Lazy::Const(a) != b;
+}
+
+template<typename A>
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::NEQ> operator!=(A a, int b) {
+    return a != Lazy::Const(b);
+}
+
+template<typename B>
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::NEQ> operator!=(int a, B b) {
+    return Lazy::Const(a) != b;
+}
 #include "footer.h"
 
 #endif
