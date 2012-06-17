@@ -115,7 +115,7 @@ Image WLS::apply(Image im, float alpha, float lambda, float tolerance) {
 
     // Data weights equal to 1 all over...
     Image w(im.width, im.height, 1, 1);
-    w += 1;
+    w.set(1);
 
     // For this filter gx and gy is 0 all over (target gradient is smooth)
     Image zeros(im.width, im.height, 1, im.channels);
