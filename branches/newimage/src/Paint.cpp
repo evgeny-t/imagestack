@@ -51,7 +51,12 @@ bool Eval::test() {
 	printf("Testing comparisons\n");
 	Stats ims(im);
 	Image a = Eval::apply(im, "(val > 0.5) + (x <= 50) + (y >= 10) + (c < 2) + (y != 23) + (x == 22)");
-	Image b = (im > 0.5) + (X() <= 50) + (Y() >= 10) + (C() < 2) + (Y() != 23) + (X() == 22);
+	Image b = (Select(im > 0.5, 1.0f, 0.0f) + 
+                   Select(X() <= 50, 1.0f, 0.0f) +
+                   Select(Y() >= 10, 1.0f, 0.0f) + 
+                   Select(C() < 2, 1.0f, 0.0f) + 
+                   Select(Y() != 23, 1.0f, 0.0f) + 
+                   Select(X() == 22, 1.0f, 0.0f));
 	if (!nearlyEqual(a, b)) return false;
     }
 

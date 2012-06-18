@@ -666,11 +666,11 @@ bool Threshold::test() {
 
 void Threshold::parse(vector<string> args) {
     assert(args.size() == 1, "-threshold takes exactly one argument\n");
-    stack(0).set(stack(0) > readFloat(args[0]));
+    stack(0).set(Select(stack(0) > readFloat(args[0]), 1.0f, 0.0f));
 }
 
 void Threshold::apply(Image a, float val) {
-    a.set(a > val);
+    a.set(Select(a > val, 1.0f, 0.0f));
 }
 
 void Normalize::help() {

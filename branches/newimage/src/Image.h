@@ -431,8 +431,8 @@ class Image {
     template<typename T>
     void set(const T func, const typename T::Lazy *enable = NULL) const {
 	{
-	    int w = func.getWidth(), h = func.getHeight(),
-		f = func.getFrames(), c = func.getChannels();
+	    int w = func.getSize(0), h = func.getSize(1),
+		f = func.getSize(2), c = func.getSize(3);
 	    if (w && h && f && c) {
 		assert(width == w &&
 		       height == h &&
@@ -446,13 +446,7 @@ class Image {
 	}
 
 	// 4 or 8-wide vector code, distributed across cores
-	#if defined __AVX__ || defined __SSE__
-        #ifdef __AVX__
-	const int vec_width = 8;
-        #else 
-	const int vec_width = 4;
-        #endif
-	if (width > vec_width*2) {
+	if (ImageStack::Lazy::Vec::width > 1 && width > ImageStack::Lazy::Vec::width*2) {
 	    for (int c = 0; c < channels; c++) {
 		for (int t = 0; t < frames; t++) {
 
@@ -466,16 +460,14 @@ class Image {
 
 			// warm up
 			int x = 0;			
-			while ((size_t)(dst+x) & (vec_width*sizeof(float) - 1)) {
+			while ((size_t)(dst+x) & (ImageStack::Lazy::Vec::width*sizeof(float) - 1)) {
 			    dst[x] = iter[x];
 			    x++;
 			}
 			// vectorized steady-state
-			while (x < (w-(vec_width-1))) {
-			    // Stream is often counterproductive.
-			    //_mm256_stream_ps(dst+x, iter.vec(x));
-			    *((ImageStack::Lazy::vec_type *)(dst + x)) = iter.vec(x);
-			    x += vec_width;
+			while (x < (w-(ImageStack::Lazy::Vec::width-1))) {
+                            *((ImageStack::Lazy::Vec::type *)(dst + x)) = iter.vec(x);
+			    x += ImageStack::Lazy::Vec::width;
 			}
 			// wind down
 			while (x < w) {
@@ -485,25 +477,23 @@ class Image {
 		    }
 		}
 	    }	
-	    return;
-	}
-        #endif	    	
-
-	// Scalar code, distributed across cores
-	for (int c = 0; c < channels; c++) {
-	    for (int t = 0; t < frames; t++) {
-		#ifdef _OPENMP
-		#pragma omp parallel for
-		#endif		
-		for (int y = 0; y < height; y++) {
-		    const typename T::Iter src = func.scanline(y, t, c);
-		    float * const dst = &(*this)(0, y, t, c);
-		    for (int x = 0; x < width; x++) {
-			dst[x] = src[x];
-		    }
-		}
-	    }
-	}
+	} else {
+	    for (int c = 0; c < channels; c++) {
+		for (int t = 0; t < frames; t++) {
+		    #ifdef _OPENMP
+                    #pragma omp parallel for
+		    #endif
+		    for (int y = 0; y < height; y++) {
+			const int w = width;
+			const typename T::Iter iter = func.scanline(y, t, c);
+			float * const dst = base + c*cstride + t*tstride + y*ystride;
+                        for (int x = 0; x < w; x++) {
+                            dst[x] = iter[x];
+                        }
+                    }
+                }
+            }            
+        }
     }
 
     // Special-case setting an image to a float value, because it
@@ -516,25 +506,22 @@ class Image {
     // An image itself is one such function-like thing. Here's the
     // interface it needs to implement for that to happen:
     typedef Image Lazy;
-    int getWidth() const {return width;}
-    int getHeight() const {return height;}
-    int getFrames() const {return frames;}
-    int getChannels() const {return channels;}
+    int getSize(int i) const {
+        switch(i) {
+        case 0: return width;
+        case 1: return height;
+        case 2: return frames;
+        case 3: return channels;
+        }
+        return 0;
+    }
     struct Iter {
 	const float * const addr;
         Iter(const float *a) : addr(a) {}
 	float operator[](int x) const {return addr[x];}
-	#ifdef __AVX__
-	__m256 vec(int x) const {
-	    return _mm256_loadu_ps(addr + x);
+        ImageStack::Lazy::Vec::type vec(int x) const {
+            return ImageStack::Lazy::Vec::load(addr+x);
 	}
-	#else 
-	#ifdef __SSE__
-	__m128 vec(int x) const {
-	    return _mm_loadu_ps(addr + x);
-	}
-	#endif
-	#endif
     };
     Iter scanline(int y, int t, int c) const {
         return Iter(base + y*ystride + t*tstride + c*cstride);
@@ -545,9 +532,9 @@ class Image {
     Image(const T func, const typename T::Lazy *ptr = NULL) :
 	width(0), height(0), frames(0), channels(0), 
 	ystride(0), tstride(0), cstride(0), data(), base(NULL) { 
-	assert(func.getWidth() && func.getHeight() && func.getFrames() && func.getChannels(),
+	assert(func.getSize(0) && func.getSize(1) && func.getSize(2) && func.getSize(3),
 	       "Can only construct an image from a bounded expression\n");
-	(*this) = Image(func.getWidth(), func.getHeight(), func.getFrames(), func.getChannels());
+	(*this) = Image(func.getSize(0), func.getSize(1), func.getSize(2), func.getSize(3));
 	set(func);
     }
 

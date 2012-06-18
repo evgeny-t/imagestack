@@ -34,7 +34,7 @@ bool Gradient::test() {
     Gradient::apply(dy, 'y');
     Image dt = a.copy();
     Gradient::apply(dt, 't');
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 100; i++) {
 	int x = randomInt(1, a.width-1);
 	int y = randomInt(1, a.height-1);
 	int t = randomInt(1, a.frames-1);
