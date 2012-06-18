@@ -16,1382 +16,1252 @@
 
 namespace Lazy {
 
+    namespace Vec {
 #ifdef __AVX__
-#define VECTORIZE
-    typedef __m256 vec_type;
-    const int vec_width = 8;
-    static const vec_type vec_true() {
-	vec_type va;
-	return _mm256_cmp_ps(va, va, _CMP_EQ_OQ);
-    }
-    static const vec_type vec_zero() {
-	return _mm256_setzero_ps();
-    }
-    static const vec_type vec_is_non_zero(vec_type v) {
-	return _mm256_cmp_ps(v, vec_zero(), _CMP_NEQ_OQ);
-    }
+        typedef __m256 type;
+        const int width = 8;
+        
+        static type broadcast(float v) {
+            return _mm256_set1_ps(v);
+        }
+
+        // Arithmetic binary operators
+        struct Add {
+            static float scalar(float a, float b) {return a + b;}
+            static type vec(type a, type b) {return _mm256_add_ps(a, b);}
+        };
+        struct Sub {
+            static float scalar(float a, float b) {return a - b;}
+            static type vec(type a, type b) {return _mm256_sub_ps(a, b);}
+        };
+        struct Mul {
+            static float scalar(float a, float b) {return a * b;}
+            static type vec(type a, type b) {return _mm256_mul_ps(a, b);}
+        };
+        struct Div {
+            static float scalar(float a, float b) {return a / b;}
+            static type vec(type a, type b) {return _mm256_div_ps(a, b);}
+        };
+        struct Min {
+            static float scalar(float a, float b) {return a < b ? a : b;}
+            static type vec(type a, type b) {return _mm256_min_ps(a, b);}
+        };
+        struct Max {
+            static float scalar(float a, float b) {return a > b ? a : b;}
+            static type vec(type a, type b) {return _mm256_max_ps(a, b);}
+        };
+
+        // Comparisons
+        struct GT {
+            static bool scalar(float a, float b) {return a > b;}
+            static type vec(type a, type b) {return _mm256_cmp_ps(a, b, _CMP_GT_OQ);}        
+        };
+        struct LT {
+            static bool scalar(float a, float b) {return a < b;}
+            static type vec(type a, type b) {return _mm256_cmp_ps(a, b, _CMP_LT_OQ);}        
+        };
+        struct GE {
+            static bool scalar(float a, float b) {return a >= b;}
+            static type vec(type a, type b) {return _mm256_cmp_ps(a, b, _CMP_GE_OQ);}        
+        };
+        struct LE {
+            static bool scalar(float a, float b) {return a <= b;}
+            static type vec(type a, type b) {return _mm256_cmp_ps(a, b, _CMP_LE_OQ);}        
+        };
+        struct EQ {
+            static bool scalar(float a, float b) {return a == b;}
+            static type vec(type a, type b) {return _mm256_cmp_ps(a, b, _CMP_EQ_OQ);}        
+        };
+        struct NEQ {
+            static bool scalar(float a, float b) {return a != b;}
+            static type vec(type a, type b) {return _mm256_cmp_ps(a, b, _CMP_NEQ_OQ);}        
+        };
+
+        // Logical ops
+        static type blend(type a, type b, type mask) {
+            return _mm256_blendv_ps(a, b, mask);
+        }
+
+        // Other functions
+        static type floor(type a) {
+            return _mm256_floor_ps(a);
+        }
+        static type ceil(type a) {
+            return _mm256_ceil_ps(a);
+        }
+        static type sqrt(type a) {
+            return _mm256_sqrt_ps(a);
+        }
+
+        // Loads and stores
+        static type load(const float *f) {
+            return _mm256_loadu_ps(f);
+        }
+
 #else
 #ifdef __SSE__
-#define VECTORIZE
-    typedef __m128 vec_type;
-    const int vec_width = 4;
-    static const vec_type vec_true() {
-	vec_type va;
-	return _mm_cmpeq_ps(va, va);
-    }
-    static const vec_type vec_zero() {
-	return _mm_setzero_ps();
-    }
-    static const vec_type vec_is_non_zero(vec_type v) {
-	return _mm_cmpneq_ps(v, vec_zero());
-    }
-#endif    
+        typedef __m128 type;
+        const int width = 4;
+
+        static type broadcast(float v) {
+            return _mm_set1_ps(v);
+        }
+
+        // Arithmetic binary operators
+        struct Add {
+            static float scalar(float a, float b) {return a + b;}
+            static type vec(type a, type b) {return _mm_add_ps(a, b);}
+        };
+        struct Sub {
+            static float scalar(float a, float b) {return a - b;}
+            static type vec(type a, type b) {return _mm_sub_ps(a, b);}
+        };
+        struct Mul {
+            static float scalar(float a, float b) {return a * b;}
+            static type vec(type a, type b) {return _mm_mul_ps(a, b);}
+        };
+        struct Div {
+            static float scalar(float a, float b) {return a / b;}
+            static type vec(type a, type b) {return _mm_div_ps(a, b);}
+        };
+        struct Min {
+            static float scalar(float a, float b) {return a < b ? a : b;}
+            static type vec(type a, type b) {return _mm_min_ps(a, b);}
+        };
+        struct Max {
+            static float scalar(float a, float b) {return a > b ? a : b;}
+            static type vec(type a, type b) {return _mm_max_ps(a, b);}
+        };
+
+        // Comparisons
+        struct GT {
+            static bool scalar(float a, float b) {return a > b;}
+            static type vec(type a, type b) {return _mm_cmpgt_ps(a, b);}        
+        };
+        struct LT {
+            static bool scalar(float a, float b) {return a < b;}
+            static type vec(type a, type b) {return _mm_cmplt_ps(a, b);}        
+        };
+        struct GE {
+            static bool scalar(float a, float b) {return a >= b;}
+            static type vec(type a, type b) {return _mm_cmpge_ps(a, b);}        
+        };
+        struct LE {
+            static bool scalar(float a, float b) {return a <= b;}
+            static type vec(type a, type b) {return _mm_cmple_ps(a, b);}        
+        };
+        struct EQ {
+            static bool scalar(float a, float b) {return a == b;}
+            static type vec(type a, type b) {return _mm_cmpeq_ps(a, b);}        
+        };
+        struct NEQ {
+            static bool scalar(float a, float b) {return a != b;}
+            static type vec(type a, type b) {return _mm_cmpneq_ps(a, b);}        
+        };
+
+        #ifdef __SSE4_1__
+        // Logical ops
+        static type blend(type a, type b, type mask) {
+            return _mm_blendv_ps(a, b, mask);
+        }
+
+        // Other functions
+        static type floor(type a) {
+            return _mm_floor_ps(a);
+        }
+        static type ceil(type a) {
+            return _mm_ceil_ps(a);
+        }
+        static type sqrt(type a) {
+            return _mm_sqrt_ps(a);
+        }
+        #else
+
+        static type blend(type a, type b, type mask) {
+            return _mm_or_ps(_mm_and_ps(mask, b), 
+                             _mm_andnot_ps(mask, a));
+        }        
+
+        #endif
+
+        // Loads and stores
+        static type load(const float *f) {
+            return _mm_loadu_ps(f);
+        }
+        
+
+#else
+// scalar fallback
+        typedef float type;
+        const int width = 1;
+
+        static type broadcast(float v) {
+            return v;
+        }
+
+        // Arithmetic binary operators
+        struct Add {
+            static float scalar(float a, float b) {return a + b;}
+            static type vec(type a, type b) {return scalar(a, b);}
+        };
+        struct Sub {
+            static float scalar(float a, float b) {return a - b;}
+            static type vec(type a, type b) {return scalar(a, b);}
+        };
+        struct Mul {
+            static float scalar(float a, float b) {return a * b;}
+            static type vec(type a, type b) {return scalar(a, b);}
+        };
+        struct Div {
+            static float scalar(float a, float b) {return a / b;}
+            static type vec(type a, type b) {return scalar(a, b);}
+        };
+        struct Min {
+            static float scalar(float a, float b) {return a < b ? a : b;}
+            static type vec(type a, type b) {return scalar(a, b);}
+        };
+        struct Max {
+            static float scalar(float a, float b) {return a > b ? a : b;}
+            static type vec(type a, type b) {return scalar(a, b);}
+        };
+
+        // Comparisons
+        struct GT {
+            static bool scalar(float a, float b) {return a > b;}
+            static bool vec(type a, type b) {return scalar(a, b);}
+        };
+        struct LT {
+            static bool scalar(float a, float b) {return a < b;}
+            static bool vec(type a, type b) {return scalar(a, b);}
+        };
+        struct GE {
+            static bool scalar(float a, float b) {return a >= b;}
+            static bool vec(type a, type b) {return scalar(a, b);}
+        };
+        struct LE {
+            static bool scalar(float a, float b) {return a <= b;}
+            static bool vec(type a, type b) {return scalar(a, b);}
+        };
+        struct EQ {
+            static bool scalar(float a, float b) {return a == b;}
+            static bool vec(type a, type b) {return scalar(a, b);}
+        };
+        struct NEQ {
+            static bool scalar(float a, float b) {return a != b;}
+            static bool vec(type a, type b) {return scalar(a, b);}
+        };
+
+        // Logical ops
+        static type blend(bool mask, type a, type b) {
+            return (mask ? b : a);
+        }
+
+        // Other functions
+        static type floor(type a) {
+            return floorf(a);
+        }
+        static type ceil(type a) {
+            return ceilf(a);
+        }
+        static type sqrt(type a) {
+            return sqrtf(a);
+        }
+
+        // Loads and stores
+        static type load(const float *f) {
+            return *f;
+        }
+
+#endif 
 #endif
+    }
 
+    // A base class for things which do not depend on image data
     struct Unbounded {
-	int getWidth() const {return 0;}
-	int getHeight() const {return 0;}
-	int getFrames() const {return 0;}
-	int getChannels() const {return 0;}
+        int getSize(int) const {return 0;}
     };
 
+    // Constants
     struct Const : public Unbounded {
-	typedef Const Lazy;
-	const float val;
-	Const(const float val_) : val(val_) {}
-	float operator()(int x, int y, int c, int t) const {
-	    return val;
-	}
+        typedef Const Lazy;
+        const float val;
+        Const(const float val_) : val(val_) {}
+        float operator()(int x, int, int, int) const {return val;}
 
-	// State needed to iterate across a scanline    
-	struct Iter {
-	    Iter (float v) : val(v) {
-                #ifdef __AVX__
-		vec_val = _mm256_set1_ps(val);
-                #else
-                #ifdef __SSE__
-		vec_val = _mm_set1_ps(val);
-                #endif
-                #endif
-	    }
-	    const float val;
-	    float operator[](int x) const {return val;}
-            #ifdef VECTORIZE
-	    vec_type vec_val;
-	    vec_type vec(int x) const {return vec_val;}
-	    vec_type vec_bool(int x) const {
-		return val ? vec_true() : vec_zero();
-	    }
-            #endif
-	};
-	Iter scanline(int y, int t, int c) const {
-	    return Iter(val);
-	}
+        // State needed to iterate across a scanline    
+        struct Iter {
+            Iter (float v) : val(v) {
+                vec_val = Vec::broadcast(val);
+            }
+            const float val;
+            float operator[](int x) const {return val;}
+            Vec::type vec_val;
+            Vec::type vec(int x) const {return vec_val;}
+        };
+        Iter scanline(int y, int t, int c) const {
+            return Iter(val);
+        }
     };
 
-    struct X : public Unbounded {
-	typedef X Lazy;
-	float operator()(int x, int, int, int) const {return x;}
 
-	// State needed to iterate across a scanline    
-	struct Iter {
-	    float operator[](int x) const {return x;}
-            #ifdef VECTORIZE
-	    vec_type vec(int x) const {
-                #ifdef __AVX__
-		return _mm256_set_ps(x+7, x+6, x+5, x+4, x+3, x+2, x+1, x+0);	    
-                #else
-		return _mm_set_ps(x+3, x+2, x+1, x+0);  
-                #endif
-	    }
-	    vec_type vec_bool(int x) const {
-		if (x > 0) return vec_true();
-		union {
-		    uint32_t high; 
-		    float f_high;
-		} u;
-		u.high = 0xffffffff;
-		
-                #ifdef __AVX__
-		return _mm256_set_ps(0, 0, 0, 0, 0, 0, 0, u.f_high);
-		#else
-		return _mm_set_ps(0, 0, 0, u.f_high);
-		#endif
-	    }
-            #endif
-	};
-	Iter scanline(int y, int t, int c) const {
-	    return Iter();
-	}
+    // Coordinates
+    struct X : public Unbounded {
+        typedef X Lazy;
+        float operator()(int x, int, int, int) const {return x;}
+
+        // State needed to iterate across a scanline    
+        struct Iter {
+            float operator[](int x) const {return x;}
+            Vec::type vec(int x) const {
+                union {            
+                    float f[Vec::width];
+                    Vec::type v;
+                } v;
+                for (int i = 0; i < Vec::width; i++) {
+                    v.f[i] = x+i;
+                }
+                return v.v;
+            }
+        };
+        Iter scanline(int y, int t, int c) const {
+            return Iter();
+        }
     };
 
     struct Y : public Unbounded {
-	typedef Y Lazy;
-	float operator()(int, int y, int, int) const {return y;}
+        typedef Y Lazy;
+        float operator()(int, int y, int, int) const {return y;}
 
-	typedef Const::Iter Iter;
+        typedef Const::Iter Iter;
 
-	Const::Iter scanline(int y, int t, int c) const {
-	    return Const::Iter(y);
-	}
+        Const::Iter scanline(int y, int t, int c) const {
+            return Const::Iter(y);
+        }
     };
 
     struct T : public Unbounded {
-	typedef T Lazy;
-	float operator()(int, int, int t, int) const {return t;}
+        typedef T Lazy;
+        float operator()(int, int, int t, int) const {return t;}
 
-	typedef Const::Iter Iter;
+        typedef Const::Iter Iter;
 
-	Const::Iter scanline(int y, int t, int c) const {
-	    return Const::Iter(t);
-	}
+        Const::Iter scanline(int y, int t, int c) const {
+            return Const::Iter(t);
+        }
     };
 
     struct C : public Unbounded {
-	typedef C Lazy;
-	float operator()(int, int, int, int c) const {return c;}
+        typedef C Lazy;
+        float operator()(int, int, int, int c) const {return c;}
 
-	typedef Const::Iter Iter;
+        typedef Const::Iter Iter;
 
-	Const::Iter scanline(int y, int t, int c) const {
-	    return Const::Iter(c);
-	}
+        Const::Iter scanline(int y, int t, int c) const {
+            return Const::Iter(c);
+        }
     };
 
-    template<typename A, typename B>
+    // Arithmetic binary operators
+    template<typename A, typename B, typename Op>
     struct BinaryOp {
-	const A a;
-	const B b;
+        typedef BinaryOp<typename A::Lazy, typename B::Lazy, Op> Lazy;
+        const A a;
+        const B b;
 
-	BinaryOp(const A a_, const B b_) : a(a_), b(b_) {
-	    if (a.getWidth() && b.getWidth()) {
-		assert(a.getWidth() == b.getWidth(),
-		       "Can only combine images with matching width\n");
-	    }
-	    if (a.getHeight() && b.getHeight()) {
-		assert(a.getHeight() == b.getHeight(),
-		       "Can only combine images with matching height\n");
-	    }
-	    if (a.getFrames() && b.getFrames()) {
-		assert(a.getFrames() == b.getFrames(),
-		       "Can only combine images with matching frames\n");
-	    }
-	    if (a.getChannels() && b.getChannels()) {
-		assert(a.getChannels() == b.getChannels(),
-		       "Can only combine images with matching channels\n");
-	    }
-	}
+        BinaryOp(const A a_, const B b_) : a(a_), b(b_) {
+            for (int i = 0; i < 4; i++) {
+                if (a.getSize(i) && b.getSize(i)) {
+                    assert(a.getSize(i) == b.getSize(i), 
+                           "Can only combine images with matching size\n");                           
+                }
+            }
+        }
 
-	int getWidth() const {
-	    if (a.getWidth()) return a.getWidth();
-	    return b.getWidth();
-	}
-	int getHeight() const {
-	    if (a.getHeight()) return a.getHeight();
-	    return b.getHeight();
-	}
-	int getFrames() const {
-	    if (a.getFrames()) return a.getFrames();
-	    return b.getFrames();
-	}
-	int getChannels() const {
-	    if (a.getChannels()) return a.getChannels();
-	    return b.getChannels();
-	}
-    };
+        int getSize(int i) const {
+            if (a.getSize(i)) return a.getSize(i);
+            return b.getSize(i);
+        }
 
-    template<typename A, typename B>
-    struct Add : public BinaryOp<A, B> {
-	typedef Add<typename A::Lazy, typename B::Lazy> Lazy;
-	Add(const A a_, const B b_) : BinaryOp<A, B>(a_, b_) {}
-	float operator()(int x, int y, int t, int c) const {
-	    return BinaryOp<A, B>::a(x, y, t, c) + BinaryOp<A, B>::b(x, y, t, c);
-	}
+        float operator()(int x, int y, int t, int c) const {
+            return Op::scalar(a(x, y, t, c), b(x, y, t, c));
+        }
 
-	struct Iter {
-	    typename A::Iter a; 
-	    typename B::Iter b;
+        struct Iter {
+            typename A::Iter a;
+            typename B::Iter b;
             Iter(typename A::Iter a_, typename B::Iter b_) : a(a_), b(b_) {}
-	    float operator[](int x) const {return a[x] + b[x];}
-            #ifdef VECTORIZE
-	    vec_type vec(int x) const {
-            #ifdef __AVX__
-			return _mm256_add_ps(a.vec(x), b.vec(x));
-            #else
-			return _mm_add_ps(a.vec(x), b.vec(x));
-            #endif
-		}
-	    vec_type vec_bool(int x) const {
-		return vec_is_non_zero(vec(x));
-	    }
-            #endif
-	};
-	Iter scanline(int y, int t, int c) const {
-	    return Iter(BinaryOp<A, B>::a.scanline(y, t, c), 
-                        BinaryOp<A, B>::b.scanline(y, t, c));
-	}
+            float operator[](int x) const {
+                return Op::scalar(a[x], b[x]);
+            }
+            Vec::type vec(int x) const {
+                return Op::vec(a.vec(x), b.vec(x));
+            }
+        };
+        Iter scanline(int y, int t, int c) const {
+            return Iter(a.scanline(y, t, c), b.scanline(y, t, c));
+        }
     };
 
-    template<typename A, typename B>
-    struct Sub : public BinaryOp<A, B> {
-	typedef Sub<typename A::Lazy, typename B::Lazy> Lazy;
-	Sub(const A a_, const B b_) : BinaryOp<A, B>(a_, b_) {}
-	float operator()(int x, int y, int t, int c) const {
-	    return BinaryOp<A, B>::a(x, y, t, c) - BinaryOp<A, B>::b(x, y, t, c);
-	}
+    // Comparison binary operators
+    template<typename A, typename B, typename Op>
+    struct Cmp {
+        typedef Cmp<typename A::Lazy, typename B::Lazy, Op> LazyBool;
+        const A a;
+        const B b;
 
-	struct Iter {
-	    typename A::Iter a; 
-	    typename B::Iter b;
+        Cmp(const A a_, const B b_) : a(a_), b(b_) {
+            for (int i = 0; i < 4; i++) {
+                if (a.getSize(i) && b.getSize(i)) {
+                    assert(a.getSize(i) == b.getSize(i), 
+                           "Can only combine images with matching size\n");                           
+                }
+            }
+        }
+        int getSize(int i) const {
+            if (a.getSize(i)) return a.getSize(i);
+            return b.getSize(i);
+        }
+
+        float operator()(int x, int y, int t, int c) const {
+            return Op::scalar(a(x, y, t, c), b(x, y, t, c)) ? 1 : 0;
+        }
+        
+        struct Iter {
+            typename A::Iter a; 
+            typename B::Iter b;
             Iter(typename A::Iter a_, typename B::Iter b_) : a(a_), b(b_) {}
-	    float operator[](int x) const {return a[x] - b[x];}
-            #ifdef VECTORIZE
-	    vec_type vec(int x) const {
-			#ifdef __AVX__
-			return _mm256_sub_ps(a.vec(x), b.vec(x));
-            #else
-			return _mm_sub_ps(a.vec(x), b.vec(x));
-            #endif
-	    }
-	    vec_type vec_bool(int x) const {
-		return vec_is_non_zero(vec(x));
-	    }
-            #endif
-	};
-	Iter scanline(int y, int t, int c) const {
-	    return Iter(BinaryOp<A, B>::a.scanline(y, t, c), 
-                        BinaryOp<A, B>::b.scanline(y, t, c));
-	}
+            float operator[](int x) const {
+                return Op::scalar(a[x], b[x]) ? 1 : 0;
+            }
+            Vec::type vec(int x) const {
+                return Op::vec(a.vec(x), b.vec(x));
+            }
+        };
+        Iter scanline(int y, int t, int c) const {
+            return Iter(a.scanline(y, t, c), 
+                        b.scanline(y, t, c));
+        }
     };
-
-    template<typename A, typename B>
-    struct Mul : public BinaryOp<A, B> {
-	typedef Mul<typename A::Lazy, typename B::Lazy> Lazy;
-	Mul(const A a_, const B b_) : BinaryOp<A, B>(a_, b_) {}
-	float operator()(int x, int y, int t, int c) const {
-	    return BinaryOp<A, B>::a(x, y, t, c) * BinaryOp<A, B>::b(x, y, t, c);
-	}
-
-	struct Iter {
-	    typename A::Iter a; 
-	    typename B::Iter b;
-            Iter(typename A::Iter a_, typename B::Iter b_) : a(a_), b(b_) {}
-	    float operator[](int x) const {return a[x] * b[x];}
-            #ifdef VECTORIZE
-	    vec_type vec(int x) const {
-		    #ifdef __AVX__
-			return _mm256_mul_ps(a.vec(x), b.vec(x));
-            #else
-			return _mm_mul_ps(a.vec(x), b.vec(x));
-            #endif
-	    }
-	    vec_type vec_bool(int x) const {
-		return vec_is_non_zero(vec(x));
-	    }
-            #endif
-	};
-	Iter scanline(int y, int t, int c) const {
-	    return Iter(BinaryOp<A, B>::a.scanline(y, t, c), 
-                        BinaryOp<A, B>::b.scanline(y, t, c));
-	}
-    };
-
-    template<typename A, typename B>
-    struct Div : public BinaryOp<A, B> {
-	typedef Div<typename A::Lazy, typename B::Lazy> Lazy;
-	Div(const A a_, const B b_) : BinaryOp<A, B>(a_, b_) {}
-	float operator()(int x, int y, int t, int c) const {
-	    return BinaryOp<A, B>::a(x, y, t, c) / BinaryOp<A, B>::b(x, y, t, c);
-	}
-
-	struct Iter {
-	    typename A::Iter a; 
-	    typename B::Iter b;
-            Iter(typename A::Iter a_, typename B::Iter b_) : a(a_), b(b_) {}
-	    float operator[](int x) const {return a[x] / b[x];}
-            #ifdef VECTORIZE
-	    vec_type vec(int x) const {
-            #ifdef __AVX__
-			return _mm256_div_ps(a.vec(x), b.vec(x));
-            #else
-			return _mm_div_ps(a.vec(x), b.vec(x));
-            #endif
-	    }
-	    vec_type vec_bool(int x) const {
-		// just check the numerator
-		return vec_is_non_zero(a.vec(x));
-	    }
-            #endif
-	};
-	Iter scanline(int y, int t, int c) const {
-	    return Iter(BinaryOp<A, B>::a.scanline(y, t, c), 
-                        BinaryOp<A, B>::b.scanline(y, t, c));
-	}
-    };
+    
 
 
     template<typename A, typename B>
-    struct _Min : public BinaryOp<A, B> {
-	typedef _Min<typename A::Lazy, typename B::Lazy> Lazy;
-	_Min(const A a_, const B b_) : BinaryOp<A, B>(a_, b_) {}
-	float operator()(int x, int y, int t, int c) const {
-	    return std::min(BinaryOp<A, B>::a(x, y, t, c), BinaryOp<A, B>::b(x, y, t, c));
-	}
-
-	struct Iter {
-	    typename A::Iter a; 
-	    typename B::Iter b;
-            Iter(typename A::Iter a_, typename B::Iter b_) : a(a_), b(b_) {}
-	    float operator[](int x) const {return std::min(a[x], b[x]);}
-            #ifdef VECTORIZE
-	    vec_type vec(int x) const {		
-		#ifdef __AVX__
-		return _mm256_min_ps(a.vec(x), b.vec(x));
-		#else
-		return _mm_min_ps(a.vec(x), b.vec(x));
-		#endif
-	    }
-	    vec_type vec_bool(int x) const {
-		return vec_is_non_zero(vec(x));
-	    }
-            #endif
-	};
-	Iter scanline(int y, int t, int c) const {
-	    return Iter(BinaryOp<A, B>::a.scanline(y, t, c), 
-                        BinaryOp<A, B>::b.scanline(y, t, c));
-	}
-    };
-
-    template<typename A, typename B>
-    struct _Max : public BinaryOp<A, B> {
-	typedef _Max<typename A::Lazy, typename B::Lazy> Lazy;
-	_Max(const A a_, const B b_) : BinaryOp<A, B>(a_, b_) {}
-	float operator()(int x, int y, int t, int c) const {
-	    return std::max(BinaryOp<A, B>::a(x, y, t, c), BinaryOp<A, B>::b(x, y, t, c));
-	}
-
-	struct Iter {
-	    typename A::Iter a; 
-	    typename B::Iter b;
-            Iter(typename A::Iter a_, typename B::Iter b_) : a(a_), b(b_) {}
-	    float operator[](int x) const {return std::max(a[x], b[x]);}
-            #ifdef VECTORIZE
-	    vec_type vec(int x) const {		
-		#ifdef __AVX__
-		return _mm256_max_ps(a.vec(x), b.vec(x));
-		#else
-		return _mm_max_ps(a.vec(x), b.vec(x));
-		#endif
-	    }
-	    vec_type vec_bool(int x) const {
-		return vec_is_non_zero(vec(x));
-	    }
-            #endif
-	};
-	Iter scanline(int y, int t, int c) const {
-	    return Iter(BinaryOp<A, B>::a.scanline(y, t, c), 
-                        BinaryOp<A, B>::b.scanline(y, t, c));
-	}
-    };
-
-    template<typename A, typename B>
-    _Min<typename A::Lazy, typename B::Lazy>
+    BinaryOp<typename A::Lazy, typename B::Lazy, Vec::Min>
     min(const A a, const B b) {
-	return _Min<typename A::Lazy, typename B::Lazy>(a, b);
+        return BinaryOp<typename A::Lazy, typename B::Lazy, Vec::Min>(a, b);
     }
     template<typename A>
-    _Min<typename A::Lazy, Const>
+    BinaryOp<typename A::Lazy, Const, Vec::Min>
     min(const A a, float b) {
-	return _Min<typename A::Lazy, Const>(a, b);
+        return min(a, Const(b));
     }
     template<typename B>
-    _Min<Const, typename B::Lazy>
+    BinaryOp<Const, typename B::Lazy, Vec::Min>
     min(float a, const B b) {
-	return _Min<Const, typename B::Lazy>(a, b);
+        return min(Const(a), b);
     }
     template<typename A, typename B>
-    _Max<typename A::Lazy, typename B::Lazy>
+    BinaryOp<typename A::Lazy, typename B::Lazy, Vec::Max>
     max(const A a, const B b) {
-	return _Max<typename A::Lazy, typename B::Lazy>(a, b);
+        return BinaryOp<typename A::Lazy, typename B::Lazy, Vec::Max>(a, b);
     }
     template<typename A>
-    _Max<typename A::Lazy, Const>
+    BinaryOp<typename A::Lazy, Const, Vec::Max>
     max(const A a, float b) {
-	return _Max<typename A::Lazy, Const>(a, b);
+        return max(a, Const(b));
     }
     template<typename B>
-    _Max<Const, typename B::Lazy>
+    BinaryOp<Const, typename B::Lazy, Vec::Max>
     max(float a, const B b) {
-	return _Max<Const, typename B::Lazy>(a, b);
+        return max(Const(a), b);
     }
    
     template<typename A, typename B, typename C>
-    _Min<_Max<typename A::Lazy, typename B::Lazy>, typename C::Lazy>  
+    BinaryOp<BinaryOp<typename A::Lazy, typename B::Lazy, Vec::Max>, typename C::Lazy, Vec::Min>  
     clamp(const A a, const B b, const C c) {
-	return min(max(a, b), c);
+        return min(max(a, b), c);
     }
     template<typename B, typename C>
-    _Min<_Max<Const, typename B::Lazy>, typename C::Lazy>  
+    BinaryOp<BinaryOp<Const, typename B::Lazy, Vec::Max>, typename C::Lazy, Vec::Min>  
     clamp(float a, const B b, const C c) {
-	return min(max(a, b), c);
+        return min(max(a, b), c);
     }
     template<typename A, typename C>
-    _Min<_Max<typename A::Lazy, Const>, typename C::Lazy>  
+    BinaryOp<BinaryOp<typename A::Lazy, Const, Vec::Max>, typename C::Lazy, Vec::Min>  
     clamp(const A a, float b, const C c) {
-	return min(max(a, b), c);
+        return min(max(a, b), c);
     }
     template<typename A, typename B>
-    _Min<_Max<typename A::Lazy, typename B::Lazy>, Const>  
+    BinaryOp<BinaryOp<typename A::Lazy, typename B::Lazy, Vec::Max>, Const, Vec::Min>  
     clamp(const A a, const B b, float c) {
-	return min(max(a, b), c);
+        return min(max(a, b), c);
     }
     template<typename A>
-    _Min<_Max<typename A::Lazy, Const>, Const>  
+    BinaryOp<BinaryOp<typename A::Lazy, Const, Vec::Max>, Const, Vec::Min>  
     clamp(const A a, float b, float c) {
-	return min(max(a, b), c);
+        return min(max(a, b), c);
     }
 
-    struct GT {
-	static bool cmp(float a, float b) {return a > b;}
-	#ifdef VECTORIZE
-	static vec_type vec_cmp(vec_type a, vec_type b) {
-            #ifdef __AVX__
-	    return _mm256_cmp_ps(a, b, _CMP_GT_OQ);	    
-            #else
-	    return _mm_cmpgt_ps(a, b);
-            #endif
-	}	
-	#endif
-    };
-    struct LT {
-	static bool cmp(float a, float b) {return a < b;}
-	#ifdef VECTORIZE
-	static vec_type vec_cmp(vec_type a, vec_type b) {
-            #ifdef __AVX__
-	    return _mm256_cmp_ps(a, b, _CMP_LT_OQ);	    
-            #else
-	    return _mm_cmplt_ps(a, b);
-            #endif
-	}	
-	#endif
-    };
-    struct GE {
-	static bool cmp(float a, float b) {return a >= b;}
-	#ifdef VECTORIZE
-	static vec_type vec_cmp(vec_type a, vec_type b) {
-            #ifdef __AVX__
-	    return _mm256_cmp_ps(a, b, _CMP_GE_OQ);	    
-            #else
-	    return _mm_cmpge_ps(a, b);
-            #endif
-	}	
-	#endif
-    };
-    struct LE {
-	static bool cmp(float a, float b) {return a <= b;}
-	#ifdef VECTORIZE
-	static vec_type vec_cmp(vec_type a, vec_type b) {
-            #ifdef __AVX__
-	    return _mm256_cmp_ps(a, b, _CMP_LE_OQ);	    
-            #else
-	    return _mm_cmple_ps(a, b);
-            #endif
-	}	
-	#endif
-    };
-    struct EQ {
-	static bool cmp(float a, float b) {return a == b;}
-	#ifdef VECTORIZE
-	static vec_type vec_cmp(vec_type a, vec_type b) {
-            #ifdef __AVX__
-	    return _mm256_cmp_ps(a, b, _CMP_EQ_OQ);	    
-            #else
-	    return _mm_cmpeq_ps(a, b);
-            #endif
-	}	
-	#endif
-    };
-    struct NEQ {
-	static bool cmp(float a, float b) {return a != b;}
-	#ifdef VECTORIZE
-	static vec_type vec_cmp(vec_type a, vec_type b) {
-            #ifdef __AVX__
-	    return _mm256_cmp_ps(a, b, _CMP_NEQ_OQ);	    
-            #else
-	    return _mm_cmpneq_ps(a, b);
-            #endif
-	}	
-	#endif
-    };
-
-    
-
-    template<typename A, typename B, typename C>
-    struct Cmp : public BinaryOp<A, B> {
-	typedef Cmp<typename A::Lazy, typename B::Lazy, C> Lazy;
-	Cmp(const A a_, const B b_) : BinaryOp<A, B>(a_, b_) {}
-	float operator()(int x, int y, int t, int c) const {
-	    return C::cmp(BinaryOp<A, B>::a(x, y, t, c),
-			  BinaryOp<A, B>::b(x, y, t, c)) ? 1 : 0;
-	}
-	
-	struct Iter {
-	    typename A::Iter a; 
-	    typename B::Iter b;
-            Iter(typename A::Iter a_, typename B::Iter b_) : a(a_), b(b_) {}
-	    float operator[](int x) const {
-		return C::cmp(a[x], b[x]) ? 1 : 0;
-	    }
-            #ifdef VECTORIZE
-	    vec_type vec(int x) const {
-		vec_type mask = vec_bool(x);
-                #ifdef __AVX__
-		vec_type one = _mm256_set1_ps(1);
-		return _mm256_and_ps(mask, one);
-                #else 
-	 	vec_type one = _mm_set1_ps(1);
-		return _mm_and_ps(mask, one);
-                #endif
-	    }
-	    vec_type vec_bool(int x) const {
-		return C::vec_cmp(a.vec(x), b.vec(x));
-	    }
-	    #endif
-	};
-	Iter scanline(int y, int t, int c) const {
-	    return Iter(BinaryOp<A, B>::a.scanline(y, t, c), 
-				BinaryOp<A, B>::b.scanline(y, t, c));
-	}
-    };
-    
     // Lift a unary function over floats to the same function over an image (e.g. cosf)
-    template<float (*fn)(float), typename B>
+    template<float (*fn)(float), typename A>
     struct Lift {
-	typedef Lift<fn, typename B::Lazy> Lazy;
-	const B b;
-	Lift(const B b_) : b(b_) {}
-	float operator()(int x, int y, int t, int c) const {
-	    return (*fn)(b(x, y, t, c));
-	}
+        typedef Lift<fn, typename A::Lazy> Lazy;
+        const A a;
+        Lift(const A a_) : a(a_) {}
+        float operator()(int x, int y, int t, int c) const {
+            return (*fn)(a(x, y, t, c));
+        }
 
-	int getWidth() const {return b.getWidth();}
-	int getHeight() const {return b.getHeight();}
-	int getFrames() const {return b.getFrames();}
-	int getChannels() const {return b.getChannels();}
+        int getSize(int i) const {return a.getSize(i);}
 
-	struct Iter {
-	    typename B::Iter b;
-            Iter(typename B::Iter b_) : b(b_) {}
-	    float operator[](int x) const {return (*fn)(b[x]);}
-            #ifdef VECTORIZE
-	    vec_type vec(int x) const {
-		union {		   
-		    float f[vec_width];
-		    vec_type v;
-		} vb;
-		vb.v = b.vec(x);
-		vb.f[0] = (*fn)(vb.f[0]);
-		vb.f[1] = (*fn)(vb.f[1]);
-		vb.f[2] = (*fn)(vb.f[2]);
-		vb.f[3] = (*fn)(vb.f[3]);
-		#ifdef __AVX__
-		vb.f[4] = (*fn)(vb.f[4]);
-		vb.f[5] = (*fn)(vb.f[5]);
-		vb.f[6] = (*fn)(vb.f[6]);
-		vb.f[7] = (*fn)(vb.f[7]);
-		#endif
-		return vb.v;
-	    }
-	    vec_type vec_bool(int x) const {
-		return vec_is_non_zero(vec(x));
-	    }
-            #endif
-	};
-	Iter scanline(int y, int t, int c) const {
-	    return Iter(b.scanline(y, t, c));
-	}
+        struct Iter {
+            typename A::Iter a;
+            Iter(typename A::Iter a_) : a(a_) {}
+            float operator[](int x) const {return (*fn)(a[x]);}
+            Vec::type vec(int x) const {
+                union {            
+                    float f[Vec::width];
+                    Vec::type v;
+                } va;
+                va.v = a.vec(x);
+                for (int i = 0; i < Vec::width; i++) {
+                    va.f[i] = (*fn)(va.f[i]);
+                }
+                return va.v;
+            }
+        };
+        Iter scanline(int y, int t, int c) const {
+            return Iter(a.scanline(y, t, c));
+        }
     };
 
-    // Lift a binary function over floats to the same function over an image (e.g. cosf)
+    // Arithmetic binary operators
     template<float (*fn)(float, float), typename A, typename B>
-    struct Lift2 : public BinaryOp<A, B> {
-	typedef Lift2<fn, typename A::Lazy, typename B::Lazy> Lazy;
-	Lift2(const A a_, const B b_) : BinaryOp<A, B>(a_, b_) {}
-	float operator()(int x, int y, int t, int c) const {
-	    return (*fn)(BinaryOp<A, B>::a(x, y, t, c),
-			 BinaryOp<A, B>::b(x, y, t, c));
-	}
+    struct Lift2 {
+        typedef Lift2<fn, typename A::Lazy, typename B::Lazy> Lazy;
+        const A a;
+        const B b;
 
-	struct Iter {
-	    typename A::Iter a;
-	    typename B::Iter b;
+        Lift2(const A a_, const B b_) : a(a_), b(b_) {
+            for (int i = 0; i < 4; i++) {
+                if (a.getSize(i) && b.getSize(i)) {
+                    assert(a.getSize(i) == b.getSize(i), 
+                           "Can only combine images with matching size\n");                           
+                }
+            }
+        }
+
+        int getSize(int i) const {
+            if (a.getSize(i)) return a.getSize(i);
+            return b.getSize(i);
+        }
+
+        float operator()(int x, int y, int t, int c) const {
+            return (*fn)(a(x, y, t, c), b(x, y, t, c));
+        }
+
+        struct Iter {
+            typename A::Iter a;
+            typename B::Iter b;
             Iter(typename A::Iter a_, typename B::Iter b_) : a(a_), b(b_) {}
-	    float operator[](int x) const {return (*fn)(a[x], b[x]);}
-            #ifdef VECTORIZE
-	    vec_type vec(int x) const {
-		union {		   
-		    float f[vec_width];
-		    vec_type v;
-		} va, vb;
-		va.v = a.vec(x);
-		vb.v = b.vec(x);
-		vb.f[0] = (*fn)(va.f[0], vb.f[0]);
-		vb.f[1] = (*fn)(va.f[1], vb.f[1]);
-		vb.f[2] = (*fn)(va.f[2], vb.f[2]);
-		vb.f[3] = (*fn)(va.f[3], vb.f[3]);
-		#ifdef __AVX__
-		vb.f[4] = (*fn)(va.f[4], vb.f[4]);
-		vb.f[5] = (*fn)(va.f[5], vb.f[5]);
-		vb.f[6] = (*fn)(va.f[6], vb.f[6]);
-		vb.f[7] = (*fn)(va.f[7], vb.f[7]);
-		#endif
-		return vb.v;
-	    }
-	    vec_type vec_bool(int x) const {
-		return vec_is_non_zero(vec(x));
-	    }
-            #endif
-	};
-	Iter scanline(int y, int t, int c) const {
-	    return Iter(BinaryOp<A, B>::a.scanline(y, t, c),
-		    BinaryOp<A, B>::b.scanline(y, t, c));
-	}
+            float operator[](int x) const {
+                return (*fn)(a[x], b[x]);
+            }
+            Vec::type vec(int x) const {
+                union {            
+                    float f[Vec::width];
+                    Vec::type v;
+                } va, vb;           
+                va.v = a.vec(x);
+                vb.v = b.vec(x);
+                for (int i = 0; i < Vec::width; i++) {
+                    vb.f[i] = (*fn)(va.f[i], vb.f[i]);
+                }
+                return vb.v;
+            }
+        };
+        Iter scanline(int y, int t, int c) const {
+            return Iter(a.scanline(y, t, c), b.scanline(y, t, c));
+        }
     };
-
 
     template<typename A>
     Lift<logf, typename A::Lazy> log(const A a) {
-	return Lift<logf, typename A::Lazy>(a);
+        return Lift<logf, typename A::Lazy>(a);
     }
 
     template<typename A>
     Lift<expf, typename A::Lazy> exp(const A a) {
-	return Lift<expf, typename A::Lazy>(a);
+        return Lift<expf, typename A::Lazy>(a);
     }
 
     template<typename A>
     Lift<cosf, typename A::Lazy> cos(const A a) {
-	return Lift<cosf, typename A::Lazy>(a);
+        return Lift<cosf, typename A::Lazy>(a);
     }
 
     template<typename A>
     Lift<sinf, typename A::Lazy> sin(const A a) {
-	return Lift<sinf, typename A::Lazy>(a);
+        return Lift<sinf, typename A::Lazy>(a);
     }
 
     template<typename A>
     Lift<tanf, typename A::Lazy> tan(const A a) {
-	return Lift<tanf, typename A::Lazy>(a);
+        return Lift<tanf, typename A::Lazy>(a);
     }
 
     template<typename A>
     Lift<acosf, typename A::Lazy> acos(const A a) {
-	return Lift<acosf, typename A::Lazy>(a);
+        return Lift<acosf, typename A::Lazy>(a);
     }
 
     template<typename A>
     Lift<asinf, typename A::Lazy> asin(const A a) {
-	return Lift<asinf, typename A::Lazy>(a);
+        return Lift<asinf, typename A::Lazy>(a);
     }
 
     template<typename A>
     Lift<atanf, typename A::Lazy> atan(const A a) {
-	return Lift<atanf, typename A::Lazy>(a);
+        return Lift<atanf, typename A::Lazy>(a);
     }
 
     template<typename A>
     Lift<fabsf, typename A::Lazy> abs(const A a) {
-	return Lift<fabsf, typename A::Lazy>(a);
+        return Lift<fabsf, typename A::Lazy>(a);
     }
 
     template<typename A, typename B>
-    Lift2<powf, typename A::Lazy, typename B::Lazy> pow(const A a, const B b) {
-	return Lift2<powf, typename A::Lazy, typename B::Lazy>(a, b);
+    Lift2<powf, typename A::Lazy, typename B::Lazy> pow(const A a, const B b) {    
+        return Lift2<powf, typename A::Lazy, typename B::Lazy>(a, b);
     }
     template<typename A>
     Lift2<powf, typename A::Lazy, Const> pow(const A a, float b) {
-	return Lift2<powf, typename A::Lazy, Const>(a, b);
+        return Lift2<powf, typename A::Lazy, Const>(a, b);
     }
     template<typename B>
     Lift2<powf, Const, typename B::Lazy> pow(float a, const B b) {
-	return Lift2<powf, Const, typename B::Lazy>(a, b);
+        return Lift2<powf, Const, typename B::Lazy>(a, b);
     }
 
     template<typename A, typename B>
     Lift2<fmodf, typename A::Lazy, typename B::Lazy> fmod(const A a, const B b) {
-	return Lift2<fmodf, typename A::Lazy, typename B::Lazy>(a, b);
+        return Lift2<fmodf, typename A::Lazy, typename B::Lazy>(a, b);
     }
     template<typename A>
     Lift2<fmodf, typename A::Lazy, Const> fmod(const A a, float b) {
-	return Lift2<fmodf, typename A::Lazy, Const>(a, b);
+        return Lift2<fmodf, typename A::Lazy, Const>(a, b);
     }
     template<typename B>
     Lift2<fmodf, Const, typename B::Lazy> fmod(float a, const B b) {
-	return Lift2<fmodf, Const, typename B::Lazy>(a, b);
+        return Lift2<fmodf, Const, typename B::Lazy>(a, b);
     }
     
     template<typename A>
     struct _RepeatC {
-	typedef _RepeatC<typename A::Lazy> Lazy;
-	const A a;
-	_RepeatC(const A a_) : a(a_) {}
-	float operator()(int x, int y, int t, int c) const {
-	    return a(x, y, t, 0);
-	}
+        typedef _RepeatC<typename A::Lazy> Lazy;
+        const A a;
+        _RepeatC(const A a_) : a(a_) {}
+        float operator()(int x, int y, int t, int c) const {
+            return a(x, y, t, 0);
+        }
 
-	int getWidth() const {return a.getWidth();}
-	int getHeight() const {return a.getHeight();}
-	int getFrames() const {return a.getFrames();}
-	int getChannels() const {return 0;}
+        int getSize(int i) const {return i == 3 ? 0 : a.getSize(i);}
 
-	typedef typename A::Iter Iter;
-	Iter scanline(int y, int t, int c) const {
-	    return a.scanline(y, t, 0);
-	}
+        typedef typename A::Iter Iter;
+        Iter scanline(int y, int t, int c) const {
+            return a.scanline(y, t, 0);
+        }
     };
     
     template<typename A>
     _RepeatC<typename A::Lazy> RepeatC(const A a) {
-	return _RepeatC<typename A::Lazy>(a);
+        return _RepeatC<typename A::Lazy>(a);
     }
 
     template<typename A>
     struct _RepeatT {
-	typedef _RepeatT<typename A::Lazy> Lazy;
-	const A a;
-	_RepeatT(const A a_) : a(a_) {}
-	float operator()(int x, int y, int t, int c) const {
-	    return a(x, y, 0, c);
-	}
+        typedef _RepeatT<typename A::Lazy> Lazy;
+        const A a;
+        _RepeatT(const A a_) : a(a_) {}
+        float operator()(int x, int y, int t, int c) const {
+            return a(x, y, 0, c);
+        }
 
-	int getWidth() const {return a.getWidth();}
-	int getHeight() const {return a.getHeight();}
-	int getFrames() const {return 0;}
-	int getChannels() const {return a.getChannels();}
+        int getSize(int i) const {return i == 2 ? 0 : a.getSize(i);}
 
-	typedef typename A::Iter Iter;
-	Iter scanline(int y, int t, int c) const {
-	    return a.scanline(y, 0, c);
-	}
+        typedef typename A::Iter Iter;
+        Iter scanline(int y, int t, int c) const {
+            return a.scanline(y, 0, c);
+        }
     };
     
     template<typename A>
     _RepeatT<typename A::Lazy> RepeatT(const A a) {
-	return _RepeatT<typename A::Lazy>(a);
+        return _RepeatT<typename A::Lazy>(a);
     }
 
     template<typename A>
     struct _RepeatY {
-	typedef _RepeatY<typename A::Lazy> Lazy;
-	const A a;
-	_RepeatY(const A a_) : a(a_) {}
-	float operator()(int x, int y, int t, int c) const {
-	    return a(x, 0, t, c);
-	}
+        typedef _RepeatY<typename A::Lazy> Lazy;
+        const A a;
+        _RepeatY(const A a_) : a(a_) {}
+        float operator()(int x, int y, int t, int c) const {
+            return a(x, 0, t, c);
+        }
 
-	int getWidth() const {return a.getWidth();}
-	int getHeight() const {return 0;}
-	int getFrames() const {return a.getFrames();}
-	int getChannels() const {return a.getChannels();}
+        int getSize(int i) const {return i == 1 ? 0 : a.getSize(i);}
 
-	typedef typename A::Iter Iter;
-	Iter scanline(int y, int t, int c) const {
-	    return a.scanline(0, t, c);
-	}
+        typedef typename A::Iter Iter;
+        Iter scanline(int y, int t, int c) const {
+            return a.scanline(0, t, c);
+        }
     };
     
     template<typename A>
     _RepeatY<typename A::Lazy> RepeatY(const A a) {
-	return _RepeatY<typename A::Lazy>(a);
+        return _RepeatY<typename A::Lazy>(a);
     }
 
     template<typename A>
     struct _RepeatX {
-	typedef _RepeatX<typename A::Lazy> Lazy;
-	const A a;
-	_RepeatX(const A a_) : a(a_) {}
-	float operator()(int x, int y, int t, int c) const {
-	    return a(0, y, t, c);
-	}
+        typedef _RepeatX<typename A::Lazy> Lazy;
+        const A a;
+        _RepeatX(const A a_) : a(a_) {}
+        float operator()(int x, int y, int t, int c) const {
+            return a(0, y, t, c);
+        }
 
-	int getWidth() const {return 0;}
-	int getHeight() const {return a.getHeight();}
-	int getFrames() const {return a.getFrames();}
-	int getChannels() const {return a.getChannels();}
+        int getSize(int i) const {return i == 0 ? 0 : a.getSize(i);}
 
-	typedef typename Const::Iter Iter;
-	Iter scanline(int y, int t, int c) const {
-	    return Const::Iter(a(0, y, t, c));
-	}
+        typedef typename Const::Iter Iter;
+        Iter scanline(int y, int t, int c) const {
+            return Const::Iter(a(0, y, t, c));
+        }
     };
     
     template<typename A>
     _RepeatX<typename A::Lazy> RepeatX(const A a) {
-	return _RepeatX<typename A::Lazy>(a);
+        return _RepeatX<typename A::Lazy>(a);
     }
-
-    template<typename A, typename B, typename C>
-    struct TernaryOp {
-	const A a;
-	const B b;
-	const C c;
-
-	TernaryOp(const A a_, const B b_, const C c_) : a(a_), b(b_), c(c_) {
-	    int xs = a.getWidth();
-	    if (!xs) xs = b.getWidth();
-	    if (!xs) xs = c.getWidth();	    
-	    int ys = a.getHeight();
-	    if (!ys) ys = b.getHeight();
-	    if (!ys) ys = c.getHeight();	    
-	    int ts = a.getFrames();
-	    if (!ts) ts = b.getFrames();
-	    if (!ts) ts = c.getFrames();	    
-	    int cs = a.getChannels();
-	    if (!cs) cs = b.getFrames();
-	    if (!cs) cs = c.getFrames();	    
-	    assert((a.getWidth() == 0 || a.getWidth() == xs) &&
-		   (b.getWidth() == 0 || b.getWidth() == xs) &&
-		   (c.getWidth() == 0 || c.getWidth() == xs),
-		   "Can only combine images with matching width\n");
-	    assert((a.getHeight() == 0 || a.getHeight() == ys) &&
-		   (b.getHeight() == 0 || b.getHeight() == ys) &&
-		   (c.getHeight() == 0 || c.getHeight() == ys),
-		   "Can only combine images with matching height\n");
-	    assert((a.getFrames() == 0 || a.getFrames() == ts) &&
-		   (b.getFrames() == 0 || b.getFrames() == ts) &&
-		   (c.getFrames() == 0 || c.getFrames() == ts),
-		   "Can only combine images with matching frames\n");
-	    assert((a.getChannels() == 0 || a.getChannels() == cs) &&
-		   (b.getChannels() == 0 || b.getChannels() == cs) &&
-		   (c.getChannels() == 0 || c.getChannels() == cs),
-		   "Can only combine images with matching channels\n");	    
-	}
-
-
-	int getWidth() const {
-	    if (a.getWidth()) return a.getWidth();
-	    if (b.getWidth()) return b.getWidth();
-	    if (c.getWidth()) return c.getWidth();
-	    return 0;
-	}
-	int getHeight() const {
-	    if (a.getHeight()) return a.getHeight();
-	    if (b.getHeight()) return b.getHeight();
-	    if (c.getHeight()) return c.getHeight();
-	    return 0;
-	}
-	int getFrames() const {
-	    if (a.getFrames()) return a.getFrames();
-	    if (b.getFrames()) return b.getFrames();
-	    if (c.getFrames()) return c.getFrames();
-	    return 0;
-	}
-	int getChannels() const {
-	    if (a.getChannels()) return a.getChannels();
-	    if (b.getChannels()) return b.getChannels();
-	    if (c.getChannels()) return c.getChannels();
-	    return 0;
-	}
-
-    };
     
     template<typename A, typename B, typename C>
-    struct _Select : public TernaryOp<A, B, C> {
-	typedef _Select<typename A::Lazy, typename B::Lazy, typename C::Lazy> Lazy;
-	_Select(const A a_, const B b_, const C c_) : TernaryOp<A, B, C>(a_, b_, c_) {}
+    struct _Select {
+        typedef _Select<typename A::LazyBool, typename B::Lazy, typename C::Lazy> Lazy;
+        const A a;
+        const B b;
+        const C c;
 
-	float operator()(int x, int y, int t, int c_) const {
-	    return (TernaryOp<A, B, C>::a(x, y, t, c_) ? 
-		    TernaryOp<A, B, C>::b(x, y, t, c_) : 
-		    TernaryOp<A, B, C>::c(x, y, t, c_));
-	}
+        _Select(const A a_, const B b_, const C c_) : a(a_), b(b_), c(c_) {
+            for (int i = 0; i < 4; i++) {
+                int s = a.getSize(i);
+                if (!s) s = b.getSize(i);
+                if (!s) s = c.getSize(i);                    
+                assert((a.getSize(i) == s || a.getSize(i) == 0) &&
+                       (b.getSize(i) == s || b.getSize(i) == 0) &&
+                       (c.getSize(i) == s || c.getSize(i) == 0), 
+                       "Can only combine images with matching size\n");
+            }
+        }
 
-	struct Iter {
-	    typename A::Iter a;
-	    typename B::Iter b;
-	    typename C::Iter c;
+        int getSize(int i) const {
+            if (a.getSize(i)) return a.getSize(i);
+            if (b.getSize(i)) return b.getSize(i);
+            if (c.getSize(i)) return c.getSize(i);
+            return 0;
+        }
+
+        float operator()(int x, int y, int t, int c_) const {
+            return (a(x, y, t, c_) ? b(x, y, t, c_) : c(x, y, t, c_));
+        }
+
+        struct Iter {
+            typename A::Iter a;
+            typename B::Iter b;
+            typename C::Iter c;
             Iter(typename A::Iter a_,
                  typename B::Iter b_,
                  typename C::Iter c_) : a(a_), b(b_), c(c_) {}
-	    float operator[](int x) const {
-		return a[x] ? b[x] : c[x];
-	    }
-            #ifdef VECTORIZE
-	    vec_type vec(int x) const {
-		const vec_type va = a.vec_bool(x);
-		const vec_type vb = b.vec(x);
-		const vec_type vc = c.vec(x);
-		#ifdef __AVX__
-		return _mm256_blendv_ps(vc, vb, va);
-                #else
-		// requires SSE4
-		return _mm_blendv_ps(vc, vb, va);
-		#endif
-	    }
-	    vec_type vec_bool(int x) const {
-		return vec_is_non_zero(vec(x));
-	    }
-            #endif
-	    
-	};
-	Iter scanline(int y, int t, int c_) const {
-	    return Iter(TernaryOp<A, B, C>::a.scanline(y, t, c_), 
-                        TernaryOp<A, B, C>::b.scanline(y, t, c_), 
-                        TernaryOp<A, B, C>::c.scanline(y, t, c_));
-	}
+            float operator[](int x) const {
+                return a[x] ? b[x] : c[x];
+            }
+            Vec::type vec(int x) const {
+                const Vec::type va = a.vec(x);
+                const Vec::type vb = b.vec(x);
+                const Vec::type vc = c.vec(x);
+                return Vec::blend(vc, vb, va);
+            }
+        };
+        Iter scanline(int y, int t, int c_) const {
+            return Iter(a.scanline(y, t, c_), 
+                        b.scanline(y, t, c_), 
+                        c.scanline(y, t, c_));
+        }
     };
 
     template<typename A, typename B, typename C>
-    _Select<typename A::Lazy, typename B::Lazy, typename C::Lazy> 
+    _Select<typename A::LazyBool, typename B::Lazy, typename C::Lazy> 
     Select(const A a, const B b, const C c) {
-	return _Select<typename A::Lazy, typename B::Lazy, typename C::Lazy>(a, b, c);
+        return _Select<typename A::LazyBool, typename B::Lazy, typename C::Lazy>(a, b, c);
     }
 
     template<typename A, typename C>
-    _Select<typename A::Lazy, Const, typename C::Lazy> 
+    _Select<typename A::LazyBool, Const, typename C::Lazy> 
     Select(const A a, float b, const C c) {
-	return _Select<typename A::Lazy, Const, typename C::Lazy>(a, Const(b), c);
+        return _Select<typename A::LazyBool, Const, typename C::Lazy>(a, Const(b), c);
     }
 
     template<typename A, typename B>
-    _Select<typename A::Lazy, typename B::Lazy, Const> 
+    _Select<typename A::LazyBool, typename B::Lazy, Const> 
     Select(const A a, const B b, float c) {
-	return _Select<typename A::Lazy, typename B::Lazy, Const>(a, b, Const(c));
+        return _Select<typename A::LazyBool, typename B::Lazy, Const>(a, b, Const(c));
     }
 
     template<typename A>
-    _Select<typename A::Lazy, Const, Const>
+    _Select<typename A::LazyBool, Const, Const>
     Select(const A a, float b, float c) {
-	return _Select<typename A::Lazy, Const, Const>(a, Const(b), Const(c));
+        return _Select<typename A::LazyBool, Const, Const>(a, Const(b), Const(c));
     }
 
     template<typename A, typename B, typename C>
-    struct _IfThenElse : public TernaryOp<A, B, C> {
-	typedef _IfThenElse<typename A::Lazy, typename B::Lazy, typename C::Lazy> Lazy;
-	_IfThenElse(const A a_, const B b_, const C c_) : TernaryOp<A, B, C>(a_, b_, c_) {}
+    struct _IfThenElse {
+        typedef _IfThenElse<typename A::LazyBool, typename B::Lazy, typename C::Lazy> Lazy;
+        const A a;
+        const B b;
+        const C c;
 
-	float operator()(int x, int y, int t, int c) const {
-	    return (TernaryOp<A, B, C>::a(x, y, t, c) ? 
-		    TernaryOp<A, B, C>::b(x, y, t, c) : 
-		    TernaryOp<A, B, C>::c(x, y, t, c));
-	}
+        _IfThenElse(const A a_, const B b_, const C c_) : a(a_), b(b_), c(c_) {
+            for (int i = 0; i < 4; i++) {
+                int s = a.getSize(i);
+                if (!s) s = b.getSize(i);
+                if (!s) s = c.getSize(i);                    
+                assert((a.getSize(i) == s || a.getSize(i) == 0) &&
+                       (b.getSize(i) == s || b.getSize(i) == 0) &&
+                       (c.getSize(i) == s || c.getSize(i) == 0), 
+                       "Can only combine images with matching size\n");
+            }
+        }
 
-	struct Iter {
-	    typename A::Iter a;
-	    typename B::Iter b;
-	    typename C::Iter c;
+        int getSize(int i) const {
+            if (a.getSize(i)) return a.getSize(i);
+            if (b.getSize(i)) return b.getSize(i);
+            if (c.getSize(i)) return c.getSize(i);
+            return 0;
+        }
+
+        float operator()(int x, int y, int t, int c_) const {
+            return (a(x, y, t, c_) ? b(x, y, t, c_) : c(x, y, t, c_));
+        }
+
+        struct Iter {
+            typename A::Iter a;
+            typename B::Iter b;
+            typename C::Iter c;
             Iter(typename A::Iter a_,
                  typename B::Iter b_,
                  typename C::Iter c_) : a(a_), b(b_), c(c_) {}
-	    float operator[](int x) const {
-		return a[x] ? b[x] : c[x];
-	    }
-            #ifdef VECTORIZE
-	    vec_type vec(int x) const {
-		union {		   
-		    float f[vec_width];
-		    vec_type v;
-		} vres;
-		for (int i = 0; i < vec_width; i++) {
-		    if (a[x+i]) vres.f[i] = b[x+i];
-		    else vres.f[i] = c[x+i];
-		}
-		return vres.v;
-	    }
-	    vec_type vec_bool(int x) const {
-		return vec_is_non_zero(vec(x));
-	    }
-            #endif
-	    
-	};
-	Iter scanline(int y, int t, int c_) const {
-	    return Iter(TernaryOp<A, B, C>::a.scanline(y, t, c_), 
-                        TernaryOp<A, B, C>::b.scanline(y, t, c_), 
-                        TernaryOp<A, B, C>::c.scanline(y, t, c_));
-	}
+            float operator[](int x) const {
+                return a[x] ? b[x] : c[x];
+            }
+            Vec::type vec(int x) const {
+                union {            
+                    float f[Vec::width];
+                    Vec::type v;
+                } vres;
+                for (int i = 0; i < Vec::width; i++) {
+                    if (a[x+i]) vres.f[i] = b[x+i];
+                    else vres.f[i] = c[x+i];
+                }
+                return vres.v;
+            }
+        };
+        Iter scanline(int y, int t, int c_) const {
+            return Iter(a.scanline(y, t, c_), 
+                        b.scanline(y, t, c_), 
+                        c.scanline(y, t, c_));
+        }
     };
 
     template<typename A, typename B, typename C>
-    _IfThenElse<typename A::Lazy, typename B::Lazy, typename C::Lazy> 
+    _IfThenElse<typename A::LazyBool, typename B::Lazy, typename C::Lazy> 
     IfThenElse(const A a, const B b, const C c) {
-	return _IfThenElse<typename A::Lazy, typename B::Lazy, typename C::Lazy>(a, b, c);
+        return _IfThenElse<typename A::LazyBool, typename B::Lazy, typename C::Lazy>(a, b, c);
     }
 
     template<typename A, typename C>
-    _IfThenElse<typename A::Lazy, Const, typename C::Lazy> 
+    _IfThenElse<typename A::LazyBool, Const, typename C::Lazy> 
     IfThenElse(const A a, const float b, const C c) {
-	return _IfThenElse<typename A::Lazy, Const, typename C::Lazy>(a, Const(b), c);
+        return _IfThenElse<typename A::LazyBool, Const, typename C::Lazy>(a, Const(b), c);
     }
 
     template<typename A, typename B>
-    _IfThenElse<typename A::Lazy, typename B::Lazy, Const> 
+    _IfThenElse<typename A::LazyBool, typename B::Lazy, Const> 
     IfThenElse(const A a, const B b, const float c) {
-	return _IfThenElse<typename A::Lazy, typename B::Lazy, Const>(a, b, Const(c));
+        return _IfThenElse<typename A::LazyBool, typename B::Lazy, Const>(a, b, Const(c));
     }
 
     template<typename A>
-    _IfThenElse<typename A::Lazy, Const, Const>
+    _IfThenElse<typename A::LazyBool, Const, Const>
     IfThenElse(const A a, const float b, const float c) {
-	return _IfThenElse<typename A::Lazy, Const, Const>(a, Const(b), Const(c));
+        return _IfThenElse<typename A::LazyBool, Const, Const>(a, Const(b), Const(c));
     }
 }
 
 
 template<typename A, typename B>
-Lazy::Add<typename A::Lazy, typename B::Lazy> operator+(A a, B b) {
-    return Lazy::Add<typename A::Lazy, typename B::Lazy>(a, b);
+Lazy::BinaryOp<typename A::Lazy, typename B::Lazy, Lazy::Vec::Add> operator+(A a, B b) {
+    return Lazy::BinaryOp<typename A::Lazy, typename B::Lazy, Lazy::Vec::Add>(a, b);
 }
 
 template<typename B>
-Lazy::Add<Lazy::Const, typename B::Lazy> operator+(float a, B b) {
+Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Add> operator+(float a, B b) {
     return Lazy::Const(a) + b;
 }
 
 template<typename A>
-Lazy::Add<typename A::Lazy, Lazy::Const> operator+(A a, float b) {
+Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Add> operator+(A a, float b) {
     return a + Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Add<Lazy::Const, typename B::Lazy> operator+(double a, B b) {
+Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Add> operator+(double a, B b) {
     return Lazy::Const(a) + b;
 }
 
 template<typename A>
-Lazy::Add<typename A::Lazy, Lazy::Const> operator+(A a, double b) {
+Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Add> operator+(A a, double b) {
     return a + Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Add<Lazy::Const, typename B::Lazy> operator+(int a, B b) {
+Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Add> operator+(int a, B b) {
     return Lazy::Const(a) + b;
 }
 
 template<typename A>
-Lazy::Add<typename A::Lazy, Lazy::Const> operator+(A a, int b) {
+Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Add> operator+(A a, int b) {
     return a + Lazy::Const(b);
 }
 
 template<typename A, typename B>
-Lazy::Sub<typename A::Lazy, typename B::Lazy> operator-(A a, B b) {
-    return Lazy::Sub<A, B>(a, b);
+Lazy::BinaryOp<typename A::Lazy, typename B::Lazy, Lazy::Vec::Sub> operator-(A a, B b) {
+    return Lazy::BinaryOp<A, B, Lazy::Vec::Sub>(a, b);
 }
 
 template<typename B>
-Lazy::Sub<Lazy::Const, typename B::Lazy> operator-(float a, B b) {
+Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Sub> operator-(float a, B b) {
     return Lazy::Const(a) - b;
 }
 
 template<typename A>
-Lazy::Sub<typename A::Lazy, Lazy::Const> operator-(A a, float b) {
+Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Sub> operator-(A a, float b) {
     return a - Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Sub<Lazy::Const, typename B::Lazy> operator-(double a, B b) {
+Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Sub> operator-(double a, B b) {
     return Lazy::Const(a) - b;
 }
 
 template<typename A>
-Lazy::Sub<typename A::Lazy, Lazy::Const> operator-(A a, double b) {
+Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Sub> operator-(A a, double b) {
     return a - Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Sub<Lazy::Const, typename B::Lazy> operator-(int a, B b) {
+Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Sub> operator-(int a, B b) {
     return Lazy::Const(a) - b;
 }
 
 template<typename A>
-Lazy::Sub<typename A::Lazy, Lazy::Const> operator-(A a, int b) {
+Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Sub> operator-(A a, int b) {
     return a - Lazy::Const(b);
 }
 
 template<typename A>
-Lazy::Sub<Lazy::Const, typename A::Lazy> operator-(A a) {
+Lazy::BinaryOp<Lazy::Const, typename A::Lazy, Lazy::Vec::Sub> operator-(A a) {
     return Lazy::Const(0) - a;
 }
 
 template<typename A, typename B>
-Lazy::Mul<typename A::Lazy, typename B::Lazy> operator*(A a, B b) {
-    return Lazy::Mul<A, B>(a, b);
+Lazy::BinaryOp<typename A::Lazy, typename B::Lazy, Lazy::Vec::Mul> operator*(A a, B b) {
+    return Lazy::BinaryOp<A, B, Lazy::Vec::Mul>(a, b);
 }
 
 template<typename B>
-Lazy::Mul<Lazy::Const, typename B::Lazy> operator*(float a, B b) {
+Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Mul> operator*(float a, B b) {
     return Lazy::Const(a)*b;
 }
 
 template<typename A>
-Lazy::Mul<typename A::Lazy, Lazy::Const> operator*(A a, float b) {
+Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Mul> operator*(A a, float b) {
     return a*Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Mul<Lazy::Const, typename B::Lazy> operator*(double a, B b) {
+Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Mul> operator*(double a, B b) {
     return Lazy::Const(a)*b;
 }
 
 template<typename A>
-Lazy::Mul<typename A::Lazy, Lazy::Const> operator*(A a, double b) {
+Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Mul> operator*(A a, double b) {
     return a*Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Mul<Lazy::Const, typename B::Lazy> operator*(int a, B b) {
+Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Mul> operator*(int a, B b) {
     return Lazy::Const(a)*b;
 }
 
 template<typename A>
-Lazy::Mul<typename A::Lazy, Lazy::Const> operator*(A a, int b) {
+Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Mul> operator*(A a, int b) {
     return a*Lazy::Const(b);
 }
 
 template<typename A, typename B>
-Lazy::Div<typename A::Lazy, typename B::Lazy> operator/(A a, B b) {
-    return Lazy::Div<A, B>(a, b);
+Lazy::BinaryOp<typename A::Lazy, typename B::Lazy, Lazy::Vec::Div> operator/(A a, B b) {
+    return Lazy::BinaryOp<A, B, Lazy::Vec::Div>(a, b);
 }
 
 template<typename B>
-Lazy::Div<Lazy::Const, typename B::Lazy> operator/(float a, B b) {
+Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Div> operator/(float a, B b) {
     return Lazy::Const(a)/b;
 }
 
 template<typename A>
-Lazy::Mul<typename A::Lazy, Lazy::Const> operator/(A a, float b) {
+Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Mul> operator/(A a, float b) {
     // replace expr / const with expr * (1/const)
     return a * Lazy::Const(1.0f/b);
 }
 
 template<typename B>
-Lazy::Div<Lazy::Const, typename B::Lazy> operator/(double a, B b) {
+Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Div> operator/(double a, B b) {
     return Lazy::Const(a)/b;
 }
 
 template<typename A>
-Lazy::Mul<typename A::Lazy, Lazy::Const> operator/(A a, double b) {
+Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Mul> operator/(A a, double b) {
     // replace expr / const with expr * (1/const)
     return a * Lazy::Const(1.0f/b);
 }
 
 template<typename B>
-Lazy::Div<Lazy::Const, typename B::Lazy> operator/(int a, B b) {
+Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Div> operator/(int a, B b) {
     return Lazy::Const(a)/b;
 }
 
 template<typename A>
-Lazy::Mul<typename A::Lazy, Lazy::Const> operator/(A a, int b) {
+Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Mul> operator/(A a, int b) {
     // replace expr / const with expr * (1/const)
     return a * Lazy::Const(1.0f/b);
 }
 
 template<typename A, typename B>
-Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::GT> operator>(A a, B b) {
-    return Lazy::Cmp<A, B, Lazy::GT>(a, b);
+Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::Vec::GT> operator>(A a, B b) {
+    return Lazy::Cmp<A, B, Lazy::Vec::GT>(a, b);
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::GT> operator>(A a, float b) {
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::GT> operator>(A a, float b) {
     return a > Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::GT> operator>(float a, B b) {
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::GT> operator>(float a, B b) {
     return Lazy::Const(a) > b;
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::GT> operator>(A a, double b) {
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::GT> operator>(A a, double b) {
     return a > Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::GT> operator>(double a, B b) {
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::GT> operator>(double a, B b) {
     return Lazy::Const(a) > b;
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::GT> operator>(A a, int b) {
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::GT> operator>(A a, int b) {
     return a > Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::GT> operator>(int a, B b) {
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::GT> operator>(int a, B b) {
     return Lazy::Const(a) > b;
 }
 
 template<typename A, typename B>
-Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::LT> operator<(A a, B b) {
-    return Lazy::Cmp<A, B, Lazy::LT>(a, b);
+Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::Vec::LT> operator<(A a, B b) {
+    return Lazy::Cmp<A, B, Lazy::Vec::LT>(a, b);
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::LT> operator<(A a, float b) {
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::LT> operator<(A a, float b) {
     return a < Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::LT> operator<(float a, B b) {
-    Lazy::Const(a) < b;
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::LT> operator<(float a, B b) {
+    return Lazy::Const(a) < b;
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::LT> operator<(A a, double b) {
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::LT> operator<(A a, double b) {
     return a < Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::LT> operator<(double a, B b) {
-    Lazy::Const(a) < b;
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::LT> operator<(double a, B b) {
+    return Lazy::Const(a) < b;
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::LT> operator<(A a, int b) {
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::LT> operator<(A a, int b) {
     return a < Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::LT> operator<(int a, B b) {
-    Lazy::Const(a) < b;
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::LT> operator<(int a, B b) {
+    return Lazy::Const(a) < b;
 }
 
 template<typename A, typename B>
-Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::GE> operator>=(A a, B b) {
-    return Lazy::Cmp<A, B, Lazy::GE>(a, b);
+Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::Vec::GE> operator>=(A a, B b) {
+    return Lazy::Cmp<A, B, Lazy::Vec::GE>(a, b);
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::GE> operator>=(A a, float b) {
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::GE> operator>=(A a, float b) {
     return a >= Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::GE> operator>=(float a, B b) {
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::GE> operator>=(float a, B b) {
     return Lazy::Const(a) >= b;
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::GE> operator>=(A a, double b) {
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::GE> operator>=(A a, double b) {
     return a >= Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::GE> operator>=(double a, B b) {
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::GE> operator>=(double a, B b) {
     return Lazy::Const(a) >= b;
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::GE> operator>=(A a, int b) {
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::GE> operator>=(A a, int b) {
     return a >= Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::GE> operator>=(int a, B b) {
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::GE> operator>=(int a, B b) {
     return Lazy::Const(a) >= b;
 }
 
 template<typename A, typename B>
-Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::LE> operator<=(A a, B b) {
-    return Lazy::Cmp<A, B, Lazy::LE>(a, b);
+Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::Vec::LE> operator<=(A a, B b) {
+    return Lazy::Cmp<A, B, Lazy::Vec::LE>(a, b);
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::LE> operator<=(A a, float b) {
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::LE> operator<=(A a, float b) {
     return a <= Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::LE> operator<=(float a, B b) {
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::LE> operator<=(float a, B b) {
     return Lazy::Const(a) <= b;
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::LE> operator<=(A a, double b) {
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::LE> operator<=(A a, double b) {
     return a <= Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::LE> operator<=(double a, B b) {
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::LE> operator<=(double a, B b) {
     return Lazy::Const(a) <= b;
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::LE> operator<=(A a, int b) {
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::LE> operator<=(A a, int b) {
     return a <= Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::LE> operator<=(int a, B b) {
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::LE> operator<=(int a, B b) {
     return Lazy::Const(a) <= b;
 }
 
 template<typename A, typename B>
-Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::EQ> operator==(A a, B b) {
-    return Lazy::Cmp<A, B, Lazy::EQ>(a, b);
+Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::Vec::EQ> operator==(A a, B b) {
+    return Lazy::Cmp<A, B, Lazy::Vec::EQ>(a, b);
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::EQ> operator==(A a, float b) {
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::EQ> operator==(A a, float b) {
     return a == Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::EQ> operator==(float a, B b) {
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::EQ> operator==(float a, B b) {
     return Lazy::Const(a) == b;
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::EQ> operator==(A a, double b) {
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::EQ> operator==(A a, double b) {
     return a == Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::EQ> operator==(double a, B b) {
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::EQ> operator==(double a, B b) {
     return Lazy::Const(a) == b;
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::EQ> operator==(A a, int b) {
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::EQ> operator==(A a, int b) {
     return a == Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::EQ> operator==(int a, B b) {
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::EQ> operator==(int a, B b) {
     return Lazy::Const(a) == b;
 }
 
 template<typename A, typename B>
-Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::NEQ> operator!=(A a, B b) {
-    return Lazy::Cmp<A, B, Lazy::NEQ>(a, b);
+Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::Vec::NEQ> operator!=(A a, B b) {
+    return Lazy::Cmp<A, B, Lazy::Vec::NEQ>(a, b);
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::NEQ> operator!=(A a, float b) {
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::NEQ> operator!=(A a, float b) {
     return a != Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::NEQ> operator!=(float a, B b) {
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::NEQ> operator!=(float a, B b) {
     return Lazy::Const(a) != b;
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::NEQ> operator!=(A a, double b) {
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::NEQ> operator!=(A a, double b) {
     return a != Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::NEQ> operator!=(double a, B b) {
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::NEQ> operator!=(double a, B b) {
     return Lazy::Const(a) != b;
 }
 
 template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::NEQ> operator!=(A a, int b) {
+Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::NEQ> operator!=(A a, int b) {
     return a != Lazy::Const(b);
 }
 
 template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::NEQ> operator!=(int a, B b) {
+Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::NEQ> operator!=(int a, B b) {
     return Lazy::Const(a) != b;
 }
 #include "footer.h"
