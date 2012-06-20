@@ -689,6 +689,7 @@ bool Normalize::test() {
     float after = a(20, 10, 2, 2);
     before -= -3.0f;
     before *= 0.25f;
+    printf("%f %f\n", before, after);
     return after == before;    
 }
 
@@ -712,7 +713,7 @@ void Normalize::apply(Image a) {
             }
         }
     }    
-
+    
     a.set((a - minValue)/(maxValue - minValue));
 }
 

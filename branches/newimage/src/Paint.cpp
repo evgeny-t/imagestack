@@ -65,7 +65,7 @@ bool Eval::test() {
 	printf("Testing sampling\n");
 	Stats ims(im);
 	Image a = Eval::apply(im, "[x*0.8 + y*0.2, -x*0.2 + y*0.8]");
-	double matrix[] = {0.8, 0.2, 0, -0.2, 0.8, 0};
+	float matrix[] = {0.8, 0.2, 0, -0.2, 0.8, 0};
 	Image b = AffineWarp::apply(im, matrix);
 	if (!nearlyEqual(a, b)) return false;
     }
@@ -119,9 +119,9 @@ bool EvalChannels::test() {
     Noise::apply(im, 0, 1);
     Image a = EvalChannels::apply(im, expressions);
     Image b = im.copy();
-    b.channel(0).set(im.channel(2)+1);
-    b.channel(1).set(im.channel(0)/17);
-    b.channel(2).set(im.channel(1) + Select(X() > 10, 50, 0));
+    b.setChannels(im.channel(2)+1,
+                  im.channel(0)/17,
+                  im.channel(1) + Select(X() > 10, 50, 0));
     return nearlyEqual(a, b);   
 }
 
@@ -166,7 +166,13 @@ void Plot::help() {
 }
 
 bool Plot::test() {
-    return false;
+    Image a(123, 1, 1, 7);
+    Image p = Plot::apply(a, 512, 512, 3);
+    if (p.channels != 7 ||
+        p.width != 512 ||
+        p.height != 512) return false;
+    Stats s(p);
+    return (s.mean() > 0.0001 && s.mean() < 0.02 && s.variance() < 0.001);
 }
 
 void Plot::parse(vector<string> args) {

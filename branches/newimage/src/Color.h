@@ -5,13 +5,16 @@
 class ColorMatrix : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
-    static Image apply(Image im, vector<float> matrix);
+    static Image apply(Image im, const vector<float> &matrix);
+    static Image apply(Image im, const float *matrix, int outChannels);
 };
 
 class ColorConvert : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, string from, string to);
     static Image rgb2hsv(Image im);
@@ -43,6 +46,7 @@ public:
 class Demosaic : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image win, int xoff, int yoff, bool awb);
 };
