@@ -241,7 +241,7 @@ void Statistics::parse(vector<string> args) {
 void Statistics::apply(Image im) {
     Stats stats(im);
 
-    printf("Frames x Width x Height x Channels: %i %i %i %i\n", im.frames, im.width, im.height, im.channels);
+    printf("Width x Height x Frames x Channels: %d %d %d %d\n", im.width, im.height, im.frames, im.channels);
 
     printf("Minima:  \t\t");
     for (int i = 0; i < im.channels; i++) {
@@ -321,9 +321,9 @@ void Statistics::apply(Image im) {
     printf("\n");
     printf("\n");
 
-    printf("NaN count: %i\n", stats.nans());
-    printf("+Inf count: %i\n", stats.posinfs());
-    printf("-Inf count: %i\n", stats.neginfs());
+    printf("NaN count: %d\n", stats.nans());
+    printf("+Inf count: %d\n", stats.posinfs());
+    printf("-Inf count: %d\n", stats.neginfs());
     printf("\n");
 }
 

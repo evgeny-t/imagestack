@@ -73,8 +73,8 @@ public:
     void help();
     bool test();
     void parse(vector<string> args);
-    static Image apply(Image im, vector<double> warp);
-    static Image apply(Image im, double *warp);
+    static Image apply(Image im, vector<float> warp);
+    static Image apply(Image im, float *warp);
 };
 
 class Crop : public Operation {
