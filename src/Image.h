@@ -30,7 +30,7 @@ class Image {
     Image(int w, int h, int f, int c) :
         width(w), height(h), frames(f), channels(c), 
         ystride(w), tstride(w*h), cstride(w*h*f),
-        data(new vector<float>(w*h*f*c+7)), base(compute_base(data)) {
+        data(new Payload(w*h*f*c+7)), base(compute_base(data)) {
     }
 
     inline float &operator()(int x, int y) const {
@@ -82,6 +82,22 @@ class Image {
     
     const Image channel(int c) const {
         return region(0, 0, 0, c, width, height, frames, 1);
+    }
+
+    const Image selectColumns(int x, int s) {
+        return region(x, 0, 0, 0, s, height, frames, channels);
+    }
+
+    const Image selectRows(int x, int s) {
+        return region(0, x, 0, 0, width, x, frames, channels);
+    }
+
+    const Image selectFrames(int x, int s) {
+        return region(0, 0, x, 0, width, height, s, channels);
+    }
+
+    const Image selectChannels(int x, int s) {
+        return region(0, 0, 0, x, width, height, frames, s);
     }
 
     bool dense() const {
@@ -658,10 +674,30 @@ class Image {
         } 
     }
 
+    struct Payload {
+        Payload(size_t size) : data(NULL) {            
+            // In some cases we don't need to clear the memory, but
+            // typically this is optimized away by the system, so we
+            // don't care. On linux it just mmaps /dev/zero.
+            data = (float *)calloc(size, sizeof(float));
+            //printf("Allocating %d bytes\n", (int)(size * sizeof(float)));
+            if (!data) {
+                panic("Could not allocate %d bytes for image data\n", 
+                      size * sizeof(float));
+            }
+        }
+        ~Payload() {
+            free(data);
+        }        
+        float *data;
+    private:
+        Payload(const Payload &other) : data(NULL) {}
+        void operator=(const Payload &other) {}
+    };
 
     // Compute a 32-byte aligned address within data
-    static float *compute_base(const std::shared_ptr<vector<float> > &data) {
-        float *base = &((*data)[0]);
+    static float *compute_base(const std::shared_ptr<const Payload> &payload) {
+        float *base = payload->data;
         while (((size_t)base) & 0x1f) base++;    
         return base;
     }
@@ -676,7 +712,8 @@ class Image {
         // alignment if you allocate an image from scratch.
     }    
 
-    std::shared_ptr<std::vector<float> > data;
+    //std::shared_ptr<std::vector<float> > data;
+    std::shared_ptr<const Payload> data;
     float * base;
 };
 

@@ -2,6 +2,7 @@
 #include "Color.h"
 #include "Arithmetic.h"
 #include "Statistics.h"
+#include "File.h"
 #include "header.h"
 
 void ColorMatrix::help() {
@@ -537,7 +538,20 @@ void Demosaic::help() {
 }
 
 bool Demosaic::test() {
-    return false;
+    Image dog = Load::apply("pics/dog1.jpg");
+    Image raw(dog.width, dog.height, 1, 1);
+    for (int y = 0; y < dog.height; y+=2) {
+        for (int x = 0; x < dog.width; x+=2) {
+            raw(x, y)     = dog(x, y, 0);
+            raw(x+1, y)   = dog(x+1, y, 1);
+            raw(x, y+1)   = dog(x, y+1, 1);
+            raw(x+1, y+1) = dog(x+1, y+1, 2);
+        }
+    }
+
+    Image demo = Demosaic::apply(raw, 1, 0, false);
+    Save::apply(demo, "demo.tmp");
+    return nearlyEqual(dog, demo);
 }
 
 void Demosaic::parse(vector<string> args) {
@@ -566,9 +580,9 @@ Image Demosaic::apply(Image im, int xoff, int yoff, bool awb) {
 
     Image out(im.width, im.height, im.frames, 3);
 
-    // This algorithm is adaptive color plane interpolation (ACPI)
+    // This algorithm is roughly adaptive color plane interpolation (ACPI)
     // by Runs Hamilton and Adams
-    // (The Adams is not me)
+    // (The Adams is not Andrew Adams)
 
     // make sure the image is of even width and height
     if (im.width & 1 || im.height & 1) {

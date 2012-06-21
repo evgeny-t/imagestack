@@ -14,6 +14,10 @@ void ComplexMultiply::help() {
             "Usage: ImageStack -load a.tga -load b.tga -complexmultiply -save out.tga.\n");
 }
 
+bool ComplexMultiply::test() {
+    return false;
+}
+
 void ComplexMultiply::parse(vector<string> args) {
     assert(args.size() < 2, "-complexmultiply takes zero or one arguments\n");
     if (stack(0).channels == 2 && stack(1).channels > 2) {
@@ -36,37 +40,27 @@ void ComplexMultiply::apply(Image a, Image b, bool conj = false) {
            a.height == b.height,
            "images must be the same size\n");
 
-    float a1, b1, a2, b2;
-    int sign = (conj)? -1 : 1;
-    if (a.channels != 2 && b.channels == 2) {
-        for (int c = 0; c < a.channels; c+=2) {            
-            for (int t = 0; t < a.frames; t++) {
-                for (int y = 0; y < a.height; y++) {
-                    for (int x = 0; x < a.width; x++) {
-                        a1 = a(x, y, t, c);
-                        b1 = a(x, y, t, c+1);
-                        a2 = b(x, y, t, 0);
-                        b2 = b(x, y, t, 1);
-                        a(x, y, t, c) = a1*a2 - sign*b1*b2;
-                        a(x, y, t, c+1) = b1*a2 + sign*b2*a1;
-                    }
-                }
-            }
+    if (a.channels == 2 && b.channels == 2) {
+        // Scalar times scalar
+        Image a_real = a.channel(0), a_imag = a.channel(1);
+        Image b_real = b.channel(0), b_imag = b.channel(1);
+        if (conj) {
+            a.setChannels(a_real*b_real + a_imag*b_imag,
+                          a_imag*b_real - a_real*b_imag);
+        } else {
+            a.setChannels(a_real*b_real - a_imag*b_imag,
+                          a_imag*b_real + a_real*b_imag);
+        }
+    } else if (b.channels == 2) {
+        // Vector times scalar
+        for (int c = 0; c < a.channels; c += 2) {
+            apply(a.selectChannels(c, 2), b, conj);
         }
     } else {
-        for (int c = 0; c < a.channels; c+=2) {
-            for (int t = 0; t < a.frames; t++) {
-                for (int y = 0; y < a.height; y++) {
-                    for (int x = 0; x < a.width; x++) {
-                        a1 = a(x, y, t, c);
-                        b1 = a(x, y, t, c+1);
-                        a2 = b(x, y, t, c);
-                        b2 = b(x, y, t, c+1);
-                        a(x, y, t, c) = a1*a2 - sign*b1*b2;
-                        a(x, y, t, c+1) = b1*a2 + sign*b2*a1;
-                    }
-                }
-            }
+        // Vector times vector (elementwise)
+        for (int c = 0; c < a.channels; c += 2) {
+            apply(a.selectChannels(c, 2),
+                  b.selectChannels(c, 2), conj);
         }
     }
 }
@@ -81,6 +75,10 @@ void ComplexDivide::help() {
             " one argument results in a conjugate division (a - bi) / (c + di).\n"
             "\n"
             "Usage: ImageStack -load a.tga -load b.tga -complexdivide -save out.tga.\n");
+}
+
+bool ComplexDivide::test() {
+    return false;
 }
 
 void ComplexDivide::parse(vector<string> args) {
@@ -105,41 +103,30 @@ void ComplexDivide::apply(Image a, Image b, bool conj = false) {
            a.height == b.height,
            "images must be the same size\n");
 
-    float a1, b1, a2, b2, denom;
-    int sign = (conj)? -1 : 1;
-    if (a.channels != 2 && b.channels == 2) {
-        for (int c = 0; c < a.channels; c+=2) {                        
-            for (int t = 0; t < a.frames; t++) {
-                for (int y = 0; y < a.height; y++) {
-                    for (int x = 0; x < a.width; x++) {
-                        a1 = a(x, y, t, c);
-                        b1 = a(x, y, t, c+1);
-                        a2 = b(x, y, t, 0);
-                        b2 = b(x, y, t, 1);
-                        denom = a2*a2 + b2*b2;
-                        a(x, y, t, c) = (a1*a2 + sign*b1*b2)/denom;
-                        a(x, y, t, c+1) = (sign*b1*a2 - b2*a1)/denom;
-                    }
-                }
-            }
+    if (a.channels == 2 && b.channels == 2) {
+        // Scalar over scalar
+        Image a_real = a.channel(0), a_imag = a.channel(1);
+        Image b_real = b.channel(0), b_imag = b.channel(1);
+        auto denom = b_real*b_real + b_imag*b_imag;
+        if (conj) {
+            a.setChannels((a_real * b_real - a_imag * b_imag) / denom,
+                          (a_imag * b_real + a_real * b_imag) / denom);
+        } else {
+            a.setChannels((a_real * b_real + a_imag * b_imag) / denom,
+                          (a_imag * b_real - a_real * b_imag) / denom);
+        }
+    } else if (b.channels == 2) {
+        // Vector over scalar
+        for (int c = 0; c < a.channels; c += 2) {
+            apply(a.selectChannels(c, 2), b, conj);
         }
     } else {
-        for (int c = 0; c < a.channels; c+=2) {
-            for (int t = 0; t < a.frames; t++) {
-                for (int y = 0; y < a.height; y++) {
-                    for (int x = 0; x < a.width; x++) {
-                        a1 = a(x, y, t, c);
-                        b1 = a(x, y, t, c+1);
-                        a2 = b(x, y, t, c);
-                        b2 = b(x, y, t, c+1);
-                        denom = a2*a2 + b2*b2;
-                        a(x, y, t, c) = (a1*a2 + sign*b1*b2)/denom;
-                        a(x, y, t, c+1) = (sign*b1*a2 - b2*a1)/denom;
-                    }
-                }
-            }
+        // Vector over vector (elementwise)
+        for (int c = 0; c < a.channels; c += 2) {
+            apply(a.selectChannels(c, 2),
+                  b.selectChannels(c, 2), conj);
         }
-    }
+    }    
 }
 
 
@@ -150,6 +137,10 @@ void ComplexReal::help() {
             " channels.\n"
             "\n"
             "Usage: ImageStack -load a.png -fftreal -complexreal -display\n");
+}
+
+bool ComplexReal::test() {
+    return false;
 }
 
 void ComplexReal::parse(vector<string> args) {
@@ -166,13 +157,7 @@ Image ComplexReal::apply(Image im) {
     Image out(im.width, im.height, im.frames, im.channels/2);
 
     for (int c = 0; c < out.channels; c++) {
-        for (int t = 0; t < out.frames; t++) {
-            for (int y = 0; y < out.height; y++) {
-                for (int x = 0; x < out.width; x++) {
-                    out(x, y, t, c) = im(x, y, t, 2*c);
-                }
-            }
-        }
+        out.channel(c).set(im.channel(2*c));
     }
 
     return out;
@@ -186,6 +171,10 @@ void RealComplex::help() {
             "Usage: ImageStack -load a.png -realcomplex -fft -display\n");
 }
 
+bool RealComplex::test() {
+    return false;
+}
+
 void RealComplex::parse(vector<string> args) {
     assert(args.size() == 0, "-complexreal takes no arguments\n");
     Image im = apply(stack(0));
@@ -195,15 +184,9 @@ void RealComplex::parse(vector<string> args) {
 
 Image RealComplex::apply(Image im) {
     Image out(im.width, im.height, im.frames, im.channels*2);
-
+    
     for (int c = 0; c < im.channels; c++) {                    
-        for (int t = 0; t < im.frames; t++) {
-            for (int y = 0; y < im.height; y++) {
-                for (int x = 0; x < im.width; x++) {
-                    out(x, y, t, c*2) = im(x, y, t, c);
-                }
-            }
-        }
+        out.channel(2*c).set(im.channel(c));
     }
 
     return out;
@@ -216,6 +199,10 @@ void ComplexImag::help() {
             " channels.\n"
             "\n"
             "Usage: ImageStack -load a.png -fftreal -compleximag -display\n");
+}
+
+bool ComplexImag::test() {
+    return false;
 }
 
 void ComplexImag::parse(vector<string> args) {
@@ -232,13 +219,7 @@ Image ComplexImag::apply(Image im) {
     Image out(im.width, im.height, im.frames, im.channels/2);
 
     for (int c = 0; c < out.channels; c++) {
-        for (int t = 0; t < out.frames; t++) {
-            for (int y = 0; y < out.height; y++) {
-                for (int x = 0; x < out.width; x++) {
-                    out(x, y, t, c) = im(x, y, t, 2*c+1);
-                }
-            }
-        }
+        out.channel(c).set(im.channel(2*c+1));
     }
 
     return out;
@@ -252,6 +233,10 @@ void ComplexMagnitude::help() {
             " magnitude\n"
             "\n"
             "Usage: ImageStack -load a.png -fftreal -complexmagnitude -display\n");
+}
+
+bool ComplexMagnitude::test() {
+    return false;
 }
 
 void ComplexMagnitude::parse(vector<string> args) {
@@ -268,15 +253,9 @@ Image ComplexMagnitude::apply(Image im) {
     Image out(im.width, im.height, im.frames, im.channels/2);
 
     for (int c = 0; c < out.channels; c++) {
-        for (int t = 0; t < out.frames; t++) {
-            for (int y = 0; y < out.height; y++) {
-                for (int x = 0; x < out.width; x++) {
-                    float real = im(x, y, t, 2*c);
-                    float imag = im(x, y, t, 2*c+1);
-                    out(x, y, t, c) = sqrtf(real*real + imag*imag);
-                }
-            }
-        }
+        Image real = im.channel(2*c);
+        Image imag = im.channel(2*c+1);
+        out.channel(c).set(sqrt(real*real + imag*imag));
     }
 
     return out;
@@ -293,6 +272,10 @@ void ComplexPhase::help() {
             "Usage: ImageStack -load a.png -fftreal -complexphase -display\n");
 }
 
+bool ComplexPhase::test() {
+    return false;
+}
+
 void ComplexPhase::parse(vector<string> args) {
     assert(args.size() == 0, "-complexphase takes no arguments\n");
     Image im = apply(stack(0));
@@ -303,18 +286,12 @@ void ComplexPhase::parse(vector<string> args) {
 Image ComplexPhase::apply(Image im) {
     assert(im.channels % 2 == 0, "complex images must have an even number of channels\n");
 
-    Image out(im.width, im.height, im.frames, im.channels/2);
+    Image out(im.width, im.height, im.frames, im.channels/2);    
 
     for (int c = 0; c < out.channels; c++) {
-        for (int t = 0; t < out.frames; t++) {
-            for (int y = 0; y < out.height; y++) {
-                for (int x = 0; x < out.width; x++) {
-                    float real = im(x, y, t, 2*c);
-                    float imag = im(x, y, t, 2*c+1);
-                    out(x, y, t, c) = atan2(imag, real);
-                }
-            }
-        }
+        Image real = im.channel(2*c);
+        Image imag = im.channel(2*c+1);
+        out.channel(c).set(Lazy::atan2(imag, real));
     }
 
     return out;
@@ -335,17 +312,15 @@ void ComplexConjugate::parse(vector<string> args) {
     apply(stack(0));
 }
 
+bool ComplexConjugate::test() {
+    return false;
+}
+
 void ComplexConjugate::apply(Image im) {
     assert(im.channels % 2 == 0, "complex images must have an even number of channels\n");
 
     for (int c = 1; c < im.channels; c+=2) {
-        for (int t = 0; t < im.frames; t++) {
-            for (int y = 0; y < im.height; y++) {
-                for (int x = 0; x < im.width; x++) {
-                    im(x, y, t, c) = -im(x, y, t, c);
-                }
-            }
-        }
+        im.channel(c).set(-im.channel(c));
     }
 }
 
