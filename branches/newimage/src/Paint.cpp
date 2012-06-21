@@ -24,7 +24,10 @@ bool Eval::test() {
     {
 	printf("Testing arithmetic\n");
 	Image a = Eval::apply(im, "[1]*2 + val");
-	Image b = RepeatC(im.channel(1))*2 + im;
+        Image b(a.width, a.height, a.frames, a.channels);
+        b.setChannels(im.channel(1)*2 + im.channel(0), 
+                      im.channel(1)*2 + im.channel(1), 
+                      im.channel(1)*2 + im.channel(2));
 	if (!nearlyEqual(a, b)) return false;
     }
 
@@ -196,20 +199,20 @@ Image Plot::apply(Image im, int width, int height, float lineThickness) {
                 float y1 = ((1-im(i, 0, t, c)) * out.height + 0.5);
                 float y2 = ((1-im(i+1, 0, t, c)) * out.height + 0.5);
                 int minY, maxY;
-                int minX = (int)floor(x1 - lineThickness - 1);
-                int maxX = (int)ceil(x2 + lineThickness + 1);
+                int minX = (int)floorf(x1 - lineThickness - 1);
+                int maxX = (int)ceilf(x2 + lineThickness + 1);
 
                 if (y1 < y2) {
-                    minY = (int)floor(y1 - lineThickness - 1);
-                    maxY = (int)ceil(y2 + lineThickness + 1);
+                    minY = (int)floorf(y1 - lineThickness - 1);
+                    maxY = (int)ceilf(y2 + lineThickness + 1);
                 } else {
-                    minY = (int)floor(y2 - lineThickness - 1);
-                    maxY = (int)ceil(y1 + lineThickness + 1);
+                    minY = (int)floorf(y2 - lineThickness - 1);
+                    maxY = (int)ceilf(y1 + lineThickness + 1);
                 }
 
                 float deltaX = x2 - x1;
                 float deltaY = y2 - y1;
-                float segmentLength = sqrt(deltaX * deltaX + deltaY * deltaY);
+                float segmentLength = sqrtf(deltaX * deltaX + deltaY * deltaY);
                 deltaX /= segmentLength;
                 deltaY /= segmentLength;
 
@@ -221,10 +224,10 @@ Image Plot::apply(Image im, int width, int height, float lineThickness) {
 
                         // check distance to the points
                         float d = (x1 - x)*(x1 - x) + (y1 - y)*(y1 - y);
-                        if (d < bestDistance*bestDistance) { bestDistance = sqrt(d); }
+                        if (d < bestDistance*bestDistance) { bestDistance = sqrtf(d); }
                         if (i == im.width-2) {
                             // check the last point
-                            d = sqrt((x2 - x)*(x2 - x) + (y2 - y)*(y2 - y));
+                            d = sqrtf((x2 - x)*(x2 - x) + (y2 - y)*(y2 - y));
                             if (d < bestDistance) { bestDistance = d; }
                         }
 

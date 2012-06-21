@@ -83,16 +83,19 @@ namespace Lazy {
             return _mm256_blendv_ps(a, b, mask);
         }
 
-        // Other functions
-        static type floor(type a) {
-            return _mm256_floor_ps(a);
-        }
-        static type ceil(type a) {
-            return _mm256_ceil_ps(a);
-        }
-        static type sqrt(type a) {
-            return _mm256_sqrt_ps(a);
-        }
+        // Unary ops
+        struct Floor {
+            static float scalar(float a) {return floorf(a);}
+            static type vec(type a) {return _mm256_floor_ps(a);}
+        };
+        struct Ceil {
+            static float scalar(float a) {return ceilf(a);}
+            static type vec(type a) {return _mm256_ceil_ps(a);}
+        };
+        struct Sqrt {
+            static float scalar(float a) {return sqrtf(a);}
+            static type vec(type a) {return _mm256_sqrt_ps(a);}
+        };
 
         // Loads and stores
         static type load(const float *f) {
@@ -170,22 +173,71 @@ namespace Lazy {
             return _mm_blendv_ps(a, b, mask);
         }
 
-        // Other functions
-        static type floor(type a) {
-            return _mm_floor_ps(a);
-        }
-        static type ceil(type a) {
-            return _mm_ceil_ps(a);
-        }
-        static type sqrt(type a) {
-            return _mm_sqrt_ps(a);
-        }
+        // Unary ops
+        struct Floor {
+            static float scalar(float a) {return floorf(a);}
+            static type vec(type a) {return _mm_floor_ps(a);}
+        };
+        struct Ceil {
+            static float scalar(float a) {return ceilf(a);}
+            static type vec(type a) {return _mm_ceil_ps(a);}
+        };
+        struct Sqrt {
+            static float scalar(float a) {return sqrtf(a);}
+            static type vec(type a) {return _mm_sqrt_ps(a);}
+        };
         #else
 
         static type blend(type a, type b, type mask) {
             return _mm_or_ps(_mm_and_ps(mask, b), 
                              _mm_andnot_ps(mask, a));
         }        
+
+        struct Floor {
+            static float scalar(float a) {return floorf(a);}
+            static type vec(type a) {
+                union {            
+                    float f[width];
+                    type v;
+                } v;                
+                v.v = a;
+                v.f[0] = scalar(f[0]);
+                v.f[1] = scalar(f[1]);
+                v.f[2] = scalar(f[2]);
+                v.f[3] = scalar(f[3]);
+                return v.v;
+            }
+        };
+        struct Ceil {
+            static float scalar(float a) {return ceilf(a);}
+            static type vec(type a) {
+                union {            
+                    float f[width];
+                    type v;
+                } v;                
+                v.v = a;
+                v.f[0] = scalar(f[0]);
+                v.f[1] = scalar(f[1]);
+                v.f[2] = scalar(f[2]);
+                v.f[3] = scalar(f[3]);
+                return v.v;
+            }
+        };
+        struct Sqrt {
+            static float scalar(float a) {return sqrtf(a);}
+            static type vec(type a) {
+                union {            
+                    float f[width];
+                    type v;
+                } v;                
+                v.v = a;
+                v.f[0] = scalar(f[0]);
+                v.f[1] = scalar(f[1]);
+                v.f[2] = scalar(f[2]);
+                v.f[3] = scalar(f[3]);
+                return v.v;
+            }
+        };
 
         #endif
 
@@ -264,16 +316,19 @@ namespace Lazy {
             return (mask ? b : a);
         }
 
-        // Other functions
-        static type floor(type a) {
-            return floorf(a);
-        }
-        static type ceil(type a) {
-            return ceilf(a);
-        }
-        static type sqrt(type a) {
-            return sqrtf(a);
-        }
+        // Unary ops
+        struct Floor {
+            static float scalar(float a) {return floorf(a);}
+            static type vec(type a) {return scalar(a);}
+        };
+        struct Ceil {
+            static float scalar(float a) {return ceilf(a);}
+            static type vec(type a) {return scalar(a);}
+        };
+        struct Sqrt {
+            static float scalar(float a) {return sqrtf(a);}
+            static type vec(type a) {return scalar(a);}
+        };
 
         // Loads and stores
         static type load(const float *f) {
@@ -557,6 +612,31 @@ namespace Lazy {
         }
     };
 
+    // Lift a vector function to the same function over an image (e.g. floor)
+    template<typename A, typename Op>
+    struct UnaryOp {
+        typedef UnaryOp<typename A::Lazy, Op> Lazy;
+        typename Handle<A>::type a;
+        UnaryOp(const A &a_) : a(a_) {}
+        float operator()(int x, int y, int t, int c) const {
+            return Op::scalar(x, y, t, c);
+        }
+
+        int getSize(int i) const {return a.getSize(i);}
+
+        struct Iter {
+            const typename A::Iter a;
+            Iter(const typename A::Iter &a_) : a(a_) {}
+            float operator[](int x) const {return Op::scalar(a[x]);}
+            Vec::type vec(int x) const {
+                return Op::vec(a.vec(x));
+            }
+        };
+        Iter scanline(int y, int t, int c) const {
+            return Iter(a.scanline(y, t, c));
+        }
+    };
+
     // Arithmetic binary operators
     template<float (*fn)(float, float), typename A, typename B>
     struct Lift2 {
@@ -652,6 +732,21 @@ namespace Lazy {
         return Lift<fabsf, typename A::Lazy>(a);
     }
 
+    template<typename A>
+    UnaryOp<typename A::Lazy, Vec::Sqrt> sqrt(const A &a) {
+        return UnaryOp<typename A::Lazy, Vec::Sqrt>(a);
+    }
+
+    template<typename A>
+    UnaryOp<typename A::Lazy, Vec::Floor> floor(const A &a) {
+        return UnaryOp<typename A::Lazy, Vec::Floor>(a);
+    }
+
+    template<typename A>
+    UnaryOp<typename A::Lazy, Vec::Ceil> ceil(const A &a) {
+        return UnaryOp<typename A::Lazy, Vec::Ceil>(a);
+    }
+
     template<typename A, typename B>
     Lift2<powf, typename A::Lazy, typename B::Lazy> pow(const A &a, const B &b) {    
         return Lift2<powf, typename A::Lazy, typename B::Lazy>(a, b);
@@ -677,94 +772,22 @@ namespace Lazy {
     Lift2<fmodf, Const, typename B::Lazy> fmod(float a, const B &b) {
         return Lift2<fmodf, Const, typename B::Lazy>(a, b);
     }
-    
-    template<typename A>
-    struct _RepeatC {
-        typedef _RepeatC<typename A::Lazy> Lazy;
-        typename Handle<A>::type a;
-        _RepeatC(const A &a_) : a(a_) {}
-        float operator()(int x, int y, int t, int c) const {
-            return a(x, y, t, 0);
-        }
 
-        int getSize(int i) const {return i == 3 ? 0 : a.getSize(i);}
-
-        typedef typename A::Iter Iter;
-        Iter scanline(int y, int t, int c) const {
-            return a.scanline(y, t, 0);
-        }
-    };
-    
-    template<typename A>
-    _RepeatC<typename A::Lazy> RepeatC(const A &a) {
-        return _RepeatC<typename A::Lazy>(a);
+    template<typename A, typename B>
+    Lift2<atan2f, typename A::Lazy, typename B::Lazy> atan2(const A &a, const B &b) {
+        return Lift2<atan2f, typename A::Lazy, typename B::Lazy>(a, b);
     }
 
     template<typename A>
-    struct _RepeatT {
-        typedef _RepeatT<typename A::Lazy> Lazy;
-        typename Handle<A>::type a;
-        _RepeatT(const A &a_) : a(a_) {}
-        float operator()(int x, int y, int t, int c) const {
-            return a(x, y, 0, c);
-        }
-
-        int getSize(int i) const {return i == 2 ? 0 : a.getSize(i);}
-
-        typedef typename A::Iter Iter;
-        Iter scanline(int y, int t, int c) const {
-            return a.scanline(y, 0, c);
-        }
-    };
-    
-    template<typename A>
-    _RepeatT<typename A::Lazy> RepeatT(const A &a) {
-        return _RepeatT<typename A::Lazy>(a);
+    Lift2<atan2f, typename A::Lazy, Const> atan2(const A &a, float b) {
+        return Lift2<atan2f, typename A::Lazy, Const>(a, b);
     }
 
-    template<typename A>
-    struct _RepeatY {
-        typedef _RepeatY<typename A::Lazy> Lazy;
-        typename Handle<A>::type a;
-        _RepeatY(const A &a_) : a(a_) {}
-        float operator()(int x, int y, int t, int c) const {
-            return a(x, 0, t, c);
-        }
+    template<typename B>
+    Lift2<atan2f, Const, typename B::Lazy> atan2(float a, const B &b) {
+        return Lift2<atan2f, Const, typename B::Lazy>(a, b);
+    }    
 
-        int getSize(int i) const {return i == 1 ? 0 : a.getSize(i);}
-
-        typedef typename A::Iter Iter;
-        Iter scanline(int y, int t, int c) const {
-            return a.scanline(0, t, c);
-        }
-    };
-    
-    template<typename A>
-    _RepeatY<typename A::Lazy> RepeatY(const A &a) {
-        return _RepeatY<typename A::Lazy>(a);
-    }
-
-    template<typename A>
-    struct _RepeatX {
-        typedef _RepeatX<typename A::Lazy> Lazy;
-        typename Handle<A>::type a;
-        _RepeatX(const A &a_) : a(a_) {}
-        float operator()(int x, int y, int t, int c) const {
-            return a(0, y, t, c);
-        }
-
-        int getSize(int i) const {return i == 0 ? 0 : a.getSize(i);}
-
-        typedef typename Const::Iter Iter;
-        Iter scanline(int y, int t, int c) const {
-            return Const::Iter(a(0, y, t, c));
-        }
-    };
-    
-    template<typename A>
-    _RepeatX<typename A::Lazy> RepeatX(const A &a) {
-        return _RepeatX<typename A::Lazy>(a);
-    }
 
     template<typename A, typename B, typename C>
     struct _Select {

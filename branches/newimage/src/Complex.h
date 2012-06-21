@@ -5,6 +5,7 @@
 class ComplexMultiply : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image a, Image b, bool conj);
 };
@@ -12,6 +13,7 @@ public:
 class ComplexDivide : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image a, Image b, bool conj);
 };
@@ -19,6 +21,7 @@ public:
 class ComplexReal : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im);
 };
@@ -26,6 +29,7 @@ public:
 class RealComplex : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im);
 };
@@ -33,6 +37,7 @@ public:
 class ComplexImag : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im);
 };
@@ -40,6 +45,7 @@ public:
 class ComplexMagnitude : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im);
 };
@@ -47,6 +53,7 @@ public:
 class ComplexPhase : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im);
 };
@@ -54,6 +61,7 @@ public:
 class ComplexConjugate : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im);
 };
