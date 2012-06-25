@@ -7,7 +7,7 @@ public:
     void help();
     bool test();
     void parse(vector<string> args);
-    static void apply(Image a, Image b, bool conj);
+    static void apply(Image a, Image b, bool conj = false);
 };
 
 class ComplexDivide : public Operation {
@@ -15,7 +15,7 @@ public:
     void help();
     bool test();
     void parse(vector<string> args);
-    static void apply(Image a, Image b, bool conj);
+    static void apply(Image a, Image b, bool conj = false);
 };
 
 class ComplexReal : public Operation {

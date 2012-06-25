@@ -1,5 +1,6 @@
 #include "main.h"
 #include "Complex.h"
+#include "Statistics.h"
 #include "header.h"
 
 void ComplexMultiply::help() {
@@ -15,7 +16,18 @@ void ComplexMultiply::help() {
 }
 
 bool ComplexMultiply::test() {
-    return false;
+    Image a(324, 243, 4, 4);
+    Image b(324, 243, 4, 4);
+    Noise::apply(a, -1, 1);
+
+    // a * conj(b) == b * conj(a)
+    Image c = a.copy();
+    ComplexMultiply::apply(c, b, true);
+    Image d = b.copy();
+    ComplexMultiply::apply(d, a, true);
+    if (!nearlyEqual(c, d)) return false;
+    
+    return true;
 }
 
 void ComplexMultiply::parse(vector<string> args) {
@@ -30,7 +42,7 @@ void ComplexMultiply::parse(vector<string> args) {
     }
 }
 
-void ComplexMultiply::apply(Image a, Image b, bool conj = false) {
+void ComplexMultiply::apply(Image a, Image b, bool conj) {
     assert(a.channels % 2 == 0 && b.channels % 2 == 0,
            "-complexmultiply requires images with an even number of channels (%d %d)\n",
            a.channels, b.channels);
@@ -78,7 +90,21 @@ void ComplexDivide::help() {
 }
 
 bool ComplexDivide::test() {
-    return false;
+    Image a(123, 234, 4, 2);
+    Image b(123, 234, 4, 2);
+    Image c(123, 234, 4, 2);
+    
+    // (a + b) / (conj(conj(c))) = a / c + b / c
+    Noise::apply(a, -1, 1);
+    Noise::apply(b, -1, 1);
+    Noise::apply(c, 1, 2);
+    Image d = a + b;
+    Image cc = c.copy();
+    ComplexConjugate::apply(cc);
+    ComplexDivide::apply(d, cc, true);
+    ComplexDivide::apply(a, c);
+    ComplexDivide::apply(b, c);
+    return nearlyEqual(d, a+b);
 }
 
 void ComplexDivide::parse(vector<string> args) {
@@ -94,7 +120,7 @@ void ComplexDivide::parse(vector<string> args) {
     }
 }
 
-void ComplexDivide::apply(Image a, Image b, bool conj = false) {
+void ComplexDivide::apply(Image a, Image b, bool conj) {
     assert(a.channels % 2 == 0 && b.channels % 2 == 0,
            "-complexdivide requires images with an even number of channels\n");
 
@@ -140,7 +166,17 @@ void ComplexReal::help() {
 }
 
 bool ComplexReal::test() {
-    return false;
+    // a * conj(a) == re(a)^2 + imag(a)^2 == |a|^2
+    Image a(123, 234, 4, 2);
+    Noise::apply(a, -1, 1);
+    Image a_real = ComplexReal::apply(a);
+    Image a_imag = ComplexImag::apply(a);
+    Image mag = ComplexMagnitude::apply(a);
+    ComplexMultiply::apply(a, a, true);
+    if (!nearlyEqual(ComplexReal::apply(a), a_real*a_real + a_imag*a_imag)) return false;
+    if (!nearlyEqual(ComplexReal::apply(a), mag*mag)) return false;
+
+    return true;
 }
 
 void ComplexReal::parse(vector<string> args) {
@@ -172,7 +208,12 @@ void RealComplex::help() {
 }
 
 bool RealComplex::test() {
-    return false;
+    Image a(123, 234, 3, 2);
+    Noise::apply(a, -1, 1);
+    Image b = RealComplex::apply(a);
+    Image c = ComplexReal::apply(b);
+    Stats s(ComplexImag::apply(b));
+    return (nearlyEqual(c, a) && s.mean() == 0 && s.variance() == 0);
 }
 
 void RealComplex::parse(vector<string> args) {
@@ -202,7 +243,8 @@ void ComplexImag::help() {
 }
 
 bool ComplexImag::test() {
-    return false;
+    // tested by ComplexReal
+    return true;
 }
 
 void ComplexImag::parse(vector<string> args) {
@@ -236,7 +278,8 @@ void ComplexMagnitude::help() {
 }
 
 bool ComplexMagnitude::test() {
-    return false;
+    // tested by ComplexReal
+    return true;   
 }
 
 void ComplexMagnitude::parse(vector<string> args) {
@@ -273,7 +316,25 @@ void ComplexPhase::help() {
 }
 
 bool ComplexPhase::test() {
-    return false;
+    Image a(123, 234, 3, 2);
+    Noise::apply(a, -1, 1);
+    a = RealComplex::apply(a);
+
+    // Multiply real-valued image by 1+i and check the phase
+    Image b(123, 234, 3, 2);
+    b.set(1);
+    ComplexMultiply::apply(a, b);
+    b = ComplexPhase::apply(a);
+    Stats s(b);
+    printf("%f %f\n", s.mean(), s.variance());
+    if (!(nearlyEqual(s.mean(), M_PI/4) && 
+          nearlyEqual(s.variance(), 0))) return false;
+
+    // Squaring should double phase
+    a.set(0);
+    Noise::apply(a, 1, 2);
+    return nearlyEqual(ComplexPhase::apply(a*a), 
+                       2*ComplexPhase::apply(a));
 }
 
 void ComplexPhase::parse(vector<string> args) {
