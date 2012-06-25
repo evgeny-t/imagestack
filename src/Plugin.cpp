@@ -37,6 +37,11 @@ void Plugin::parse(vector<string> args) {
 
 #endif
 
+bool Plugin::test() {
+    // The build dependencies to test this are too much.
+    return true;
+}
+
 void Plugin::help() {
     pprintf("-plugin loads a shared object that can add new operations to"
             " ImageStack. It does this by calling the function"

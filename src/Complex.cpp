@@ -317,7 +317,7 @@ void ComplexPhase::help() {
 
 bool ComplexPhase::test() {
     Image a(123, 234, 3, 2);
-    Noise::apply(a, -1, 1);
+    Noise::apply(a, 1, 2);
     a = RealComplex::apply(a);
 
     // Multiply real-valued image by 1+i and check the phase
@@ -326,14 +326,15 @@ bool ComplexPhase::test() {
     ComplexMultiply::apply(a, b);
     b = ComplexPhase::apply(a);
     Stats s(b);
-    printf("%f %f\n", s.mean(), s.variance());
     if (!(nearlyEqual(s.mean(), M_PI/4) && 
           nearlyEqual(s.variance(), 0))) return false;
 
     // Squaring should double phase
     a.set(0);
     Noise::apply(a, 1, 2);
-    return nearlyEqual(ComplexPhase::apply(a*a), 
+    b = a.copy();
+    ComplexMultiply::apply(b, b);
+    return nearlyEqual(ComplexPhase::apply(b), 
                        2*ComplexPhase::apply(a));
 }
 
@@ -374,7 +375,8 @@ void ComplexConjugate::parse(vector<string> args) {
 }
 
 bool ComplexConjugate::test() {
-    return false;
+    // Tested by complex multiply
+    return true;
 }
 
 void ComplexConjugate::apply(Image im) {
