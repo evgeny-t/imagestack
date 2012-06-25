@@ -2,31 +2,63 @@
 #include "HDR.h"
 #include "Arithmetic.h"
 #include "File.h"
+#include "Statistics.h"
+#include "Geometry.h"
 #include <fstream>
 #include "header.h"
 
 //#define HDR_DEBUG
 
 void AssembleHDR::help() {
-    printf("-assemblehdr takes a volume in which each frame is a linear luminance image\n"
-           "taken at a different exposure, and compiles them all into a single HDR image,\n"
-           "gracefully handling oversaturated regions.\n\n"
-           "If exposure values are known, they can be given in increasing frame order.\n"
-           "Otherwise, assemblehdr attempts to discover the exposure ratios itself, which\n"
-           "may fail if there are very few pixels that are properly imaged in multiple\n"
-           "frames. For best results, load the frames in either increasing or decreasing\n"
-           "exposure order.\n\n"
-           "Usage: ImageStack -loadframes input*.jpg -gamma 0.45 -assemblehdr -save out.exr\n"
-           "   or  ImageStack -loadframes input*.jpg -gamma 0.45 -assemblehdr 1.0 0.5 0.1\n"
-           "                  -save output.exr\n\n");
+  pprintf("-assemblehdr takes a volume in which each frame is a linear luminance"
+          " image taken at a different exposure, and compiles them all into a"
+          " single HDR image, gracefully handling oversaturated regions.\n"
+          "\n"
+          "If exposure values are known, they can be given in increasing frame"
+          " order. Otherwise, assemblehdr attempts to discover the exposure ratios"
+          " itself, which may fail if there are very few pixels that are properly"
+          " imaged in multiple frames. For best results, load the frames in either"
+          " increasing or decreasing exposure order.\n"
+          "\n"
+          "Usage: ImageStack -loadframes input*.jpg -gamma 0.45 -assemblehdr -save out.exr\n"
+          "   or  ImageStack -loadframes input*.jpg -gamma 0.45 -assemblehdr 1.0 0.5 0.1\n"
+          "                  -save output.exr\n");
 
 }
+
+bool AssembleHDR::test() {
+    Image correct = Downsample::apply(Load::apply("pics/belgium.hdr"), 2, 2, 1);
+    Image frames(correct.width, correct.height, 7, correct.channels);
+    frames.frame(0).set(correct);
+    frames.frame(1).set(min(correct*2, 1));
+    frames.frame(2).set(min(correct*4, 1));
+    frames.frame(3).set(min(correct*8, 1));
+    frames.frame(4).set(min(correct*16, 1));
+    frames.frame(5).set(min(correct*32, 1));
+    frames.frame(6).set(min(correct*64, 1));
+    Noise::apply(frames, -0.05, 0.05);
+    Image result = AssembleHDR::apply(frames);
+    if (!nearlyEqual(result, correct)) return false;
+
+    vector<float> exposures(7);
+    exposures[0] = 1;
+    exposures[1] = 2;
+    exposures[2] = 4;
+    exposures[3] = 8;
+    exposures[4] = 16;
+    exposures[5] = 32;
+    exposures[6] = 64;
+    result = AssembleHDR::apply(frames, exposures);
+    return nearlyEqual(result, correct);
+}
+
 
 void AssembleHDR::parse(vector<string> args) {
 
     assert(args.size() == 0 ||
            (int)args.size() >= stack(0).frames,
-           "-assemblehdr takes zero arguments or an exposure value for each frame in the volume (plus an optional gamma adjustment) \n");
+           "-assemblehdr takes zero arguments or an exposure value for each frame"
+           " in the volume (plus an optional gamma adjustment) \n");
     if (args.size() == 0) {
         Image im = apply(stack(0));
         pop();
@@ -56,7 +88,7 @@ struct gammaInfo {
     float B[256];
 };
 
-Image AssembleHDR::apply(Image frames, vector<float> &exposures, string gamma) {
+Image AssembleHDR::apply(Image frames, const vector<float> &exposures, string gamma) {
     assert(frames.frames == (int)exposures.size(), 
 	   "AssembleHDR::applyKnownExposures - mismatched exposure and frame counts");
     // Figure out gamma conversion
@@ -159,7 +191,9 @@ Image AssembleHDR::apply(Image frames, vector<float> &exposures, string gamma) {
 		    (frames.height*frames.width)));
     }
 
-    out /= weight;
+    for (int c = 0; c < out.channels; c++) {
+        out.channel(c) /= weight;
+    }
 
     return out;
 }
@@ -240,8 +274,8 @@ Image AssembleHDR::apply(Image frames) {
         }
 
         // find the average ratio between each frame and the current output
-        float count = 0;
-        float ratio = 0;
+        int count = 0;
+        double ratio = 0;
         for (int y = 0; y < frames.height; y++) {
             for (int x = 0; x < frames.width; x++) {
                 float weightOld = weight(x, y);
@@ -253,13 +287,13 @@ Image AssembleHDR::apply(Image frames) {
 		for (int c = 1; c < frames.channels; c++) {
 		    maxVal = max(frames(x, y, t, c), maxVal);
 		}
-		if (weightFunc(maxVal, cutoff) < 1.0) {
+		if (weightFunc(maxVal, Regular) < 1.0) {
                     continue;
                 }
                 for (int c = 0; c < frames.channels; c++) {
                     float valOld = out(x, y, c) / weightOld;
                     float valNew = frames(x, y, t, c);
-                    if (valNew < 0.1 || valOld < 0.1) {
+                    if (weightFunc(valNew, Regular) < 1.0) {
 			// Some color channels may be zero even for good pixels
 			continue; 
 		    } 
@@ -270,7 +304,7 @@ Image AssembleHDR::apply(Image frames) {
         }
         ratio /= count;
 
-        printf("Frame %i scale is %f", t, ratio);
+        printf("Frame %d scale is %f (based on %d pixels)", t, ratio, count);
         switch (cutoff) {
         case LongestExposure:
             printf(" - Longest exposure\n");
@@ -298,7 +332,10 @@ Image AssembleHDR::apply(Image frames) {
         }
     }
 
-    out /= weight;
+    for (int c = 0; c < out.channels; c++) {
+        out.channel(c) /= weight;
+    }
+
     return out;
 
 }
