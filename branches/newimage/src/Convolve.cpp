@@ -172,16 +172,7 @@ void Convolve::convolveSingle(Image in, Image filter, Image out,
             }
         }
     } else if (b == Homogeneous) {
-        float filterSum = 0;
-        for (int t = 0; t < filter.frames; t++) {
-            for (int y = 0; y < filter.height; y++) {
-                for (int x = 0; x < filter.width; x++) {
-                    for (int c = 0; c < filter.channels; c++) {
-                        filterSum += filter(x, y, t, c);
-                    }
-                }
-            }
-        }
+        float filterSum = Stats(filter).sum();
         for (int t = 0; t < in.frames; t++) {
             for (int y = 0; y < in.height; y++) {
                 for (int x = 0; x < in.width; x++) {
@@ -205,7 +196,7 @@ void Convolve::convolveSingle(Image in, Image filter, Image out,
                     if (filterSum != weightSum) {
                         v *= filterSum / weightSum;
                     }
-                    out(x, y, t, 0) = v;
+                    out(x, y, t, 0) += v;
                 }
             }
         }
