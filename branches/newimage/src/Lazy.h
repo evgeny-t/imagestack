@@ -949,11 +949,8 @@ namespace Lazy {
     IfThenElse(const A &a, const float b, const float c) {
         return _IfThenElse<typename A::LazyBool, Const, Const>(a, Const(b), Const(c));
     }
-
-    
 }
-
-
+    
 // Overloaded operators
 
 template<typename A, typename B>
@@ -1313,6 +1310,7 @@ template<typename B>
 Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::NEQ> operator!=(int a, const B &b) {
     return Lazy::Const(a) != b;
 }
+
 #include "footer.h"
 
 #endif
