@@ -190,6 +190,7 @@ void loadOperations() {
 
     // prediction stuff
     operationMap["-inpaint"] = new Inpaint();
+    operationMap["-seamlessclone"] = new SeamlessClone();
 
     // wavelet stuff
     operationMap["-haar"] = new Haar();
