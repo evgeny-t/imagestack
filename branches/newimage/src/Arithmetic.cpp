@@ -70,14 +70,14 @@ void Multiply::parse(vector<string> args) {
         swapped = true;
     }
 
-    if (m == Elementwise || b.channels == 1) {
+    if (m == Elementwise && a.channels == b.channels) {
 	a *= b;
         if (!swapped) pop();
         else {
-          Image im = stack(0);
-          pop();
-          pop();
-          push(im);
+            Image im = stack(0);
+            pop();
+            pop();
+            push(im);
         }
     } else {
         Image im = apply(a, b, m);

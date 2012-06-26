@@ -1,7 +1,9 @@
 #include "main.h"
 #include "Prediction.h"
-#include "Geometry.h"
-#include "DFT.h"
+#include "Filter.h"
+#include "Paint.h"
+#include "File.h"
+#include "Calculus.h"
 #include "header.h"
 
 void Inpaint::help() {
@@ -28,47 +30,43 @@ Image Inpaint::apply(Image im, Image mask) {
     assert(mask.channels == 1,
            "mask must have one channel\n");
 
-    Image out(im.width, im.height, im.frames, im.channels);
+    const int J = 15;
+    Image blurred[J], blurredMask[J];
 
-    for (int t = 0; t < im.frames; t++) {
-        for (int y = 0; y < im.height; y++) {
-            for (int x = 0; x < im.width; x++) {
-                // search outwards until we have sufficient alpha
-                float alpha = 0;
+    blurredMask[0] = mask.copy();
+    FastBlur::apply(blurredMask[0], 1, 1, 1);
+    blurredMask[0].set(max(mask - blurredMask[0], 0));
 
-                int r;
-                for (r = 0; alpha < 1; r++) {
-
-                    // find all dx, dy, dt at radius sqrt(r)
-                    int sqrtR = (int)(sqrt((float)r));
-                    int minDt = max(-sqrtR, -t), maxDt = min(sqrtR, im.frames-1-t);
-                    int minDy = max(-sqrtR, -y), maxDy = min(sqrtR, im.height-1-y);
-                    int minDx = max(-sqrtR, -x), maxDx = min(sqrtR, im.width-1-x);
-
-                    for (int dt = minDt; dt <= maxDt; dt++) {
-                        for (int dy = minDy; dy <= maxDy; dy++) {
-                            for (int dx = minDx; dx <= maxDx; dx++) {
-                                int R = dx * dx + dy * dy + dt * dt;
-                                if (R == r) {
-                                    alpha += mask(x+dx, y+dy, t+dt, 0);
-                                    for (int c = 0; c < im.channels; c++) {
-					out(x, y, t, c) += (im(x+dx, y+dy, t+dt, c) *
-                                                            mask(x+dx, y+dy, t+dt, 0));
-                                    }
-                                } else if (R < r && dx < 0) { dx *= -1; } // optimization, skip over low values of |dx|
-                            }
-                        }
-                    }
-
-
-                }
-
-                for (int c = 0; c < im.channels; c++) { out(x, y, t, c) /= alpha; }
-            }
-        }
+    blurred[0] = im.copy();
+    for (int c = 0; c < im.channels; c++) {
+        blurred[0].channel(c) *= blurredMask[0];
     }
 
-    return out;
+    for (int i = 1; i < J; i++) {
+        blurred[i] = blurred[i-1].copy();
+        blurredMask[i] = blurredMask[i-1].copy();
+        float alpha = powf(1.5, i)/4;
+        FastBlur::apply(blurred[i], alpha, alpha, alpha);
+        FastBlur::apply(blurredMask[i], alpha, alpha, alpha);
+        blurred[i] *= 1.5;
+        blurredMask[i] *= 1.5;
+    }
+
+    for (int i = 0; i < J; i++) {
+        for (int c = 0; c < blurred[i].channels; c++) {
+            blurred[i].channel(c) /= (blurredMask[i] + 1e-10);
+        }
+    }
+    
+    for (int i = J-2; i >= 0; i--) {
+        blurredMask[i].set(min(blurredMask[i] * 3, 1));
+        Composite::apply(blurred[J-1], blurred[i], blurredMask[i]);
+    }
+
+    Composite::apply(blurred[J-1], im, mask);
+
+
+    return blurred[J-1];
 }
 
 
