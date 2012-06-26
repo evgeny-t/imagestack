@@ -15,6 +15,10 @@ void Inpaint::help() {
            "                  -inpaint -save out.jpg\n\n");
 }
 
+bool Inpaint::test() {
+    return false;
+}
+
 void Inpaint::parse(vector<string> args) {
     assert(args.size() == 0, "-inpaint takes no arguments\n");
     Image im = apply(stack(0), stack(1));
@@ -48,8 +52,8 @@ Image Inpaint::apply(Image im, Image mask) {
         float alpha = powf(1.5, i)/4;
         FastBlur::apply(blurred[i], alpha, alpha, alpha);
         FastBlur::apply(blurredMask[i], alpha, alpha, alpha);
-        blurred[i] *= 1.5;
-        blurredMask[i] *= 1.5;
+        blurred[i] *= 1;
+        blurredMask[i] *= 1;
     }
 
     for (int i = 0; i < J; i++) {
@@ -69,5 +73,76 @@ Image Inpaint::apply(Image im, Image mask) {
     return blurred[J-1];
 }
 
+
+
+void SeamlessClone::help() {
+    pprintf("-seamlessclone composites the top image in the stack over the next image in"
+           " the stack, using the last channel in the top image in the stack as alpha."
+           " The composite is done in such a way as to avoid hard edges around the"
+            " boundaries. If the top image in the stack has only one channel, it"
+            " interprets this as a mask, and composites the second image in the"
+            " stack over the third image in the stack using that mask.\n"
+            "\n"
+            "Usage: ImageStack -load a.jpg -load b.jpg -load mask.png -seamlessclone\n"
+            "       ImageStack -load a.jpg -load b.jpg -evalchannels [0] [1] [2] \\\n"
+            "       \"x>width/2\" -seamlessclone -display\n\n");
+}
+
+bool SeamlessClone::test() {
+    return false;
+}
+
+void SeamlessClone::parse(vector<string> args) {
+    assert(args.size() == 0, "-seamlessclone takes no arguments\n");
+
+    if (stack(0).channels == 1) {
+        apply(stack(2), stack(1), stack(0));
+        pop();
+        pop();
+    } else {
+        apply(stack(1), stack(0));
+        pop();
+    }
+}
+
+void SeamlessClone::apply(Image dst, Image src) {
+    assert(src.channels > 1, "Source image needs at least two channels\n");
+    assert(src.channels == dst.channels || src.channels == dst.channels + 1,
+           "Source image and destination image must either have matching channel"
+           " counts (if they both have an alpha channel), or the source image"
+           " should have one more channel than the destination.\n");
+    assert(dst.frames == src.frames && dst.width == src.width 
+           && dst.height == src.height,
+           "The source and destination images must be the same size\n");
+
+    if (src.channels > dst.channels) {
+        apply(dst, 
+              src.region(0, 0, 0, 0, 
+			 src.width, src.height, 
+			 src.frames, dst.channels),
+              src.channel(dst.channels));
+              
+    } else {
+        apply(dst, src, src.channel(dst.channels-1));
+    }
+}
+
+void SeamlessClone::apply(Image dst, Image src, Image mask) {
+    assert(src.channels == dst.channels, "The source and destination images must have the same number of channels\n");
+
+    assert(dst.frames == src.frames && dst.width == src.width && dst.height == src.height,
+           "The source and destination images must be the same size\n");
+    assert(dst.frames == mask.frames && dst.width == mask.width && dst.height == mask.height,
+           "The source and destination images must be the same size as the mask\n");
+
+    assert(mask.channels == 1, "Mask must have one channel\n");
+
+    // Generate a smooth patch to fix discontinuities between source and destination
+    Image patch = Inpaint::apply(dst-src, 1-mask);
+
+    for (int c = 0; c < dst.channels; c++) {
+	dst.channel(c).set(mask*(src.channel(c) + patch.channel(c)) + (1-mask)*dst.channel(c));
+    }
+}
 
 #include "footer.h"

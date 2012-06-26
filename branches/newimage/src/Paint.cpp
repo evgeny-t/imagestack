@@ -255,14 +255,15 @@ Image Plot::apply(Image im, int width, int height, float lineThickness) {
 
 
 void Composite::help() {
-    printf("\n-composite composites the top image in the stack over the next image in\n"
-           "the stack, using the last channel in the top image in the stack as alpha.\n"
-           "If the top image in the stack has only one channel, it interprets this as\n"
-           "a mask, and composites the second image in the stack over the third image\n"
-           "in the stack using that mask.\n\n"
-           "Usage: ImageStack -load a.jpg -load b.jpg -load mask.png -composite\n"
-           "       ImageStack -load a.jpg -load b.jpg -evalchannels [0] [1] [2] \\\n"
-           "       \"x>width/2\" -composite -display\n\n");
+    pprintf("-composite composites the top image in the stack over the next image"
+            " in the stack, using the last channel in the top image in the stack as"
+            " alpha. If the top image in the stack has only one channel, it"
+            " interprets this as a mask, and composites the second image in the"
+            " stack over the third image in the stack using that mask.\n"
+            "\n"
+            "Usage: ImageStack -load a.jpg -load b.jpg -load mask.png -composite\n"
+            "       ImageStack -load a.jpg -load b.jpg -evalchannels [0] [1] [2] \\\n"
+            "       \"x>width/2\" -composite -display\n\n");
 }
 
 bool Composite::test() {
@@ -305,8 +306,11 @@ void Composite::parse(vector<string> args) {
 void Composite::apply(Image dst, Image src) {
     assert(src.channels > 1, "Source image needs at least two channels\n");
     assert(src.channels == dst.channels || src.channels == dst.channels + 1,
-           "Source image and destination image must either have matching channel counts (if they both have an alpha channel), or the source image should have one more channel than the destination.\n");
-    assert(dst.frames == src.frames && dst.width == src.width && dst.height == src.height,
+           "Source image and destination image must either have matching channel"
+           " counts (if they both have an alpha channel), or the source image"
+           " should have one more channel than the destination.\n");
+    assert(dst.frames == src.frames && dst.width == src.width 
+           && dst.height == src.height,
            "The source and destination images must be the same size\n");
 
     if (src.channels > dst.channels) {
