@@ -747,9 +747,44 @@ void LoadArray::help() {
             "Usage: ImageStack -loadarray foo.bar uint8 640 480 1 3\n\n");
 }
 
+namespace {
+    template<typename T>
+    bool testLoadArray() {
+        Image a(123, 234, 3, 4);
+        Noise::apply(a, -1234, 12324);
+        TempFile f;
+        SaveArray::apply<T>(a, f.name);
+        Image b = LoadArray::apply<T>(f.name, 123, 234, 3, 4);
+
+        for (int i = 0; i < 100; i++) {
+            int x = randomInt(0, a.width-1);
+            int y = randomInt(0, a.height-1);
+            int t = randomInt(0, a.frames-1);
+            int c = randomInt(0, a.channels-1);
+            // LoadArray/SaveArray should be exactly equivalent to a C-style cast
+            float saved = (float)((T)(a(x, y, t, c)));
+            float loaded = b(x, y, t, c);
+            if (loaded != saved) {
+                printf("%f vs %f\n", saved, loaded);
+                return false;
+            }
+        }
+        return true;
+    }
+};
+
 bool LoadArray::test() {
-    //
-    return false;
+
+    if (!testLoadArray<uint32_t>()) return false;
+    if (!testLoadArray<int32_t>()) return false;
+    if (!testLoadArray<uint16_t>()) return false;
+    if (!testLoadArray<int16_t>()) return false;
+    if (!testLoadArray<uint8_t>()) return false;
+    if (!testLoadArray<int8_t>()) return false;
+    if (!testLoadArray<float>()) return false;
+    if (!testLoadArray<double>()) return false;
+    
+    return true;
 }
 
 void LoadArray::parse(vector<string> args) {
@@ -759,17 +794,17 @@ void LoadArray::parse(vector<string> args) {
     int frames = readInt(args[4]), width = readInt(args[2]);
     int height = readInt(args[3]), channels = readInt(args[5]);
     if (type == "int8" || type == "char") {
-        push(apply<char>(filename, width, height, frames, channels));
+        push(apply<int8_t>(filename, width, height, frames, channels));
     } else if (type == "uint8" || type == "unsigned char") {
-        push(apply<unsigned char>(filename, width, height, frames, channels));
+        push(apply<uint8_t>(filename, width, height, frames, channels));
     } else if (type == "int16" || type == "short") {
-        push(apply<short>(filename, width, height, frames, channels));
+        push(apply<int16_t>(filename, width, height, frames, channels));
     } else if (type == "uint16" || type == "unsigned short") {
-        push(apply<unsigned short>(filename, width, height, frames, channels));
+        push(apply<uint16_t>(filename, width, height, frames, channels));
     } else if (type == "int32" || type == "int") {
-        push(apply<int>(filename, width, height, frames, channels));
+        push(apply<int32_t>(filename, width, height, frames, channels));
     } else if (type == "uint32" || type == "unsigned int") {
-        push(apply<unsigned int>(filename, width, height, frames, channels));
+        push(apply<uint32_t>(filename, width, height, frames, channels));
     } else if (type == "float32" || type == "float") {
         push(apply<float>(filename, width, height, frames, channels));
     } else if (type == "float64" || type == "double") {
@@ -783,21 +818,18 @@ template<typename T>
 Image LoadArray::apply(string filename, int width, int height, int frames, int channels) {
     FILE *f = fopen(filename.c_str(), "rb");
 
-    int size = width * height * channels * frames;
-
     assert(f, "Could not open file %s", filename.c_str());
 
     Image im(width, height, frames, channels);
 
-    vector<T> rawData(size);
-    fread_(&rawData[0], sizeof(T), size, f);
+    vector<T> rawData(width);
 
-    int i = 0;
     for (int c = 0; c < im.channels; c++) {
 	for (int t = 0; t < im.frames; t++) {
 	    for (int y = 0; y < im.height; y++) {
+                fread_(&rawData[0], sizeof(T), width, f);
 		for (int x = 0; x < im.width; x++) {
-		    im(x, y, t, c) = (float)rawData[i++];
+		    im(x, y, t, c) = (float)rawData[x];
 		}
 	    }
 	}
@@ -830,17 +862,17 @@ void SaveArray::parse(vector<string> args) {
     string filename = args[0];
     string type = args[1];
     if (type == "int8" || type == "char") {
-        apply<char>(stack(0), filename);
+        apply<int8_t>(stack(0), filename);
     } else if (type == "uint8" || type == "unsigned char") {
-        apply<unsigned char>(stack(0), filename);
+        apply<uint8_t>(stack(0), filename);
     } else if (type == "int16" || type == "short") {
-        apply<short>(stack(0), filename);
+        apply<int16_t>(stack(0), filename);
     } else if (type == "uint16" || type == "unsigned short") {
-        apply<unsigned short>(stack(0), filename);
+        apply<uint16_t>(stack(0), filename);
     } else if (type == "int32" || type == "int") {
-        apply<int>(stack(0), filename);
+        apply<int32_t>(stack(0), filename);
     } else if (type == "uint32" || type == "unsigned int") {
-        apply<unsigned int>(stack(0), filename);
+        apply<uint32_t>(stack(0), filename);
     } else if (type == "float32" || type == "float") {
         apply<float>(stack(0), filename);
     } else if (type == "float64" || type == "double") {
@@ -857,22 +889,19 @@ void SaveArray::apply(Image im, string filename) {
 
     assert(f, "Could not open file %s\n", filename.c_str());
 
-    int size = im.width * im.height * im.channels * im.frames;
+    vector<T> rawData(im.width);
 
-    vector<T> rawData(size);
-
-    int i = 0;
     for (int c = 0; c < im.channels; c++) {
 	for (int t = 0; t < im.frames; t++) {
 	    for (int y = 0; y < im.height; y++) {
 		for (int x = 0; x < im.width; x++) {
-		    rawData[i] = (T)(im(x, y, t, c)); 
+		    rawData[x] = (T)(im(x, y, t, c)); 
 		}
+                fwrite(&rawData[0], sizeof(T), im.width, f);
             }
         }
     }
 
-    fwrite(&rawData[0], sizeof(T), size, f);
     fclose(f);
 }
 #include "footer.h"
