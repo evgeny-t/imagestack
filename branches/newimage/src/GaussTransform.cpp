@@ -8,6 +8,7 @@
 #include "Color.h"
 #include "Statistics.h"
 #include "Convolve.h"
+#include "File.h"
 #include "header.h"
 
 void GaussTransform::help() {
@@ -33,6 +34,46 @@ void GaussTransform::help() {
             "                  -save bilateral_filtered_dog.jpg\n");
 }
 
+
+bool GaussTransform::test() {
+    // 3D positions, 1D values
+    Image splat(56, 34, 2, 3);
+    Image slice(56, 34, 2, 3);
+    Image values(56, 34, 2, 2);
+    Noise::apply(splat, 0, 1);
+    Noise::apply(slice, 0, 1);
+    Noise::apply(values, 0, 1);
+    values.channel(1).set(1.0f);
+    vector<float> sigma(3);
+    sigma[0] = 0.2f;
+    sigma[1] = 0.3f;
+    sigma[2] = 0.4f;
+
+    // Try out every method and make sure they all do the same
+    // thing. The methods are only guaranteed to be correct in the
+    // homogeneous sense, so we have to account for that.
+    printf("Computing exact solution\n");
+    Image correct = GaussTransform::apply(slice, splat, values, sigma, EXACT);
+    correct = correct.channel(0) / correct.channel(1);
+    Image out;
+
+    printf("Testing bilateral grid\n");
+    out = GaussTransform::apply(slice, splat, values, sigma, GRID);            
+    out = out.channel(0) / out.channel(1);
+    if (!nearlyEqual(out, correct)) return false;
+
+    printf("Testing permutohedral lattice\n");
+    out = GaussTransform::apply(slice, splat, values, sigma, PERMUTOHEDRAL);
+    out = out.channel(0) / out.channel(1);
+    if (!nearlyEqual(out, correct)) return false;
+
+    printf("Testing Gaussian kd-tree\n");
+    out = GaussTransform::apply(slice, splat, values, sigma, GKDTREE);
+    out = out.channel(0) / out.channel(1);
+    if (!nearlyEqual(out, correct)) return false;
+
+    return true;
+}
 
 void GaussTransform::parse(vector<string> args) {
     Method m;
@@ -397,6 +438,37 @@ void JointBilateral::help() {
             "Usage: ImageStack -load ref.jpg -load im.jpg -jointbilateral 0.1 4\n");
 }
 
+bool JointBilateral::test() {
+    Image im(60, 50, 3, 3);
+    Image ref(im.width, im.height, im.frames, im.channels);
+    Noise::apply(im, 0, 1);
+    Noise::apply(ref, 0, 1);
+
+    // Try out every method and make sure they all do the same
+    // thing. The methods are only guaranteed to be correct in the
+    // homogeneous sense, so we have to account for that.
+    printf("Computing exact solution\n");
+    Image out, correct = im.copy();
+    JointBilateral::apply(correct, ref, 3, 4, 0, 0.25, GaussTransform::EXACT);
+ 
+    printf("Testing bilateral grid\n");
+    out = im.copy();
+    JointBilateral::apply(out, ref, 3, 4, 0, 0.25, GaussTransform::GRID);
+    if (!nearlyEqual(out, correct)) return false;
+
+    printf("Testing permutohedral lattice\n");
+    out = im.copy();
+    JointBilateral::apply(out, ref, 3, 4, 0, 0.25, GaussTransform::PERMUTOHEDRAL);
+    if (!nearlyEqual(out, correct)) return false;
+
+    printf("Testing Gaussian kd-tree\n");
+    out = im.copy();
+    JointBilateral::apply(out, ref, 3, 4, 0, 0.25, GaussTransform::GKDTREE);
+    if (!nearlyEqual(out, correct)) return false;
+
+    return true;
+}
+
 void JointBilateral::parse(vector<string> args) {
     float colorSigma, filterWidth, filterHeight, filterFrames;
     GaussTransform::Method m = GaussTransform::AUTO;
@@ -465,13 +537,12 @@ void JointBilateral::apply(Image im, Image ref,
     }
 
     int posChannels = ref.channels;
-    bool filterX = true, filterY = true, filterT = true;
-    if (im.width == 1 || isinf(filterWidth) || filterWidth > 10*im.width) { filterX = false; }
-    if (im.height == 1 || isinf(filterHeight) || filterHeight > 10*im.height) { filterY = false; }
-    if (im.frames == 1 || isinf(filterFrames) || filterFrames > 10*im.frames) { filterT = false; }
-    if (filterX) { posChannels++; }
-    if (filterY) { posChannels++; }
-    if (filterT) { posChannels++; }
+    bool filterX = im.width > 1 && filterWidth < 10*im.width;
+    bool filterY = im.height > 1 && filterHeight < 10*im.height;
+    bool filterT = im.frames > 1 && filterFrames < 10*im.frames;
+    if (filterX) posChannels++;
+    if (filterY) posChannels++;
+    if (filterT) posChannels++;
 
     // make the spatial filter
     int filterSizeX = filterX ? ((int)(filterWidth * 6 + 1) | 1) : 1;
@@ -503,9 +574,9 @@ void JointBilateral::apply(Image im, Image ref,
                     float dt = (t - filter.frames / 2) / filterFrames;
                     float dx = (x - filter.width / 2) / filterWidth;
                     float dy = (y - filter.height / 2) / filterHeight;
-                    if (!filterT) { dt = 0; }
-                    if (!filterX) { dx = 0; }
-                    if (!filterY) { dy = 0; }
+                    if (!filterT) dt = 0;
+                    if (!filterX) dx = 0;
+                    if (!filterY) dy = 0;
                     float distance = dt * dt + dx * dx + dy * dy;
                     float value = expf(-distance/2);
                     filter(x, y, t, 0) = value;
@@ -513,12 +584,14 @@ void JointBilateral::apply(Image im, Image ref,
             }
         }
 
-        // convolve
-        int xoff = (filter.width - 1)/2;
-        int yoff = (filter.height - 1)/2;
-        int toff = (filter.frames - 1)/2;
+        printf("Filter size: %d %d %d\n", filter.width, filter.height, filter.frames);
 
-        float colorSigmaMult = 0.5f/(colorSigma*colorSigma);
+        // convolve
+        int xoff = filter.width/2;
+        int yoff = filter.height/2;
+        int toff = filter.frames/2;
+
+        float colorSigmaMult = -0.5f/(colorSigma*colorSigma);
 
         for (int t = 0; t < im.frames; t++) {
             for (int y = 0; y < im.height; y++) {
@@ -543,9 +616,9 @@ void JointBilateral::apply(Image im, Image ref,
                                 float colorDistance = 0;
                                 for (int c = 0; c < ref.channels; c++) {
                                     float diff = (ref(imx, imy, imt, c) - ref(x, y, t, c));
-                                    colorDistance += diff * diff * colorSigmaMult;
+                                    colorDistance += diff * diff;
                                 }
-                                weight *= fastexp(-colorDistance);
+                                weight *= fastexp(colorSigmaMult * colorDistance);
                                 totalWeight += weight;
                                 for (int c = 0; c < im.channels; c++) {
                                     out(x, y, t, c) += weight * im(imx, imy, imt, c);
@@ -560,89 +633,45 @@ void JointBilateral::apply(Image im, Image ref,
             }
         }
 
-        Paste::apply(im, out, 0, 0);
+        im.set(out);
 
-        return;
-    }
+    } else {
 
-    // Convert the problem to a gauss transform.  We could
-    // theoretically be faster by calling the various Gauss transform
-    // methods directly, but it would involve copy pasting large
-    // amounts of code with minor tweaks.
-
-    Image splat(im.width, im.height, im.frames, posChannels);
-    Image values(im.width, im.height, im.frames, im.channels+1);
-
-    float invColorSigma = 1.0f/colorSigma;
-    float invSigmaX = 1.0f/filterWidth;
-    float invSigmaY = 1.0f/filterHeight;
-    float invSigmaT = 1.0f/filterFrames;
-
-    // Add a homogeneous channel
-    for (int c = 0; c < im.channels; c++) {
-	for (int t = 0; t < im.frames; t++) {
-	    for (int y = 0; y < im.height; y++) {
-		for (int x = 0; x < im.width; x++) {
-		    values(x, y, t, c) = im(x, y, t, c);
-                }
-	    }
-	}
-    }
-    values.channel(im.channels).set(1.0f);
-
-    for (int c = 0; c < ref.channels; c++) {
-	for (int t = 0; t < im.frames; t++) {
-	    for (int y = 0; y < im.height; y++) {
-		for (int x = 0; x < im.width; x++) {
-		    splat(x, y, t, c) = im(x, y, t, c) * invColorSigma;
-		}
-	    }
-	}
-    }
-    {
-	int c = ref.channels;
-	if (filterX) {
-	    for (int t = 0; t < im.frames; t++) {
-		for (int y = 0; y < im.height; y++) {
-		    for (int x = 0; x < im.width; x++) {
-			splat(x, y, t, c) = x * invSigmaX;
-		    }
-		}
-	    }
-	    c++;
-	}
-	if (filterY) {
-	    for (int t = 0; t < im.frames; t++) {
-		for (int y = 0; y < im.height; y++) {
-		    for (int x = 0; x < im.width; x++) {
-			splat(x, y, t, c) = y * invSigmaY;
-		    }
-		}
-	    }
-	    c++;
-	}
-	if (filterT) {
-	    for (int t = 0; t < im.frames; t++) {
-		for (int y = 0; y < im.height; y++) {
-		    for (int x = 0; x < im.width; x++) {
-			splat(x, y, t, c) = t * invSigmaT;
-		    }
-		}
-	    }
-	}
-    }
-
-    vector<float> sigmas(splat.channels, 1);
-    values = GaussTransform::apply(splat, splat, values, sigmas, method);
-
-    for (int t = 0; t < im.frames; t++) {
-        for (int y = 0; y < im.height; y++) {
-            for (int x = 0; x < im.width; x++) {
-                float w = 1.0f/values(x, y, t, im.channels);
-                for (int c = 0; c < im.channels; c++) {
-		    im(x, y, t, c) = values(x, y, t, c) * w;
-                }
+        // Convert the problem to a gauss transform.  We could
+        // theoretically be faster by calling the various Gauss transform
+        // methods directly, but it would involve copy pasting large
+        // amounts of code with minor tweaks.
+        
+        Image splat(im.width, im.height, im.frames, posChannels);
+        Image values(im.width, im.height, im.frames, im.channels+1);
+        
+        // Add a homogeneous channel
+        values.selectChannels(0, im.channels).set(im);
+        values.channel(im.channels).set(1.0f);
+        
+        // Compute the splat positions. First add the color terms
+        splat.selectChannels(0, ref.channels).set(ref / colorSigma);
+        {
+            // Then the spatial terms
+            int c = ref.channels;
+            if (filterX) {
+                splat.channel(c++).set(Lazy::X() / filterWidth);
             }
+            if (filterY) {
+                splat.channel(c++).set(Lazy::Y() / filterHeight);
+            }
+            if (filterT) {
+                splat.channel(c++).set(Lazy::T() / filterFrames);
+            }
+        }
+
+        // Do the Gauss transform
+        vector<float> sigmas(splat.channels, 1);
+        values = GaussTransform::apply(splat, splat, values, sigmas, method);
+        
+        // Normalize
+        for (int c = 0; c < im.channels; c++) {
+            im.channel(c).set(values.channel(c) / values.channel(im.channels));
         }
     }
 }
@@ -659,6 +688,11 @@ void Bilateral::help() {
             " to the same as the standard deviation in width\n"
             "\n"
             "Usage: ImageStack -load im.jpg -bilateral 0.1 4\n");
+}
+
+bool Bilateral::test() {
+    // Bilateral just blindly calls joint bilateral
+    return true;
 }
 
 void Bilateral::parse(vector<string> args) {
@@ -708,6 +742,15 @@ void BilateralSharpen::help() {
            "Usage: ImageStack -load input.jpg -bilateralsharpen 1.0 0.2 1 -save sharp.jpg\n\n");
 }
 
+bool BilateralSharpen::test() {
+    // Very basic application of bilateral. Should preserve mean and
+    // increase variance.
+    Image a = Downsample::apply(Load::apply("pics/dog1.jpg"), 2, 2, 1);
+    Image b = BilateralSharpen::apply(a, 16, 0.25, 0.5);
+    Stats sa(a), sb(b);
+    return (nearlyEqual(sa.mean(), sb.mean()) && sb.variance() > sa.variance());
+}
+
 void BilateralSharpen::parse(vector<string> args) {
     assert(args.size() == 3, "-bilateralsharpen takes three arguments");
     Image im = apply(stack(0), readFloat(args[0]), readFloat(args[1]), readFloat(args[2]));
@@ -718,19 +761,7 @@ void BilateralSharpen::parse(vector<string> args) {
 Image BilateralSharpen::apply(Image im, float spatialSigma, float colorSigma, float sharpness) {
     Image out = im.copy();
     Bilateral::apply(out, spatialSigma, spatialSigma, 0, colorSigma);
-
-    float imWeight = 1+sharpness, outWeight = -sharpness;
-
-    for (int c = 0; c < im.channels; c++) {
-	for (int t = 0; t < im.frames; t++) {
-	    for (int y = 0; y < im.height; y++) {
-		for (int x = 0; x < im.width; x++) {
-		    out(x, y, t, c) = im(x, y, t, c) * imWeight + out(x, y, t, c) * outWeight;
-		}
-	    }
-	}
-    }
-    return out;
+    return im * (1 + sharpness) - out * sharpness;
 }
 
 
@@ -740,6 +771,14 @@ void ChromaBlur::help() {
            "of getting rid of chroma noise without apparently blurring the image. The two\n"
            "arguments are the standard deviation in space and color of the bilateral filter.\n"
            "Usage: ImageStack -load input.jpg -chromablur 2 -save output.png\n\n");
+}
+
+bool ChromaBlur::test() {
+    // Another basic application of bilateral
+    Image im = Downsample::apply(Load::apply("pics/dog1.jpg"), 2, 2, 1);
+    // Shouldn't do much to a jpeg
+    Image out = ChromaBlur::apply(im, 2, 0.5);
+    return nearlyEqual(im, out);
 }
 
 void ChromaBlur::parse(vector<string> args) {
@@ -779,6 +818,22 @@ void NLMeans::help() {
             " for the joint bilateral filter (see -gausstransform).\n"
             "\n"
             "Usage: ImageStack -load noisy.jpg -nlmeans 1.0 6 50 0.02\n");
+}
+
+bool NLMeans::test() {
+    // Check it can do a reasonable job of a denoising task
+    Image dog = Downsample::apply(Load::apply("pics/dog1.jpg"), 4, 4, 1);
+    Image noisy = dog.copy();
+    Noise::apply(noisy, -0.4, 0.4);
+    if (nearlyEqual(noisy/2, dog/2)) {
+        printf("Not enough noise was added to perform a proper test!\n");
+        return false;
+    }
+    NLMeans::apply(noisy, 1, 6, 16, 0.4);
+    // For noisy/2 to not be nearly equal dog/2, but noisy to be
+    // nearly equal to dog, a substantial improvement must have been
+    // made.
+    return nearlyEqual(noisy, dog);
 }
 
 void NLMeans::parse(vector<string> args) {
@@ -834,6 +889,20 @@ void NLMeans3D::help() {
             "Usage: ImageStack -load volume.tmp -nlmeans3d 1.0 6 50 0.02\n");
 }
 
+bool NLMeans3D::test() {
+    // Check it can do a reasonable job of a 3D denoising task
+    Image dog = Downsample::apply(Load::apply("pics/dog1.jpg"), 10, 10, 1);
+    dog = Upsample::apply(dog, 1, 1, 4);
+    Image noisy = dog.copy();
+    Noise::apply(noisy, -0.4, 0.4);
+    if (nearlyEqual(noisy/2, dog/2)) {
+        printf("Not enough noise was added to perform a proper test!\n");
+        return false;
+    }
+    NLMeans3D::apply(noisy, 1, 6, 16, 0.4);
+    return nearlyEqual(noisy, dog);    
+}
+
 void NLMeans3D::parse(vector<string> args) {
     assert(args.size() == 4 || args.size() == 5, "-nlmeans takes four or five arguments\n");
 
@@ -866,7 +935,7 @@ void NLMeans3D::apply(Image image, float patchSize, int dimensions,
                       GaussTransform::Method method) {
 
     Image filters = PatchPCA3D::apply(image, patchSize, dimensions);
-    Image pca = Convolve::apply(image, filters, Convolve::Zero, Multiply::Inner);
+    Image pca = Convolve::apply(image, filters, Convolve::Zero, Multiply::Inner);    
     JointBilateral::apply(image, pca, spatialSigma, spatialSigma, INF, patchSigma);
 };
 
