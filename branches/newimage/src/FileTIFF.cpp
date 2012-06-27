@@ -149,7 +149,6 @@ void save(Image im, string filename, string type) {
 
     if (type == "") {
         type = "uint16";
-        printf("WARNING: type not specified, assuming 16 bit unsigned int\n");
     }
 
     assert(im.frames == 1, "Can only save single frame tiffs\n");

@@ -714,9 +714,9 @@ bool KMeans::test() {
     // Make 3 clusters;
     Image a(101, 102, 10, 3);
     Image b(101, 102, 10, 3);
-    Noise::apply(a, -0.5, 0.5);
-    Noise::apply(a, -0.5, 0.5);
-    Noise::apply(a, -0.5, 0.5);
+    Noise::apply(a, -0.1, 0.1);
+    Noise::apply(a, -0.1, 0.1);
+    Noise::apply(a, -0.1, 0.1);
 
     for (int t = 0; t < a.frames; t++) {
 	for (int y = 0; y < a.height; y++) {
@@ -735,7 +735,7 @@ bool KMeans::test() {
 		case 2:
 		    b(x, y, t, 0) = 2;
 		    b(x, y, t, 1) = 2;
-		    b(x, y, t, 2) = 2;
+		    b(x, y, t, 2) = 8;
 		    break;
 		}
 	    }
@@ -752,7 +752,7 @@ bool KMeans::test() {
 		float R = a(x, y, t, 0), G = a(x, y, t, 1), B = a(x, y, t, 2);
 		bool ok = ((nearlyEqual(R, 1) && nearlyEqual(G, 5) && nearlyEqual(B, 4)) ||
 			   (nearlyEqual(R, 5) && nearlyEqual(G, 2) && nearlyEqual(B, -4)) ||
-			   (nearlyEqual(R, 2) && nearlyEqual(G, 2) && nearlyEqual(B, 2)));
+			   (nearlyEqual(R, 2) && nearlyEqual(G, 2) && nearlyEqual(B, 8)));
 		if (!ok) {
 		    printf("%d %d %f %f %f\n", x, y, R, G, B);
 		    return false;

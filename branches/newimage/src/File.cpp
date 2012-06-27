@@ -4,17 +4,42 @@
 #include "Stack.h"
 #include "Arithmetic.h"
 #include "Statistics.h"
+#include "Filter.h"
 #include "header.h"
 
-// used for picking file formats
-bool suffixMatch(string filename, string suffix) {
-    if (suffix.size() > filename.size()) { return false; }
-    int offset = (int)filename.size() - (int)suffix.size();
-    for (size_t i = 0; i < suffix.size(); i++) {
-        if (tolower(filename[i + offset]) != tolower(suffix[i])) { return false; }
+namespace {
+    // used for picking file formats
+    bool suffixMatch(string filename, string suffix) {
+        if (suffix.size() > filename.size()) { return false; }
+        int offset = (int)filename.size() - (int)suffix.size();
+        for (size_t i = 0; i < suffix.size(); i++) {
+            if (tolower(filename[i + offset]) != tolower(suffix[i])) { return false; }
+        }
+        return true;
     }
-    return true;
-}
+
+    
+    struct TempFile {
+        string name;
+        TempFile() : name(tmpnam(NULL)) {}
+        TempFile(string name_) : name(name_) {}
+        ~TempFile() {
+            remove(name.c_str());
+        }
+    };
+
+    // Used to help testing. Saves and loads and checks the result is what you saved.
+    bool testFormat(Image im, string fmt) {
+        printf("%s ", fmt.c_str()); 
+        fflush(stdout);
+        TempFile t(string(tmpnam(NULL)) + "." + fmt);
+        Save::apply(im, t.name);
+        Image b = Load::apply(t.name);
+        return nearlyEqual(im, b);
+    }
+
+
+};
 
 void Load::help() {
     pprintf("-load loads a file and places it on the top of the stack. ImageStack"
@@ -50,15 +75,48 @@ void Load::help() {
 
 bool Load::test() {
     // let's take a file around the block and see how it survives
-    Image im(123, 234, 3, 4);
-    Noise::apply(im, -10, 10);
+    Image a(123, 234, 3, 3);
+    Noise::apply(a, 0, 1);
+    FastBlur::apply(a, 1, 1, 1);
+    Quantize::apply(a, 1.0/256);
 
-    string prefix = tmpnam(NULL);
-    printf("Using %s as a prefix\n", prefix.c_str());
+    testFormat(a, "tmp");
+    
+    // tmp is the only multi-frame format, so now we switch to a single frame
+    a = a.frame(0);
+    
+    #ifndef NO_JPG    
+    if (!testFormat(a, "jpg")) return false;
+    #endif
+    #ifndef NO_PNG
+    if (!testFormat(a, "png")) return false;
+    #endif
+    #ifndef NO_TIFF
+    if (!testFormat(a, "tiff")) return false;
+    #endif
+    #ifndef NO_OPENEXR
+    if (!testFormat(a*5, "exr")) return false;
+    #endif
 
-    //Save::apply(
-    return false;
+    if (!testFormat(a, "tga")) return false;
+    if (!testFormat(a*5, "hdr")) return false;
+    if (!testFormat(a, "ppm")) return false;
 
+    // Now a two-channel format
+    a = a.selectChannels(0, 2);
+    if (!testFormat(a, "flo")) return false;
+
+    // A two-channel one-row format
+    if (!testFormat(a.row(0), "wav")) return false;
+
+    // Now some grayscale formats
+    a = a.channel(0);
+    if (!testFormat(a, "csv")) return false;
+    if (!testFormat(a, "pba")) return false;
+    if (!testFormat(a, "pgm")) return false;
+    printf("\n");
+
+    return true;
 }
 
 void Load::parse(vector<string> args) {
@@ -112,8 +170,21 @@ void LoadFrames::help() {
 }
 
 bool LoadFrames::test() {
-    // Just calls load repeatedly
-    return true;
+    Image a(123, 234, 3, 3);
+    Noise::apply(a, 0, 1);
+    FastBlur::apply(a, 1, 1, 1);
+
+    string prefix = tmpnam(NULL);
+    TempFile f1(prefix + "0.jpg");
+    TempFile f2(prefix + "1.jpg");
+    TempFile f3(prefix + "2.jpg");
+    SaveFrames::apply(a, prefix + "%d.jpg", "100");
+    vector<string> filenames;
+    filenames.push_back(f1.name);
+    filenames.push_back(f2.name);
+    filenames.push_back(f3.name);
+    Image b = LoadFrames::apply(filenames);
+    return nearlyEqual(a, b);
 }
 
 void LoadFrames::parse(vector<string> args) {
@@ -151,8 +222,21 @@ void LoadChannels::help() {
 }
 
 bool LoadChannels::test() {
-    // Just calls load repeatedly
-    return true;
+    Image a(123, 234, 1, 3);
+    Noise::apply(a, 0, 1);
+    FastBlur::apply(a, 1, 1, 1);
+
+    string prefix = tmpnam(NULL);
+    TempFile t1(prefix + "0.jpg");
+    TempFile t2(prefix + "1.jpg");
+    TempFile t3(prefix + "2.jpg");
+    SaveChannels::apply(a, prefix + "%d.jpg", "100");
+    vector<string> filenames;
+    filenames.push_back(t1.name);
+    filenames.push_back(t2.name);
+    filenames.push_back(t3.name);
+    Image b = LoadChannels::apply(filenames);
+    return nearlyEqual(a, b);
 }
 
 void LoadChannels::parse(vector<string> args) {
@@ -169,7 +253,7 @@ Image LoadChannels::apply(vector<string> args) {
     result.channel(0).set(im);
 
     for (size_t i = 1; i < args.size(); i++) {
-	im = Load::apply(args[i+1]);
+	im = Load::apply(args[i]);
 	// check dimensions and channels match
 	assert(im.channels == 1, "-loadchannels can only load many single frame images\n");
 	assert((im.width == result.width) &&
@@ -283,7 +367,7 @@ void SaveFrames::help() {
 }
 
 bool SaveFrames::test() {    
-    // Just calls save repeatedly
+    // Tested by LoadFrames
     return true;
 }
 
@@ -364,7 +448,25 @@ void LoadBlock::help() {
 }
 
 bool LoadBlock::test() {    
-    return false;
+    
+    Image a(123, 234, 3, 3);
+    Noise::apply(a, 0, 1);
+    FastBlur::apply(a, 1, 1, 1);
+
+    TempFile f(string(tmpnam(NULL)) + ".tmp");
+
+    CreateTmp::apply(f.name, 234, 342, 5, 5);
+
+    SaveBlock::apply(a, f.name, 4, 3, 2, 1);
+
+    // Check the saved region is correct
+    Image b = LoadBlock::apply(f.name, 4, 3, 2, 1, 123, 234, 3, 3);
+    if (!nearlyEqual(a, b)) return false;
+
+    // Check other regions are zero
+    b = LoadBlock::apply(f.name, 130, 0, 0, 0, 50, 50, 5, 5);
+    Stats s(b);
+    return (s.mean() == 0 && s.variance() == 0);
 }
 
 void LoadBlock::parse(vector<string> args) {
@@ -434,7 +536,10 @@ Image LoadBlock::apply(string filename, int xoff, int yoff, int toff, int coff,
     }
 
     // sanity check the header
-    if (header.width < 1 || header.height < 1 || header.frames || header.channels < 1) {
+    if (header.width < 1 ||
+        header.height < 1 || 
+        header.frames < 1 || 
+        header.channels < 1) {
         fclose(f);
         panic("According the header of the tmp file, the image has dimensions %ix%ix%ix%i. "
               "Perhaps this is not a tmp file?\n", header.width, header.height, header.frames, header.channels);
@@ -585,7 +690,7 @@ void CreateTmp::help() {
 
 bool CreateTmp::test() {
     // Tested by LoadBlock
-    return false;
+    return true;
 }
 
 void CreateTmp::parse(vector<string> args) {
@@ -643,6 +748,7 @@ void LoadArray::help() {
 }
 
 bool LoadArray::test() {
+    //
     return false;
 }
 
