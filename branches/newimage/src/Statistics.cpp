@@ -167,14 +167,14 @@ bool Statistics::test() {
 
     // You get 10 tries to pass the statistical tests
     for (int i = 0; i < 10; i++) {
-	Image a(160, 300, 30, 2);    
+	Image a(160, 300, 100, 2);    
 	Noise::apply(a, 0, 10);
 	Noise::apply(a, 0, 10);
 	// We now expect a to have certain statistical properties. Let's check them.
 	Stats s(a);
 	
 	printf("Sum: %f\n", s.sum());	
-	if (!nearlyEqual(s.sum(), 160*300*30*2*10)) continue;
+	if (!nearlyEqual(s.sum(), 160*300*100*2*10)) continue;
 	
 	printf("Mean: %f\n", s.mean());
 	if (!nearlyEqual(s.mean(), 10)) continue;
