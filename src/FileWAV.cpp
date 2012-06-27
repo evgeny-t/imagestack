@@ -29,7 +29,7 @@ void save(Image im, string filename) {
            "wav files must have one or two channels\n");
 
     // 2 bytes per sample
-    int dataSize = im.channels * im.frames * 2;
+    int dataSize = im.channels * im.width * 2;
     unsigned long l;
     unsigned short s;
 
@@ -94,7 +94,7 @@ Image load(string filename) {
         width /= 2;
         break;
     }
-    Image sound(1, 1, width, wav_spec.channels);
+    Image sound(width, 1, 1, wav_spec.channels);
 
     switch (wav_spec.format) {
     case AUDIO_U8: {

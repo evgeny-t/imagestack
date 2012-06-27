@@ -312,11 +312,12 @@ void Test::parse(vector<string> args) {
 }
 
 void Test::apply(string name, Operation *op) {
-    printf("Testing %s\n", name.c_str());
+    printf("Testing %s ...\n", name.c_str());
+    fflush(stdout);
     if (op->test()) {
         printf("Passed\n");
     } else {
-        printf("*** Failed\n\n");
+        printf("*** Failed: %s ***\n", name.c_str());
     }
 };
 
