@@ -34,43 +34,38 @@ Image Inpaint::apply(Image im, Image mask) {
     assert(mask.channels == 1,
            "mask must have one channel\n");
 
-    const int J = 15;
-    Image blurred[J], blurredMask[J];
+    // Make a mask that just selects the outline
+    Image boundaryMask = mask.copy();
+    FastBlur::apply(boundaryMask, 1, 1, 1);
+    boundaryMask.set(max(mask - boundaryMask, 0));
 
-    blurredMask[0] = mask.copy();
-    FastBlur::apply(blurredMask[0], 1, 1, 1);
-    blurredMask[0].set(max(mask - blurredMask[0], 0));
-
-    blurred[0] = im.copy();
+    // Mask out the input image with it
+    Image boundary = im.copy();    
     for (int c = 0; c < im.channels; c++) {
-        blurred[0].channel(c) *= blurredMask[0];
+        boundary.channel(c) *= boundaryMask;
     }
 
-    for (int i = 1; i < J; i++) {
-        blurred[i] = blurred[i-1].copy();
-        blurredMask[i] = blurredMask[i-1].copy();
-        float alpha = powf(1.5, i)/4;
-        FastBlur::apply(blurred[i], alpha, alpha, alpha);
-        FastBlur::apply(blurredMask[i], alpha, alpha, alpha);
-        blurred[i] *= 1;
-        blurredMask[i] *= 1;
+    Image blurred = boundary.copy();
+    Image blurredMask = boundaryMask.copy();
+
+    const int J = 10;
+    for (int i = J; i >= 0; i--) {
+        float alpha = powf(i, 2)/4;
+        // Smooth
+        FastBlur::apply(blurred, alpha, alpha, alpha);
+        FastBlur::apply(blurredMask, alpha, alpha, alpha);
+        // Reimpose boundary conditions
+        Composite::apply(blurred, boundary, boundaryMask);
+        Composite::apply(blurredMask, boundaryMask, boundaryMask);
     }
 
-    for (int i = 0; i < J; i++) {
-        for (int c = 0; c < blurred[i].channels; c++) {
-            blurred[i].channel(c) /= (blurredMask[i] + 1e-10);
-        }
-    }
-    
-    for (int i = J-2; i >= 0; i--) {
-        blurredMask[i].set(min(blurredMask[i] * 3, 1));
-        Composite::apply(blurred[J-1], blurred[i], blurredMask[i]);
+    for (int c = 0; c < im.channels; c++) {
+        blurred.channel(c) /= blurredMask;
     }
 
-    Composite::apply(blurred[J-1], im, mask);
-
-
-    return blurred[J-1];
+    // Reattach the rest of the image    
+    Composite::apply(blurred, im, mask);
+    return blurred;
 }
 
 
@@ -138,10 +133,10 @@ void SeamlessClone::apply(Image dst, Image src, Image mask) {
     assert(mask.channels == 1, "Mask must have one channel\n");
 
     // Generate a smooth patch to fix discontinuities between source and destination
-    Image patch = Inpaint::apply(dst-src, 1-mask);
+    Image patch = Inpaint::apply(dst-src, mask);
 
     for (int c = 0; c < dst.channels; c++) {
-	dst.channel(c).set(mask*(src.channel(c) + patch.channel(c)) + (1-mask)*dst.channel(c));
+	dst.channel(c).set((1-mask)*(src.channel(c) + patch.channel(c)) + mask*dst.channel(c));
     }
 }
 
