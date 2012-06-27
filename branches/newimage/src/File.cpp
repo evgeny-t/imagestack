@@ -3,6 +3,7 @@
 #include "Color.h"
 #include "Stack.h"
 #include "Arithmetic.h"
+#include "Statistics.h"
 #include "header.h"
 
 // used for picking file formats
@@ -47,6 +48,19 @@ void Load::help() {
     printf("Usage: ImageStack -load foo.jpg\n\n");
 }
 
+bool Load::test() {
+    // let's take a file around the block and see how it survives
+    Image im(123, 234, 3, 4);
+    Noise::apply(im, -10, 10);
+
+    string prefix = tmpnam(NULL);
+    printf("Using %s as a prefix\n", prefix.c_str());
+
+    //Save::apply(
+    return false;
+
+}
+
 void Load::parse(vector<string> args) {
     assert(args.size() == 1, "-load takes exactly 1 argument\n");
     push(apply(args[0]));
@@ -58,7 +72,8 @@ Image Load::apply(string filename) {
         return FileTMP::load(filename);
     } else if (suffixMatch(filename, ".hdr")) {
         return FileHDR::load(filename);
-    } else if (suffixMatch(filename, ".jpg") || suffixMatch(filename, ".jpeg")) {
+    } else if (suffixMatch(filename, ".jpg") ||
+               suffixMatch(filename, ".jpeg")) {
         return FileJPG::load(filename);
     } else if (suffixMatch(filename, ".exr")) {
         return FileEXR::load(filename);
@@ -68,11 +83,11 @@ Image Load::apply(string filename) {
         return FileTGA::load(filename);
     } else if (suffixMatch(filename, ".wav")) {
         return FileWAV::load(filename);
-    } else if (suffixMatch(filename, ".ppm")) {
+    } else if (suffixMatch(filename, ".ppm") || 
+               suffixMatch(filename, ".pgm")) {               
         return FilePPM::load(filename);
     } else if (suffixMatch(filename, ".tiff") ||
-               suffixMatch(filename, ".tif") ||
-               suffixMatch(filename, ".meg")) {
+               suffixMatch(filename, ".tif")) {
         return FileTIFF::load(filename);
     } else if (suffixMatch(filename, ".flo")) {
         return FileFLO::load(filename);
@@ -94,6 +109,11 @@ void LoadFrames::help() {
            "-loadframes cannot be used on raw float files. To achieve the same effect, cat\n"
            "the files together and load them as a single multi-frame image.\n\n"
            "Usage: ImageStack -loadframes foo*.jpg bar*.png\n\n");
+}
+
+bool LoadFrames::test() {
+    // Just calls load repeatedly
+    return true;
 }
 
 void LoadFrames::parse(vector<string> args) {
@@ -128,6 +148,11 @@ void LoadChannels::help() {
     pprintf("-loadchannels accepts a sequence of images and loads them as the channels of a"
             "single stack entry. See the help for -load for details on file formats.\n\n"
             "Usage: ImageStack -loadchannels foo*.jpg bar*.png\n\n");
+}
+
+bool LoadChannels::test() {
+    // Just calls load repeatedly
+    return true;
 }
 
 void LoadChannels::parse(vector<string> args) {
@@ -194,6 +219,11 @@ void Save::help() {
 
 }
 
+bool Save::test() {
+    // tested by load
+    return true;
+}
+
 void Save::parse(vector<string> args) {
     assert(args.size() == 1 || args.size() == 2, "-save requires exactly one or two arguments\n");
     if (args.size() == 1) { apply(stack(0), args[0], ""); }
@@ -207,10 +237,11 @@ void Save::apply(Image im, string filename, string arg) {
         FileTMP::save(im, filename, arg);
     } else if (suffixMatch(filename, ".hdr")) {
         FileHDR::save(im, filename);
-    } else if (suffixMatch(filename, ".jpg") || suffixMatch(filename, ".jpeg")) {
+    } else if (suffixMatch(filename, ".jpg") || 
+               suffixMatch(filename, ".jpeg")) {
         int quality;
-        if (arg == "") { quality = 90; }
-        else { quality = readInt(arg); }
+        if (arg == "") quality = 90;
+        else quality = readInt(arg);
         FileJPG::save(im, filename, quality);
     } else if (suffixMatch(filename, ".exr")) {
         string compression;
@@ -223,12 +254,14 @@ void Save::apply(Image im, string filename, string arg) {
         FileTGA::save(im, filename);
     } else if (suffixMatch(filename, ".wav")) {
         FileWAV::save(im, filename);
-    } else if (suffixMatch(filename, ".ppm")) {
+    } else if (suffixMatch(filename, ".ppm") || 
+               suffixMatch(filename, ".pgm")) {
         int bitdepth;
-        if (arg == "") { bitdepth = 8; }
-        else { bitdepth = readInt(arg); }
+        if (arg == "") bitdepth = 16;
+        else bitdepth = readInt(arg);
         FilePPM::save(im, filename, bitdepth);
-    } else if (suffixMatch(filename, ".tiff") || suffixMatch(filename, ".tif")) {
+    } else if (suffixMatch(filename, ".tiff") || 
+               suffixMatch(filename, ".tif")) {
         FileTIFF::save(im, filename, arg);
     } else if (suffixMatch(filename, ".flo")) {
         FileFLO::save(im, filename);
@@ -249,14 +282,22 @@ void SaveFrames::help() {
            "       ImageStack -loadframes *.jpg -saveframes frame%%03d.ppm 16\n\n");
 }
 
+bool SaveFrames::test() {    
+    // Just calls save repeatedly
+    return true;
+}
+
 void SaveFrames::parse(vector<string> args) {
     assert(args.size() == 1 || args.size() == 2, "-saveframes takes one or two arguments.\n");
-    if (args.size() == 1) { apply(stack(0), args[0], ""); }
-    else { apply(stack(0), args[0], args[1]); }
+    if (args.size() == 1) {
+        apply(stack(0), args[0], "");
+    } else {
+        apply(stack(0), args[0], args[1]);
+    }
 }
 
 // Microsoft has an underscore in front of snprintf for some reason
-#ifdef WIN32
+#ifdef _MSC_VER
 #ifndef snprintf
 #define snprintf _snprintf
 #endif
@@ -280,10 +321,18 @@ void SaveChannels::help() {
             "       ImageStack -loadchannels *.jpg -savechannels frame%%03d.ppm 16\n\n");
 }
 
+bool SaveChannels::test() {    
+    // Just calls save repeatedly
+    return true;
+}
+
 void SaveChannels::parse(vector<string> args) {
     assert(args.size() == 1 || args.size() == 2, "-savechannels takes one or two arguments.\n");
-    if (args.size() == 1) { apply(stack(0), args[0], ""); }
-    else { apply(stack(0), args[0], args[1]); }
+    if (args.size() == 1) { 
+        apply(stack(0), args[0], ""); 
+    } else { 
+        apply(stack(0), args[0], args[1]); 
+    }
 }
 
 void SaveChannels::apply(Image im, string pattern, string arg) {
@@ -294,6 +343,7 @@ void SaveChannels::apply(Image im, string pattern, string arg) {
         Save::apply(im.channel(c), filename, arg);
     }
 }
+
 void LoadBlock::help() {
     pprintf("-loadblock loads a rectangular portion of a .tmp file. It is roughly"
             " equivalent to a load followed by a crop, except that the file need not"
@@ -311,6 +361,10 @@ void LoadBlock::help() {
             "ImageStack -loadblock foo.tmp 0 0 0 64 512 512 64 3 \\\n"
             "           -scale 2 -saveblock foo.tmp 0 0 64 0\n\n"
            );
+}
+
+bool LoadBlock::test() {    
+    return false;
 }
 
 void LoadBlock::parse(vector<string> args) {
@@ -436,6 +490,10 @@ void SaveBlock::help() {
             "           -scale 2 -saveblock foo.tmp 0 0 0 0\n\n");
 }
 
+bool SaveBlock::test() {
+    // tested by loadblock
+    return true;
+}
 
 void SaveBlock::parse(vector<string> args) {
     int t = 0, x = 0, y = 0, c = 0;
@@ -525,6 +583,11 @@ void CreateTmp::help() {
             "           -saveblock volume.tmp 512 512 512 0 \n\n");
 }
 
+bool CreateTmp::test() {
+    // Tested by LoadBlock
+    return false;
+}
+
 void CreateTmp::parse(vector<string> args) {
     int frames = 1, width, height, channels;
     if (args.size() == 5) {
@@ -577,6 +640,10 @@ void LoadArray::help() {
             " this must be done manually with the -scale operation.\n"
             "\n"
             "Usage: ImageStack -loadarray foo.bar uint8 640 480 1 3\n\n");
+}
+
+bool LoadArray::test() {
+    return false;
 }
 
 void LoadArray::parse(vector<string> args) {
@@ -647,6 +714,10 @@ void SaveArray::help() {
            "Usage: ImageStack -load in.jpg -savearray out.float float32\n\n");
 }
 
+bool SaveArray::test() {
+    // Tested by LoadArray
+    return true;
+}
 
 void SaveArray::parse(vector<string> args) {
     assert(args.size() == 2, "-savearray takes 2 arguments\n");
