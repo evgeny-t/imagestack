@@ -1726,6 +1726,7 @@ Image PatchPCA::apply(Image im, float sigma, int newChannels) {
 
     Eigenvectors e(patchSize*patchSize*im.channels, newChannels);
     for (int iter = 0; iter < min(10000, im.width*im.height*im.frames); iter++) {
+        // Select a random patch
         int t = randomInt(0, im.frames-1);
         int x = randomInt(patchSize/2, im.width-1-patchSize/2);
         int y = randomInt(patchSize/2, im.height-1-patchSize/2);

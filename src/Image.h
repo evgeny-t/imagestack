@@ -710,9 +710,15 @@ class Image {
         data(im.data), base(&im(x, y, t, c)) {  
         // Note that base is no longer aligned. You're only guaranteed
         // alignment if you allocate an image from scratch.
+        assert(xs > 0 && ys > 0 && ts > 0 && cs > 0, 
+               "Region must have strictly positive size: %d %d %d %d\n", xs, ys, ts, cs);
+        assert(x >= 0 && x+xs <= im.width && 
+               y >= 0 && y+ys <= im.height &&
+               t >= 0 && t+ts <= im.frames &&
+               c >= 0 && c+cs <= im.channels,
+               "Region must fit within original image\n");
     }    
 
-    //std::shared_ptr<std::vector<float> > data;
     std::shared_ptr<const Payload> data;
     float * base;
 };

@@ -5,9 +5,10 @@
 
 class GaussTransform : public Operation {
 public:
-    enum Method {AUTO = 0, EXACT, GRID, SPARSEGRID, PERMUTOHEDRAL, GKDTREE};
+    enum Method {AUTO = 0, EXACT, GRID, PERMUTOHEDRAL, GKDTREE};
 
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image slicePositions, Image splatPositions, Image values,
                        vector<float> sigmas, Method m = AUTO);
@@ -17,6 +18,7 @@ public:
 class JointBilateral : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image image, Image reference,
                       float filterWidth, float filterHeight, float filterFrames, float colorSigma,
@@ -26,6 +28,7 @@ public:
 class Bilateral : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image image, float filterWidth, float filterHeight,
                       float filterFrames, float colorSigma,
@@ -36,6 +39,7 @@ public:
 class BilateralSharpen : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, float spatialSigma, float colorSigma, float sharpness);
 };
@@ -43,6 +47,7 @@ public:
 class ChromaBlur : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, float spatialSigma, float colorSigma);
 };
@@ -52,6 +57,7 @@ public:
 class NLMeans : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image image, float patchSize, int dimensions,
                       float spatialSigma, float patchSigma,
@@ -61,6 +67,7 @@ public:
 class NLMeans3D : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image image, float patchSize, int dimensions,
                       float spatialSigma, float patchSigma,
