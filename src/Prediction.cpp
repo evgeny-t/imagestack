@@ -4,6 +4,8 @@
 #include "Paint.h"
 #include "File.h"
 #include "Calculus.h"
+#include "Statistics.h"
+#include "Convolve.h"
 #include "header.h"
 
 void Inpaint::help() {
@@ -16,7 +18,42 @@ void Inpaint::help() {
 }
 
 bool Inpaint::test() {
-    return false;
+    // A circular mask
+    Image mask(99, 97, 1, 1);
+    Lazy::X x; Lazy::Y y;
+    mask.set(Select((x-50)*(x-50) + (y-50)*(y-50) < 30*30, 0, 1));
+
+    // Patch a corrupted region of a smooth ramp
+    Image im(99, 97, 1, 3);
+    im.set((x + y)/100); 
+    Image corrupted = im.copy();
+    Noise::apply(corrupted.region(40, 40, 0, 0, 20, 20, 1, 3), -20, 20);
+    Image after = Inpaint::apply(corrupted, mask);
+    if (!nearlyEqual(im, after)) return false;
+
+    // There should be no strong gradients in the output
+    GradMag::apply(after);
+    after = after.region(10, 10, 0, 0, 80, 80, 1, 3);
+    Stats s(after);
+    if (s.maximum() > 0.01) return false;
+
+    // Smooth a hole within a noise image
+    im.set(0);
+    Noise::apply(im, 0, 1);
+    after = Inpaint::apply(im, mask);
+    
+    // Statistics within the hole should be mean of 0.5, zero variance
+    s = Stats(after.region(45, 45, 0, 0, 10, 10, 1, 3));
+    if (s.mean() < 0.45 ||
+        s.mean() > 0.55 ||
+        !nearlyEqual(s.variance(), 0)) return false;
+
+    // Outside the hole should be untouched
+    for (int c = 0; c < 3; c++) {
+        im.channel(c) *= mask;
+        after.channel(c) *= mask;
+    }
+    return nearlyEqual(im, after);
 }
 
 void Inpaint::parse(vector<string> args) {
@@ -59,6 +96,7 @@ Image Inpaint::apply(Image im, Image mask) {
         Composite::apply(blurredMask, boundaryMask, boundaryMask);
     }
 
+    // Normalize
     for (int c = 0; c < im.channels; c++) {
         blurred.channel(c) /= blurredMask;
     }
@@ -84,7 +122,36 @@ void SeamlessClone::help() {
 }
 
 bool SeamlessClone::test() {
-    return false;
+    // This op is a trivial use of inpaint. If inpaint works so does
+    // this. Let's just make sure it doesn't crash.
+
+
+    // A circular mask
+    Image mask(99, 97, 1, 1);
+    Lazy::X x; Lazy::Y y;
+    mask.set(Select((x-50)*(x-50) + (y-50)*(y-50) < 30*30, 0, 1));
+
+    // The background is a smooth ramp
+    Image background(99, 97, 1, 3);
+    background.set((x + 2*y)/300);
+
+    // The foreground to paste on is noise
+    Image foreground(99, 97, 1, 3);
+    Noise::apply(foreground, 0, 1);
+
+    Image im = background.copy();
+    SeamlessClone::apply(im, foreground, mask);
+
+    // The laplacian of the result should be as if you just pasted the
+    // laplacian of the foreground on top of the background.
+    Image lap(3, 3, 1, 1);
+    lap(1, 0) = lap(0, 1) = lap(2, 1) = lap(1, 2) = 1;
+    lap(1, 1) = -4;
+    Image lapFg = Convolve::apply(foreground, lap, Convolve::Clamp);
+    Image lapBg = Convolve::apply(background, lap, Convolve::Clamp);
+    Image lapIm = Convolve::apply(im, lap, Convolve::Clamp);
+    Composite::apply(lapBg, lapFg, 1-mask);
+    return nearlyEqual(lapIm, lapBg);
 }
 
 void SeamlessClone::parse(vector<string> args) {
