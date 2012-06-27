@@ -11,7 +11,7 @@
 #include "Statistics.h"
 #include "header.h"
 
-void Gradent::help() {
+void Gradient::help() {
     pprintf("-gradient takes the backward differences in the dimension specified by"
 	    " the argument. Values outside the image are assumed to be zero, so the"
 	    " first row, or column, or frame, will not change, effectively storing"

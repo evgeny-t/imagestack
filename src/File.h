@@ -5,6 +5,7 @@
 class Load : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(string filename);
 };
@@ -12,6 +13,7 @@ public:
 class LoadFrames : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(vector<string> args);
 };
@@ -19,6 +21,7 @@ public:
 class LoadChannels : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(vector<string> args);
 };
@@ -26,6 +29,7 @@ public:
 class Save : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im, string filename, string arg = "");
 };
@@ -33,6 +37,7 @@ public:
 class SaveFrames : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im, string pattern, string arg = "");
 };
@@ -40,6 +45,7 @@ public:
 class SaveChannels : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im, string pattern, string arg = "");
 };
@@ -47,6 +53,7 @@ public:
 class LoadBlock : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(string filename, int x, int y, int t, int c,
                        int width, int height, int frames, int channels);
@@ -55,6 +62,7 @@ public:
 class SaveBlock : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image im, string filename, int x, int y, int t, int c);
 };
@@ -62,6 +70,7 @@ public:
 class CreateTmp : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(string filename, int width, int height, int frames, int channels);
 };
@@ -69,6 +78,7 @@ public:
 class LoadArray : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
 
     template<typename T>
@@ -78,6 +88,7 @@ public:
 class SaveArray : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
 
     template<typename T>
@@ -85,86 +96,92 @@ public:
 };
 
 namespace FileEXR {
-void help();
-Image load(string filename);
-void save(Image im, string filename, string compression);
+    void help();
+    Image load(string filename);
+    void save(Image im, string filename, string compression);
 }
 
 namespace FileFLO {
-void help();
-void save(Image im, string filename);
-Image load(string filename);
+    void help();
+    void save(Image im, string filename);
+    Image load(string filename);
 }
 
 namespace FileHDR {
-void help();
-void save(Image im, string filename);
-Image load(string filename);
+    void help();
+    void save(Image im, string filename);
+    Image load(string filename);
 }
 
 namespace FileJPG {
-void help();
-void save(Image im, string filename, int quality);
-Image load(string filename);
+    void help();
+    void save(Image im, string filename, int quality);
+    Image load(string filename);
 }
 
 namespace FilePNG {
-void help();
-Image load(string filename);
-void save(Image im, string filename);
+    void help();
+    Image load(string filename);
+    void save(Image im, string filename);
 }
 
 namespace FilePPM {
-void help();
-Image load(string filename);
-void save(Image im, string filename, int depth);
+    void help();
+    Image load(string filename);
+    void save(Image im, string filename, int depth);
+}
+
+namespace FilePGM {
+    void help();
+    Image load(string filename);
+    void save(Image im, string filename);
 }
 
 namespace FileRAW {
-void help();
-Image load(string filename);
+    void help();
+    Image load(string filename);
 }
 
 namespace FileTIFF {
-void help();
-Image load(string filename);
-void save(Image im, string filename, string type);
+    void help();
+    Image load(string filename);
+    void save(Image im, string filename, string type);
 }
 
 namespace FileTGA {
-void help();
-Image load(string filename);
-void save(Image im, string filename);
+    void help();
+    Image load(string filename);
+    void save(Image im, string filename);
 }
 
 namespace FileTMP {
-void help();
-void save(Image im, string filename, string type);
-Image load(string filename);
+    void help();
+    void save(Image im, string filename, string type);
+    Image load(string filename);
 }
 
 namespace FileYUV {
-void help();
-void save(Image im, string filename);
-Image load(string filename);
+    void help();
+    void save(Image im, string filename);
+    Image load(string filename);
 }
 
 namespace FileWAV {
-void help();
-void save(Image im, string filename);
-Image load(string filename);
+    void help();
+    void save(Image im, string filename);
+    Image load(string filename);
 }
 
 namespace FileCSV {
-void help();
-void save(Image im, string filename);
-Image load(string filename);
+    void help();
+    void save(Image im, string filename);
+    Image load(string filename);
 }
 
 namespace FilePBA {
-void help();
-void save(Image im, string filename);
-Image load(string filename);
+    void help();
+    void save(Image im, string filename);
+    Image load(string filename);
 }
 
 #include "footer.h"
