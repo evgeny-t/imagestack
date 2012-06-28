@@ -36,6 +36,16 @@ void PatchMatch::help() {
            "Usage: ImageStack -load target.jpg -load source.jpg -patchmatch -save match.tmp\n\n");
 }
 
+bool PatchMatch::test() {
+    // Try a trivial example
+    Image dog = Downsample::apply(Load::apply("pics/dog1.jpg"), 2, 2, 1);
+    Image shifted = Translate::apply(dog, 10, 5, 0);
+    Image flow = PatchMatch::apply(dog, shifted, 5, 7);
+    Image correct(dog.width-20, dog.height-20, 1, 4);
+    correct.setChannels(Lazy::X() + 10, Lazy::Y() + 5, 0.0f, 0.0f);    
+    return nearlyEqual(flow.region(0, 0, 0, 0, dog.width-20, dog.height-20, 1, 4), correct);
+}
+
 void PatchMatch::parse(vector<string> args) {
 
     int numIter = 5, patchSize = 7;
@@ -93,8 +103,8 @@ Image PatchMatch::apply(Image source, Image target, Image mask, int iterations, 
 		out(x, y, t, 1) = dy;
 		out(x, y, t, 2) = dt;
 		out(x, y, t, 3) = distance(source, target, mask,
-					   t, x, y,
-					   dt, dx, dy,
+					   x, y, t,
+					   dx, dy, dt,
 					   patchSize, HUGE_VAL);
             }
         }
@@ -116,10 +126,10 @@ Image PatchMatch::apply(Image source, Image target, Image mask, int iterations, 
                     for (int x = 1; x < source.width; x++) {
                         if (error(x, y, t, 0) > 0) {
                             float distLeft = distance(source, target, mask,
-                                                      t, x, y,
-						      dt(x-1, y, t, 0), 
+                                                      x, y, t,
 						      dx(x-1, y, t, 0)+1, 
 						      dy(x-1, y, t, 0),
+						      dt(x-1, y, t, 0), 
                                                       patchSize, error(x, y, t, 0));
 
                             if (distLeft < error(x, y, t, 0)) {
@@ -130,10 +140,10 @@ Image PatchMatch::apply(Image source, Image target, Image mask, int iterations, 
                             }
 
                             float distUp = distance(source, target, mask,
-                                                    t, x, y,
-						    dt(x, y-1, t, 0),
+                                                    x, y, t,
 						    dx(x, y-1, t, 0),
 						    dy(x, y-1, t, 0)+1,
+						    dt(x, y-1, t, 0),
                                                     patchSize, error(x, y, t, 0));
 			    
                             if (distUp < error(x, y, t, 0)) {
@@ -157,10 +167,10 @@ Image PatchMatch::apply(Image source, Image target, Image mask, int iterations, 
 		    for (int x = source.width-2; x >= 0; x--) {
                         if (error(x, y, t, 0) > 0) {
                             float distRight = distance(source, target, mask,
-						       t, x, y,
-						       dt(x+1, y, t, 0), 
+						       x, y, t,
 						       dx(x+1, y, t, 0)-1, 
 						       dy(x+1, y, t, 0),
+						       dt(x+1, y, t, 0), 
 						       patchSize, error(x, y, t, 0));
 
                             if (distRight < error(x, y, t, 0)) {
@@ -171,10 +181,10 @@ Image PatchMatch::apply(Image source, Image target, Image mask, int iterations, 
                             }
 
                             float distDown = distance(source, target, mask,
-						      t, x, y,
-						      dt(x, y+1, t, 0),
+						      x, y, t,
 						      dx(x, y+1, t, 0),
 						      dy(x, y+1, t, 0)-1,
+						      dt(x, y+1, t, 0),
 						      patchSize, error(x, y, t, 0));
 			    
                             if (distDown < error(x, y, t, 0)) {
@@ -217,12 +227,12 @@ Image PatchMatch::apply(Image source, Image target, Image mask, int iterations, 
                             if (minY < 0) { minY = 0; }
                             if (maxY > target.height) { maxY = target.height; }
 
-                            int randX = rand() % (maxX - minX) + minX;
-                            int randY = rand() % (maxY - minY) + minY;
-                            int randT = rand() % target.frames;
+                            int randX = randomInt(minX, maxX-1);
+                            int randY = randomInt(minY, maxY-1);
+                            int randT = randomInt(0, target.frames - 1);
                             float dist = distance(source, target, mask,
-                                                  t, x, y,
-                                                  randT, randX, randY,
+                                                  x, y, t,
+                                                  randX, randY, randT,
                                                   patchSize, error(x, y, t, 0));
                             if (dist < error(x, y, t, 0)) {
                                 dx(x, y, t, 0) = randX;
@@ -244,8 +254,8 @@ Image PatchMatch::apply(Image source, Image target, Image mask, int iterations, 
 }
 
 float PatchMatch::distance(Image source, Image target, Image mask,
-                           int st, int sx, int sy,
-                           int tt, int tx, int ty,
+                           int sx, int sy, int st,
+                           int tx, int ty, int tt,
                            int patchSize, float prevDist) {
 
     // Do not use patches on boundaries
@@ -265,12 +275,6 @@ float PatchMatch::distance(Image source, Image target, Image mask,
     int x2 = min(patchSize, -sx+source.width-1, -tx+target.width-1);
     int y1 = max(-patchSize, -sy, -ty);
     int y2 = min(patchSize, -sy+source.height-1, -ty+target.height-1);
-
-    /*
-    int x1 = -patchSize, x2 = patchSize;
-    int y1 = -patchSize, y2 = patchSize;
-    */
-
 
     for (int c = 0; c < target.channels; c++) {
 	for (int y = y1; y <= y2; y++) {	   	
@@ -318,6 +322,10 @@ void BidirectionalSimilarity::help() {
             " bidirectional similarity\" by Simakov et al. from CVPR 2008.\n"
             "\n"
             "Usage: ImageStack -load source.jpg -load target.jpg -bidirectional 0.5 -display\n");
+}
+
+bool BidirectionalSimilarity::test() {
+    return false;
 }
 
 void BidirectionalSimilarity::parse(vector<string> args) {
@@ -500,6 +508,10 @@ void Heal::help() {
            " number of iterations of patchmatch to run. Both default to five.\n"
            "\n"
            "Usage: ImageStack -load mask.png -load image.jpg -heal -display\n");
+}
+
+bool Heal::test() {
+    return false;
 }
 
 void Heal::parse(vector<string> args) {

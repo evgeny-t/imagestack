@@ -12,8 +12,8 @@ public:
 
 private:
     static float distance(Image source, Image target, Image mask,
-                          int st, int sx, int sy,
-                          int tt, int tx, int ty,
+                          int sx, int sy, int st,
+                          int tx, int ty, int tt,
                           int patchSize, float prevDist);
 
 };

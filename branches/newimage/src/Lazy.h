@@ -949,367 +949,250 @@ namespace Lazy {
     IfThenElse(const A &a, const float b, const float c) {
         return _IfThenElse<typename A::LazyBool, Const, Const>(a, Const(b), Const(c));
     }
+
+    // A struct to detect if something can be represented as an expression type
+    template<typename T>
+    struct ConstCheck;
+
+    template<>
+    struct ConstCheck<int> {
+        typedef Const t;
+    };
+    template<>
+    struct ConstCheck<float> {
+        typedef Const t;
+    };
+    template<>
+    struct ConstCheck<double> {
+        typedef Const t;
+    };
+
+    // A trait to check if something is ok to be cast to a lazy expression type, and if so, how.
+    template<typename T>
+    struct Lazyable {
+        typedef typename T::Lazy t;
+    };
+
+    // Or consts 
+    template<>
+    struct Lazyable<float> {
+        typedef Const t;
+    };
+
+    template<>
+    struct Lazyable<int> {
+        typedef Const t;
+    };
+
+    template<>
+    struct Lazyable<double> {
+        typedef Const t;
+    };
+
 }
     
 // Overloaded operators
 
+// Addition
 template<typename A, typename B>
 Lazy::BinaryOp<typename A::Lazy, typename B::Lazy, Lazy::Vec::Add> operator+(const A &a, const B &b) {
-    return Lazy::BinaryOp<typename A::Lazy, typename B::Lazy, Lazy::Vec::Add>(a, b);
-}
-
-template<typename B>
-Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Add> operator+(float a, const B &b) {
-    return Lazy::Const(a) + b;
-}
-
-template<typename A>
-Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Add> operator+(const A &a, float b) {
-    return a + Lazy::Const(b);
-}
-
-template<typename B>
-Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Add> operator+(double a, const B &b) {
-    return Lazy::Const(a) + b;
-}
-
-template<typename A>
-Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Add> operator+(const A &a, double b) {
-    return a + Lazy::Const(b);
-}
-
-template<typename B>
-Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Add> operator+(int a, const B &b) {
-    return Lazy::Const(a) + b;
-}
-
-template<typename A>
-Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Add> operator+(const A &a, int b) {
-    return a + Lazy::Const(b);
+    return Lazy::BinaryOp<A, B, Lazy::Vec::Add>(a, b);
 }
 
 template<typename A, typename B>
-Lazy::BinaryOp<typename A::Lazy, typename B::Lazy, Lazy::Vec::Sub> operator-(const A &a, const B &b) {
+Lazy::BinaryOp<typename Lazy::ConstCheck<A>::t, typename B::Lazy, Lazy::Vec::Add> 
+operator+(const A &a, const B &b) {
+    return Lazy::Const(a) + b;
+}
+
+template<typename A, typename B>
+Lazy::BinaryOp<typename A::Lazy, typename Lazy::ConstCheck<B>::t, Lazy::Vec::Add> 
+operator+(const A &a, const B &b) {
+    return a + Lazy::Const(b);
+}
+
+// Subtraction
+template<typename A, typename B>
+Lazy::BinaryOp<typename A::Lazy, typename B::Lazy, Lazy::Vec::Sub> 
+operator-(const A &a, const B &b) {
     return Lazy::BinaryOp<A, B, Lazy::Vec::Sub>(a, b);
 }
 
-template<typename B>
-Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Sub> operator-(float a, const B &b) {
+template<typename A, typename B>
+Lazy::BinaryOp<typename Lazy::ConstCheck<A>::t, typename B::Lazy, Lazy::Vec::Sub> 
+operator-(const A &a, const B &b) {
     return Lazy::Const(a) - b;
 }
 
-template<typename A>
-Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Sub> operator-(const A &a, float b) {
-    return a - Lazy::Const(b);
-}
-
-template<typename B>
-Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Sub> operator-(double a, const B &b) {
-    return Lazy::Const(a) - b;
-}
-
-template<typename A>
-Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Sub> operator-(const A &a, double b) {
-    return a - Lazy::Const(b);
-}
-
-template<typename B>
-Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Sub> operator-(int a, const B &b) {
-    return Lazy::Const(a) - b;
-}
-
-template<typename A>
-Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Sub> operator-(const A &a, int b) {
+template<typename A, typename B>
+Lazy::BinaryOp<typename A::Lazy, typename Lazy::ConstCheck<B>::t, Lazy::Vec::Sub> 
+operator-(const A &a, const B &b) {
     return a - Lazy::Const(b);
 }
 
 template<typename A>
-Lazy::BinaryOp<Lazy::Const, typename A::Lazy, Lazy::Vec::Sub> operator-(const A &a) {
+Lazy::BinaryOp<Lazy::Const, typename A::Lazy, Lazy::Vec::Sub> 
+operator-(const A &a) {
     return Lazy::Const(0) - a;
 }
 
+// Multiplication
 template<typename A, typename B>
-Lazy::BinaryOp<typename A::Lazy, typename B::Lazy, Lazy::Vec::Mul> operator*(const A &a, const B &b) {
+Lazy::BinaryOp<typename A::Lazy, typename B::Lazy, Lazy::Vec::Mul>
+operator*(const A &a, const B &b) {
     return Lazy::BinaryOp<A, B, Lazy::Vec::Mul>(a, b);
 }
 
-template<typename B>
-Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Mul> operator*(float a, const B &b) {
-    return Lazy::Const(a)*b;
-}
-
-template<typename A>
-Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Mul> operator*(const A &a, float b) {
-    return a*Lazy::Const(b);
-}
-
-template<typename B>
-Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Mul> operator*(double a, const B &b) {
-    return Lazy::Const(a)*b;
-}
-
-template<typename A>
-Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Mul> operator*(const A &a, double b) {
-    return a*Lazy::Const(b);
-}
-
-template<typename B>
-Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Mul> operator*(int a, const B &b) {
-    return Lazy::Const(a)*b;
-}
-
-template<typename A>
-Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Mul> operator*(const A &a, int b) {
-    return a*Lazy::Const(b);
+template<typename A, typename B>
+Lazy::BinaryOp<typename A::Lazy, typename Lazy::ConstCheck<B>::t, Lazy::Vec::Mul> 
+operator*(const A &a, const B &b) {
+    return a * Lazy::Const(b);
 }
 
 template<typename A, typename B>
-Lazy::BinaryOp<typename A::Lazy, typename B::Lazy, Lazy::Vec::Div> operator/(const A &a, const B &b) {
+Lazy::BinaryOp<typename Lazy::ConstCheck<A>::t, typename B::Lazy, Lazy::Vec::Mul> 
+operator*(const A &a, const B &b) {
+    return Lazy::Const(a) * b;
+}
+
+// Division
+
+template<typename A, typename B>
+Lazy::BinaryOp<typename A::Lazy, typename B::Lazy, Lazy::Vec::Div>
+operator/(const A &a, const B &b) {
     return Lazy::BinaryOp<A, B, Lazy::Vec::Div>(a, b);
 }
 
-template<typename B>
-Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Div> operator/(float a, const B &b) {
-    return Lazy::Const(a)/b;
-}
-
-template<typename A>
-Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Mul> operator/(const A &a, float b) {
-    // replace expr / const with expr * (1/const)
-    return a * Lazy::Const(1.0f/b);
-}
-
-template<typename B>
-Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Div> operator/(double a, const B &b) {
-    return Lazy::Const(a)/b;
-}
-
-template<typename A>
-Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Mul> operator/(const A &a, double b) {
-    // replace expr / const with expr * (1/const)
-    return a * Lazy::Const(1.0f/b);
-}
-
-template<typename B>
-Lazy::BinaryOp<Lazy::Const, typename B::Lazy, Lazy::Vec::Div> operator/(int a, const B &b) {
-    return Lazy::Const(a)/b;
-}
-
-template<typename A>
-Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Mul> operator/(const A &a, int b) {
+template<typename A, typename B>
+Lazy::BinaryOp<typename A::Lazy, typename Lazy::ConstCheck<B>::t, Lazy::Vec::Mul> 
+operator/(const A &a, const B &b) {
     // replace expr / const with expr * (1/const)
     return a * Lazy::Const(1.0f/b);
 }
 
 template<typename A, typename B>
-Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::Vec::GT> operator>(const A &a, const B &b) {
+Lazy::BinaryOp<typename Lazy::ConstCheck<A>::t, typename B::Lazy, Lazy::Vec::Div> 
+operator/(const A &a, const B &b) {
+    return Lazy::Const(a) / b;
+}
+
+// Comparisons
+
+// Greater than
+template<typename A, typename B>
+Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::Vec::GT> 
+operator>(const A &a, const B &b) {
     return Lazy::Cmp<A, B, Lazy::Vec::GT>(a, b);
 }
 
-template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::GT> operator>(const A &a, float b) {
+template<typename A, typename B>
+Lazy::Cmp<typename A::Lazy, typename Lazy::ConstCheck<B>::t, Lazy::Vec::GT> 
+operator>(const A &a, const B &b) {
     return a > Lazy::Const(b);
-}
-
-template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::GT> operator>(float a, const B &b) {
-    return Lazy::Const(a) > b;
-}
-
-template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::GT> operator>(const A &a, double b) {
-    return a > Lazy::Const(b);
-}
-
-template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::GT> operator>(double a, const B &b) {
-    return Lazy::Const(a) > b;
-}
-
-template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::GT> operator>(const A &a, int b) {
-    return a > Lazy::Const(b);
-}
-
-template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::GT> operator>(int a, const B &b) {
-    return Lazy::Const(a) > b;
 }
 
 template<typename A, typename B>
-Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::Vec::LT> operator<(const A &a, const B &b) {
+Lazy::Cmp<typename Lazy::ConstCheck<A>::t, typename B::Lazy, Lazy::Vec::GT> 
+operator>(const A &a, const B &b) {
+    return Lazy::Const(a) > b;
+}
+
+
+// Less than
+template<typename A, typename B>
+Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::Vec::LT> 
+operator<(const A &a, const B &b) {
     return Lazy::Cmp<A, B, Lazy::Vec::LT>(a, b);
 }
 
-template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::LT> operator<(const A &a, float b) {
+template<typename A, typename B>
+Lazy::Cmp<typename A::Lazy, typename Lazy::ConstCheck<B>::t, Lazy::Vec::LT> 
+operator<(const A &a, const B &b) {
     return a < Lazy::Const(b);
-}
-
-template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::LT> operator<(float a, const B &b) {
-    return Lazy::Const(a) < b;
-}
-
-template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::LT> operator<(const A &a, double b) {
-    return a < Lazy::Const(b);
-}
-
-template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::LT> operator<(double a, const B &b) {
-    return Lazy::Const(a) < b;
-}
-
-template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::LT> operator<(const A &a, int b) {
-    return a < Lazy::Const(b);
-}
-
-template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::LT> operator<(int a, const B &b) {
-    return Lazy::Const(a) < b;
 }
 
 template<typename A, typename B>
-Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::Vec::GE> operator>=(const A &a, const B &b) {
+Lazy::Cmp<typename Lazy::ConstCheck<A>::t, typename B::Lazy, Lazy::Vec::LT> 
+operator<(const A &a, const B &b) {
+    return Lazy::Const(a) < b;
+}
+
+// Greater than or equal to
+template<typename A, typename B>
+Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::Vec::GE> 
+operator>=(const A &a, const B &b) {
     return Lazy::Cmp<A, B, Lazy::Vec::GE>(a, b);
 }
 
-template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::GE> operator>=(const A &a, float b) {
+template<typename A, typename B>
+Lazy::Cmp<typename A::Lazy, typename Lazy::ConstCheck<B>::t, Lazy::Vec::GE> 
+operator>=(const A &a, const B &b) {
     return a >= Lazy::Const(b);
-}
-
-template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::GE> operator>=(float a, const B &b) {
-    return Lazy::Const(a) >= b;
-}
-
-template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::GE> operator>=(const A &a, double b) {
-    return a >= Lazy::Const(b);
-}
-
-template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::GE> operator>=(double a, const B &b) {
-    return Lazy::Const(a) >= b;
-}
-
-template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::GE> operator>=(const A &a, int b) {
-    return a >= Lazy::Const(b);
-}
-
-template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::GE> operator>=(int a, const B &b) {
-    return Lazy::Const(a) >= b;
 }
 
 template<typename A, typename B>
-Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::Vec::LE> operator<=(const A &a, const B &b) {
+Lazy::Cmp<typename Lazy::ConstCheck<A>::t, typename B::Lazy, Lazy::Vec::GE> 
+operator>=(const A &a, const B &b) {
+    return Lazy::Const(a) >= b;
+}
+
+// Less than or equal to
+template<typename A, typename B>
+Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::Vec::LE> 
+operator<=(const A &a, const B &b) {
     return Lazy::Cmp<A, B, Lazy::Vec::LE>(a, b);
 }
 
-template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::LE> operator<=(const A &a, float b) {
+template<typename A, typename B>
+Lazy::Cmp<typename A::Lazy, typename Lazy::ConstCheck<B>::t, Lazy::Vec::LE> 
+operator<=(const A &a, const B &b) {
     return a <= Lazy::Const(b);
-}
-
-template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::LE> operator<=(float a, const B &b) {
-    return Lazy::Const(a) <= b;
-}
-
-template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::LE> operator<=(const A &a, double b) {
-    return a <= Lazy::Const(b);
-}
-
-template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::LE> operator<=(double a, const B &b) {
-    return Lazy::Const(a) <= b;
-}
-
-template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::LE> operator<=(const A &a, int b) {
-    return a <= Lazy::Const(b);
-}
-
-template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::LE> operator<=(int a, const B &b) {
-    return Lazy::Const(a) <= b;
 }
 
 template<typename A, typename B>
-Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::Vec::EQ> operator==(const A &a, const B &b) {
+Lazy::Cmp<typename Lazy::ConstCheck<A>::t, typename B::Lazy, Lazy::Vec::LE> 
+operator<=(const A &a, const B &b) {
+    return Lazy::Const(a) <= b;
+}
+
+// Equal
+template<typename A, typename B>
+Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::Vec::EQ> 
+operator==(const A &a, const B &b) {
     return Lazy::Cmp<A, B, Lazy::Vec::EQ>(a, b);
 }
 
-template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::EQ> operator==(const A &a, float b) {
+template<typename A, typename B>
+Lazy::Cmp<typename A::Lazy, typename Lazy::ConstCheck<B>::t, Lazy::Vec::EQ> 
+operator==(const A &a, const B &b) {
     return a == Lazy::Const(b);
-}
-
-template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::EQ> operator==(float a, const B &b) {
-    return Lazy::Const(a) == b;
-}
-
-template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::EQ> operator==(const A &a, double b) {
-    return a == Lazy::Const(b);
-}
-
-template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::EQ> operator==(double a, const B &b) {
-    return Lazy::Const(a) == b;
-}
-
-template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::EQ> operator==(const A &a, int b) {
-    return a == Lazy::Const(b);
-}
-
-template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::EQ> operator==(int a, const B &b) {
-    return Lazy::Const(a) == b;
 }
 
 template<typename A, typename B>
-Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::Vec::NEQ> operator!=(const A &a, const B &b) {
+Lazy::Cmp<typename Lazy::ConstCheck<A>::t, typename B::Lazy, Lazy::Vec::EQ> 
+operator==(const A &a, const B &b) {
+    return Lazy::Const(a) == b;
+}
+
+// Not equal
+template<typename A, typename B>
+Lazy::Cmp<typename A::Lazy, typename B::Lazy, Lazy::Vec::NEQ> 
+operator!=(const A &a, const B &b) {
     return Lazy::Cmp<A, B, Lazy::Vec::NEQ>(a, b);
 }
 
-template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::NEQ> operator!=(const A &a, float b) {
+template<typename A, typename B>
+Lazy::Cmp<typename A::Lazy, typename Lazy::ConstCheck<B>::t, Lazy::Vec::NEQ> 
+operator!=(const A &a, const B &b) {
     return a != Lazy::Const(b);
 }
 
-template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::NEQ> operator!=(float a, const B &b) {
+template<typename A, typename B>
+Lazy::Cmp<typename Lazy::ConstCheck<A>::t, typename B::Lazy, Lazy::Vec::NEQ> 
+operator!=(const A &a, const B &b) {
     return Lazy::Const(a) != b;
 }
 
-template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::NEQ> operator!=(const A &a, double b) {
-    return a != Lazy::Const(b);
-}
-
-template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::NEQ> operator!=(double a, const B &b) {
-    return Lazy::Const(a) != b;
-}
-
-template<typename A>
-Lazy::Cmp<typename A::Lazy, Lazy::Const, Lazy::Vec::NEQ> operator!=(const A &a, int b) {
-    return a != Lazy::Const(b);
-}
-
-template<typename B>
-Lazy::Cmp<Lazy::Const, typename B::Lazy, Lazy::Vec::NEQ> operator!=(int a, const B &b) {
-    return Lazy::Const(a) != b;
-}
 
 #include "footer.h"
 
