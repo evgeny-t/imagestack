@@ -652,12 +652,13 @@ class Image {
                     while (x < (w-(ImageStack::Lazy::Vec::width-1))) {
                         ImageStack::Lazy::Vec::type va, vb, vc, vd;
 
-
+                        // Compute the value of each input at this pixel
                         va = iterA.vec(x);
                         if (outChannels > 1) vb = iterB.vec(x);
                         if (outChannels > 2) vc = iterC.vec(x);
                         if (outChannels > 3) vd = iterD.vec(x);
-
+                        
+                        // Store the results
                         ImageStack::Lazy::Vec::store(va, dst + x);
                         if (outChannels > 1) 
                             ImageStack::Lazy::Vec::store(vb, dst + cs + x);

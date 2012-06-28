@@ -13,6 +13,7 @@
 #include "Statistics.h"
 #include "Filter.h"
 #include "Paint.h"
+#include "Prediction.h"
 #include "Display.h"
 #include "header.h"
 // PATCHMATCH =============================================================//
@@ -256,7 +257,7 @@ Image PatchMatch::apply(Image source, Image target, Image mask, int iterations, 
 float PatchMatch::distance(Image source, Image target, Image mask,
                            int sx, int sy, int st,
                            int tx, int ty, int tt,
-                           int patchSize, float prevDist) {
+                           int patchSize, float threshold) {
 
     // Do not use patches on boundaries
     if (tx < patchSize || tx >= target.width-patchSize ||
@@ -267,9 +268,6 @@ float PatchMatch::distance(Image source, Image target, Image mask,
     // Compute distance between patches
     // Average L2 distance in RGB space
     float dist = 0;
-    float weight = 0;
-
-    float threshold = prevDist*target.channels*(2*patchSize+1)*(2*patchSize+1);
 
     int x1 = max(-patchSize, -sx, -tx);
     int x2 = min(patchSize, -sx+source.width-1, -tx+target.width-1);
@@ -279,12 +277,12 @@ float PatchMatch::distance(Image source, Image target, Image mask,
     for (int c = 0; c < target.channels; c++) {
 	for (int y = y1; y <= y2; y++) {	   	
 	    for (int x = x1; x <= x2; x++) {
-		float w = mask.defined() ? mask(tx+x, ty+y, tt, 0) : 1;
-		assert(w >= 0, "Negative w %f\n", w);
-		
+
+                // Don't stray outside the mask
+                if (mask.defined() && mask(tx+x, ty+y, tt, 0) < 1) return HUGE_VAL;
+
 		float delta = source(sx+x, sy+y, st, c) - target(tx+x, ty+y, tt, c);
-		dist += w * delta * delta;
-		weight += w;
+		dist += delta * delta;
 		
 		// Early termination
 		if (dist > threshold) {return HUGE_VAL;}
@@ -292,12 +290,7 @@ float PatchMatch::distance(Image source, Image target, Image mask,
         }
     }
 
-    assert(dist >= 0, "negative dist\n");
-    assert(weight >= 0, "negative weight\n");
-
-    if (!weight) { return HUGE_VAL; }
-
-    return dist / weight;
+    return dist;
 }
 
 
@@ -325,6 +318,7 @@ void BidirectionalSimilarity::help() {
 }
 
 bool BidirectionalSimilarity::test() {
+    
     return false;
 }
 
@@ -352,7 +346,7 @@ void BidirectionalSimilarity::parse(vector<string> args) {
 
 // Reconstruct the portion of the target where the mask is high, using
 // the portion of the source where its mask is high. Source and target
-// masks are allowed to be null windows.
+// masks are allowed to be null Images.
 void BidirectionalSimilarity::apply(Image source, Image target,
                                     Image sourceMask, Image targetMask,
                                     float alpha, int numIter, int numIterPM) {
@@ -385,9 +379,12 @@ void BidirectionalSimilarity::apply(Image source, Image target,
         if (targetMask.defined()) {
             Composite::apply(target, newTarget, targetMask);
         } else {
-	    newTarget = target.copy();
+            target.set(newTarget);
+            //newTarget = target.copy();
         }
     }
+
+    Save::apply(target, "before.tmp");
 
     printf("%dx%d ", target.width, target.height); fflush(stdout);
     for (int i = 0; i < numIter; i++) {
@@ -454,7 +451,7 @@ void BidirectionalSimilarity::apply(Image source, Image target,
                             int dstT = (int)coherentMatch(x, y, t, 2);
                             float weight = 1.0f/(coherentMatch(x, y, t, 3)+1);
 
-                            if (targetMask.defined()) { weight *= targetMask(x, y, t, 0); }
+                            if (targetMask.defined()) weight *= targetMask(x, y, t, 0);
 
                             for (int dy = -patchSize/2; dy <= patchSize/2; dy++) {
                                 if (y+dy < 0) { continue; }
@@ -497,12 +494,13 @@ void BidirectionalSimilarity::apply(Image source, Image target,
             }
         }
     }
+    Save::apply(target, "after.tmp");
     printf("\n");
 }
 
 void Heal::help() {
     printf("-heal takes an image and a mask, and reconstructs the portion of"
-           " the image where the mask is high using patches from the rest of the"
+           " the image where the mask is zero using patches from the rest of the"
            " image. It uses the patchmatch algorithm for acceleration. The"
            " arguments include the number of iterations to run per scale, and the"
            " number of iterations of patchmatch to run. Both default to five.\n"
@@ -523,13 +521,18 @@ void Heal::parse(vector<string> args) {
     Image mask = stack(1);
     Image image = stack(0);
 
-    Image inverseMask = mask.copy();
-    inverseMask *= -1;
-    inverseMask += 1;
+    // First inpaint across the hole and add noise
+    image.set(Inpaint::apply(image, mask));
+    Image noise(image.width, image.height, image.frames, image.channels);
+    Noise::apply(noise, -0.2, 0.2);
+    for (int c = 0; c < image.channels; c++) {
+        noise.channel(c) *= (1-mask);
+    }
+    image += noise;
 
     if (args.size() > 0) { numIter = readInt(args[0]); }
     if (args.size() > 1) { numIterPM = readInt(args[1]); }
 
-    BidirectionalSimilarity::apply(image, image, inverseMask, mask, 0, numIter, numIterPM);
+    BidirectionalSimilarity::apply(image.copy(), image, mask, 1-mask, 0, numIter, numIterPM);
 }
 #include "footer.h"
