@@ -16,6 +16,11 @@ void Display::help() {
 
 }
 
+bool Display::test() {
+    // Not testable without popping up a window, which seems kinda annoying.
+    return true;
+}
+
 void Display::parse(vector<string> args) {
     assert(args.size() < 2, "-display takes zero or one arguments\n");
     apply(stack(0), args.size() == 1);
@@ -42,6 +47,11 @@ Display::~Display() {
 
 void Display::help() {
     printf("This version of ImageStack was compiled without SDL, so cannot display.\n");
+}
+
+bool Display::test() {
+    printf("This version of ImageStack was compiled without SDL, so cannot display.\n");
+    return true;
 }
 
 void Display::parse(vector<string> args) {

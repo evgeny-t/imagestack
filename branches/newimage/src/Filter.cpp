@@ -198,24 +198,24 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
     // the IIR requires a few pixels to get going. If the Gaussian
     // blur is very narrow, also revert to the naive method, as IIR
     // won't work.
-    if (filterFrames > 0 && (im.frames < 16 || filterFrames < 0.5)) {
-        Image blurry = GaussianBlur::apply(im, filterFrames, 0, 0);
-        FastBlur::apply(blurry, filterWidth, filterHeight, 0);
-        Paste::apply(im, blurry, 0, 0, 0);
-        return;
-    }
-
     if (filterWidth > 0 && (im.width < 16 || filterWidth < 0.5)) {
-        Image blurry = GaussianBlur::apply(im, 0, filterWidth, 0);
+        Image blurry = GaussianBlur::apply(im, filterWidth, 0, 0);
         FastBlur::apply(blurry, 0, filterHeight, filterFrames);
-        Paste::apply(im, blurry, 0, 0, 0);
+        im.set(blurry);
         return;
     }
 
     if (filterHeight > 0 && (im.height < 16 || filterHeight < 0.5)) {
-        Image blurry = GaussianBlur::apply(im, 0, 0, filterHeight);
+        Image blurry = GaussianBlur::apply(im, 0, filterHeight, 0);
         FastBlur::apply(blurry, filterWidth, 0, filterFrames);
-        Paste::apply(im, blurry, 0, 0, 0);
+        im.set(blurry);
+        return;
+    }
+
+    if (filterFrames > 0 && (im.frames < 16 || filterFrames < 0.5)) {
+        Image blurry = GaussianBlur::apply(im, 0, 0, filterFrames);
+        FastBlur::apply(blurry, filterWidth, filterHeight, 0);
+        im.set(blurry);
         return;
     }
 
