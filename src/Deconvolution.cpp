@@ -99,7 +99,7 @@ Image Deconvolve::applyShan2008(Image B, Image K) {
 	return result;
     }
     Image B_large = applyPadding(B);
-    Image K_large = KernelEstimation::EnlargeKernel(K, B_large.width, B_large.height);
+    Image K_large = KernelEstimation::enlargeKernel(K, B_large.width, B_large.height);
     Image smoothness_map;
     const int x_padding = (B_large.width - B.width) / 2;
     const int y_padding = (B_large.height - B.height) / 2;
@@ -521,7 +521,7 @@ Image Deconvolve::applyCho2009(Image blurred, Image kernel) {
     //FileTMP::save(B, std::string("padded.tmp"), "float");
 
     float alpha = 1.f; // TODO
-    Image FK = KernelEstimation::EnlargeKernel(kernel, B.width, B.height);
+    Image FK = KernelEstimation::enlargeKernel(kernel, B.width, B.height);
     Image FB = RealComplex::apply(Transpose::apply(B, 'c', 't'));
     FFT::apply(FK, true, true, false);
     FFT::apply(FB, true, true, false);

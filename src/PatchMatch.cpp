@@ -412,8 +412,8 @@ void BidirectionalSimilarity::apply(Image source, Image target,
                             if (sourceMask.defined()) { weight *= sourceMask(x, y, t, 0); }
 
                             for (int dy = -patchSize/2; dy <= patchSize/2; dy++) {
-                                if (y+dy < 0) { continue; }
-                                if (y+dy >= source.height) { break; }
+                                if (y+dy < 0) continue; 
+                                if (y+dy >= source.height) break;
                                 for (int dx = -patchSize/2; dx <= patchSize/2; dx++) {
                                     if (x+dx < 0) continue;
 				    if (x+dx >= source.width) break;

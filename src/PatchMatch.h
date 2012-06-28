@@ -5,6 +5,7 @@
 class PatchMatch : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image source, Image target, int iterations, int patchSize);
     static Image apply(Image source, Image target, Image mask, int iterations, int patchSize);
@@ -22,6 +23,7 @@ private:
 class BidirectionalSimilarity : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(Image source, Image target,
                       Image sourceMask, Image targetMask,
@@ -33,6 +35,7 @@ public:
 class Heal : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
 };
 
