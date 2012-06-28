@@ -441,15 +441,19 @@ class Image {
 
     }
 
-    // Evaluate a function-like object defined in Lazy.h
+    // A macro to check if a type is castable to a lazy expression type
+    #define LazyType(T) typename ImageStack::Lazy::Lazyable<T>::t
+
+    // Evaluate a expression object defined in Lazy.h
     // The second template argument prevents instantiations from
-    // things that don't have a nested ::Lazy type
+    // things that don't satisfy the trait "lazyable"
     template<typename T>
-    void set(const T &func, const typename T::Lazy *enable = NULL) const {
+    void set(const T &expr_, const LazyType(T) *enable = NULL) const {
+        LazyType(T) expr(expr_);
         {
             assert(defined(), "Can't set undefined image\n");
-            int w = func.getSize(0), h = func.getSize(1),
-                f = func.getSize(2), c = func.getSize(3);
+            int w = expr.getSize(0), h = expr.getSize(1),
+                f = expr.getSize(2), c = expr.getSize(3);
             assert((w == 0 || width == w) &&
                    (h == 0 || height == h) &&
                    (f == 0 || frames == f) &&
@@ -467,7 +471,7 @@ class Image {
                 #endif
                 for (int y = 0; y < height; y++) {
                     const int w = width;
-                    const typename T::Iter iter = func.scanline(y, t, c);
+                    const LazyType(T)::Iter iter = expr.scanline(y, t, c);
                     float * const dst = base + c*cstride + t*tstride + y*ystride;
                     
                     int x = 0;                      
@@ -493,13 +497,15 @@ class Image {
             }   
         }
     }
-
+    
+    /*
     // Special-case setting an image to a float value, because it
     // won't implicitly cast things like int literals to Lazy::Const
     // via float, and I'd like to be able to say image.set(1);
     void set(float x) const {
         set(ImageStack::Lazy::Const(x));
     }
+    */
 
     // A version of set that takes a set of up to 4 expressions and
     // sets the image's channels accordingly. This is more efficient
@@ -509,32 +515,41 @@ class Image {
     // problems when, for example, permuting channels.
     template<typename A, typename B, typename C, typename D>
     void setChannels(const A &a, const B &b, const C &c, const D &d,
-                     typename A::Lazy *pa = NULL,
-                     typename B::Lazy *pb = NULL,
-                     typename C::Lazy *pc = NULL,
-                     typename D::Lazy *pd = NULL) const {
-        setChannelsGeneric<4, A, B, C, D>(a, b, c, d);
+                     LazyType(A) *pa = NULL,
+                     LazyType(B) *pb = NULL,
+                     LazyType(C) *pc = NULL,
+                     LazyType(D) *pd = NULL) const {
+        setChannelsGeneric<4, LazyType(A), LazyType(B), LazyType(C), LazyType(D)>(
+            LazyType(A)(a), 
+            LazyType(B)(b), 
+            LazyType(C)(c), 
+            LazyType(D)(d));
     }
 
     template<typename A, typename B, typename C>
     void setChannels(const A &a, const B &b, const C &c,
-                     typename A::Lazy *pa = NULL,
-                     typename B::Lazy *pb = NULL,
-                     typename C::Lazy *pc = NULL) const {
-        setChannelsGeneric<3, A, B, C, ImageStack::Lazy::Const>(a, b, c, ImageStack::Lazy::Const(0));
+                     LazyType(A) *pa = NULL,
+                     LazyType(B) *pb = NULL,
+                     LazyType(C) *pc = NULL) const {
+        setChannelsGeneric<3, LazyType(A), LazyType(B), LazyType(C), LazyType(float)>(
+            LazyType(A)(a), 
+            LazyType(B)(b), 
+            LazyType(C)(c), 
+            LazyType(float)(0));
     }
 
     template<typename A, typename B>
     void setChannels(const A &a, const B &b,
-                     typename A::Lazy *pa = NULL,
-                     typename B::Lazy *pb = NULL) const {
-        setChannelsGeneric<2, A, B, ImageStack::Lazy::Const, ImageStack::Lazy::Const>(
-            a, b,
-            ImageStack::Lazy::Const(0),
-            ImageStack::Lazy::Const(0));
+                     LazyType(A) *pa = NULL,
+                     LazyType(B) *pb = NULL) const {
+        setChannelsGeneric<2, LazyType(A), LazyType(B), LazyType(float), LazyType(float)>(
+            LazyType(A)(a), 
+            LazyType(B)(b), 
+            LazyType(float)(0),
+            LazyType(float)(0));
     }
 
-    // An image itself is one such function-like thing. Here's the
+    // An image itself is one such expression thing. Here's the
     // interface it needs to implement for that to happen:
     typedef Image Lazy;
     int getSize(int i) const {
@@ -558,8 +573,10 @@ class Image {
         return Iter(base + y*ystride + t*tstride + c*cstride);
     }
 
-    // Construct an image from a function-like thing
-    template<typename T>    
+    // Construct an image from a bounded expression object. No consts
+    // allowed, so we require a ::Lazy subtype instead of the more
+    // general LazyType(T) macro.
+    template<typename T>
     Image(const T &func, const typename T::Lazy *ptr = NULL) :
         width(0), height(0), frames(0), channels(0), 
         ystride(0), tstride(0), cstride(0), data(), base(NULL) { 
@@ -722,6 +739,9 @@ class Image {
     std::shared_ptr<const Payload> data;
     float * base;
 };
+
+// Clean up after myself
+#undef LazyType
 
 #include "footer.h"
 #endif
