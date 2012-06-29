@@ -384,8 +384,6 @@ void BidirectionalSimilarity::apply(Image source, Image target,
         }
     }
 
-    Save::apply(target, "before.tmp");
-
     printf("%dx%d ", target.width, target.height); fflush(stdout);
     for (int i = 0; i < numIter; i++) {
         printf("."); fflush(stdout);
@@ -393,7 +391,7 @@ void BidirectionalSimilarity::apply(Image source, Image target,
         int patchSize = 5;
 
         // The homogeneous output for this iteration
-        Image out(target.width, target.height, target.frames, target.channels+1);
+        Image out(target.width, target.height, target.frames, target.channels+1);        
 
         if (alpha != 0) {
 
@@ -407,7 +405,22 @@ void BidirectionalSimilarity::apply(Image source, Image target,
                 for (int y = 0; y < source.height; y++) {
                     for (int x = 0; x < source.width; x++) {
 
-                        if (!(sourceMask.defined()) || sourceMask(x, y, t, 0) > 0) {
+                        // Compute the source total patch weight here
+                        float patchWeight = 0;
+                        if (sourceMask.defined()) {
+                            for (int dy = -patchSize/2; dy <= patchSize/2; dy++) {
+                                if (y+dy < 0) continue; 
+                                if (y+dy >= source.height) break;
+                                for (int dx = -patchSize/2; dx <= patchSize/2; dx++) {
+                                    if (x+dx < 0) continue;
+                                    if (x+dx >= source.width) break;
+                                    patchWeight += sourceMask(x+dx, y+dy, t, 0);
+                                }
+                            }
+                        }
+
+                        // Don't use source patches that aren't completely defined
+                        if (!(sourceMask.defined()) || patchWeight == patchSize * patchSize) {
 
                             int dstX = (int)completeMatch(x, y, t, 0);
                             int dstY = (int)completeMatch(x, y, t, 1);
@@ -423,10 +436,16 @@ void BidirectionalSimilarity::apply(Image source, Image target,
                                     if (x+dx < 0) continue;
 				    if (x+dx >= source.width) break;
 
+                                    float w = weight;
+                                    if (targetMask.defined()) {
+                                        w *= targetMask(dstX + dx, dstY + dy, dstT, 0);
+                                    }
+                                    if (w == 0) continue;
+
 				    for (int c = 0; c < source.channels; c++) {
-					out(dstX+dx, dstY+dy, dstT, c) += weight*source(x+dx, y+dy, t, c);
+					out(dstX+dx, dstY+dy, dstT, c) += w*source(x+dx, y+dy, t, c);
 				    }
-				    out(dstX+dx, dstY+dy, dstT, source.channels) += weight;
+				    out(dstX+dx, dstY+dy, dstT, source.channels) += w;
                                 }
                             }
                         }
@@ -444,26 +463,41 @@ void BidirectionalSimilarity::apply(Image source, Image target,
                 for (int y = 0; y < target.height; y++) {
                     for (int x = 0; x < target.width; x++) {
 
-                        if (!targetMask.defined() || targetMask(x, y, t, 0) > 0) {
-
-                            int dstX = (int)coherentMatch(x, y, t, 0);
-                            int dstY = (int)coherentMatch(x, y, t, 1);
-                            int dstT = (int)coherentMatch(x, y, t, 2);
-                            float weight = 1.0f/(coherentMatch(x, y, t, 3)+1);
-
-                            if (targetMask.defined()) weight *= targetMask(x, y, t, 0);
-
+                        // Weight at this patch. If there's a lot
+                        // of zeros the the target is partially-defined
+                        // here and we should be very forceful.                            
+                        float patchWeight = 1;
+                        if (targetMask.defined()) {
                             for (int dy = -patchSize/2; dy <= patchSize/2; dy++) {
                                 if (y+dy < 0) { continue; }
                                 if (y+dy >= out.height) { break; }
                                 for (int dx = -patchSize/2; dx <= patchSize/2; dx++) {
                                     if (x+dx < 0) continue;
-				    if (x+dx >= out.width) break;
-				    for (int c = 0; c < source.channels; c++) {
-					out(x+dx, y+dy, t, c) += weight*source(dstX+dx, dstY+dy, dstT, c);
-				    }
-				    out(x+dx, y+dy, t, source.channels) += weight;
+                                    if (x+dx >= out.width) break;
+                                    patchWeight += 1-targetMask(x+dx, y+dy, t, 0);
                                 }
+                            } 
+                        }                                            
+
+                        int dstX = (int)coherentMatch(x, y, t, 0);
+                        int dstY = (int)coherentMatch(x, y, t, 1);
+                        int dstT = (int)coherentMatch(x, y, t, 2);
+                        float weight = 1/(coherentMatch(x, y, t, 3)+1);
+
+                        weight *= patchWeight*patchWeight;
+
+                        for (int dy = -patchSize/2; dy <= patchSize/2; dy++) {
+                            if (y+dy < 0) { continue; }
+                            if (y+dy >= out.height) { break; }
+                            for (int dx = -patchSize/2; dx <= patchSize/2; dx++) {
+                                if (x+dx < 0) continue;
+                                if (x+dx >= out.width) break;
+                                float w = weight;
+                                if (targetMask.defined()) w *= targetMask(x+dx, y+dy, t, 0);
+                                for (int c = 0; c < source.channels; c++) {
+                                    out(x+dx, y+dy, t, c) += w*source(dstX+dx, dstY+dy, dstT, c);
+                                }
+                                out(x+dx, y+dy, t, source.channels) += w;
                             }
                         }
                     }
@@ -472,29 +506,18 @@ void BidirectionalSimilarity::apply(Image source, Image target,
         }
 
         // rewrite the target using the homogeneous output
-        for (int t = 0; t < out.frames; t++) {
-            for (int y = 0; y < out.height; y++) {
-                for (int x = 0; x < out.width; x++) {
-                    float w = 1.0f/(out(x, y, t, target.channels));
-                    float a = 1;
-                    if (targetMask.defined()) {
-                        a = targetMask(x, y, t, 0);
-                    }
-                    if (a == 1) {
-                        for (int c = 0; c < target.channels; c++) {
-			    target(x, y, t, c) = w*out(x, y, t, c);
-                        }
-                    } else if (a > 0) {
-                        for (int c = 0; c < target.channels; c++) {
-			    target(x, y, t, c) *= 1-a;
-			    target(x, y, t, c) += a*w*out(x, y, t, c);
-                        }
-                    }
-                }
-            }
+        
+        for (int c = 0; c < out.channels-1; c++) {
+            out.channel(c) /= out.channel(out.channels-1) + 1e-10;
         }
+
+        if (targetMask.defined()) {
+            Composite::apply(target, out.selectChannels(0, target.channels), targetMask);
+        } else {
+            target.set(out.selectChannels(0, target.channels));
+        }
+        
     }
-    Save::apply(target, "after.tmp");
     printf("\n");
 }
 
@@ -524,7 +547,7 @@ void Heal::parse(vector<string> args) {
     // First inpaint across the hole and add noise
     image.set(Inpaint::apply(image, mask));
     Image noise(image.width, image.height, image.frames, image.channels);
-    Noise::apply(noise, -0.2, 0.2);
+    Noise::apply(noise, -0.3, 0.3);
     for (int c = 0; c < image.channels; c++) {
         noise.channel(c) *= (1-mask);
     }
@@ -534,5 +557,6 @@ void Heal::parse(vector<string> args) {
     if (args.size() > 1) { numIterPM = readInt(args[1]); }
 
     BidirectionalSimilarity::apply(image.copy(), image, mask, 1-mask, 0, numIter, numIterPM);
+
 }
 #include "footer.h"

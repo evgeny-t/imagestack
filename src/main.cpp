@@ -235,7 +235,7 @@ int main(int argc, char **argv) {
     try {
         parseCommands(args);
     } catch (Exception &e) {
-        printf("%s", e.message);
+        printf("%s\n", e.message);
     }
 
     fflush(stdout);
