@@ -49,12 +49,12 @@ Image ColorMatrix::apply(Image im, const vector<float> &matrix) {
 Image ColorMatrix::apply(Image im, const float *matrix, int outChannels) {
 
     Image out(im.width, im.height, im.frames, outChannels);
-   
+
     for (int i = 0; i < out.channels; i++) {
         for (int c = 0; c < im.channels; c++) {
             float m = matrix[i*im.channels + c];
             // This makes matrices with many zero elements faster
-            if (m == 0) continue; 
+            if (m == 0) continue;
             if (m == 1) {
                 // Another common case
                 out.channel(i) += im.channel(c);
@@ -89,11 +89,11 @@ bool ColorConvert::test() {
     string spaces[] = {"xyz", "rgb", "argb", "yuv", "lab", "hsv"};
     for (int i = 0; i < 6; i++) {
         for (int j = 0; j < i; j++) {
-            printf("%s -> %s -> %s\n", spaces[j].c_str(), spaces[i].c_str(), spaces[j].c_str());            
+            printf("%s -> %s -> %s\n", spaces[j].c_str(), spaces[i].c_str(), spaces[j].c_str());
             Image to = apply(a, spaces[j], spaces[i]);
             Image from = apply(to, spaces[i], spaces[j]);
             if (!nearlyEqual(a, from)) return false;
-        }    
+        }
         {
             // Check luminance is preserved
             printf("y -> %s -> y\n", spaces[i].c_str());
@@ -197,7 +197,7 @@ Image ColorConvert::xyz2lab(Image im) {
     float Zn = 1.0f/(0.019334 + 0.119193 + 0.950227);
 
     Image X = im.channel(0), Y = im.channel(1), Z = im.channel(2);
-    Image L = out.channel(0), a = out.channel(1), b = out.channel(2);    
+    Image L = out.channel(0), a = out.channel(1), b = out.channel(2);
 
     // First apply a non-linear mapping to X, Y, Z. use the output as scratch space.
     Image Xt = L, Yt = a, Zt = b;
@@ -207,7 +207,7 @@ Image ColorConvert::xyz2lab(Image im) {
 
     // Then apply the affine transform
     out.setChannels(1.16f * Yt - 0.16f,
-                    5.0f * (Xt - Yt),          
+                    5.0f * (Xt - Yt),
                     2.0f * (Yt - Zt));
     return out;
 }
@@ -227,9 +227,9 @@ Image ColorConvert::lab2xyz(Image im) {
 
     // Apply the affine transform
     Y.set((L + 0.16f)/1.16f);
-    X.set(Y + a/5.0f); 
-    Z.set(Y - b/2.0f); 
-    
+    X.set(Y + a/5.0f);
+    Z.set(Y - b/2.0f);
+
     // Then the nonlinear curve
     X.set(Select(X > s, Xn*X*X*X, (X-16.0/116)*3*s*s*Xn));
     Y.set(Select(Y > s, Yn*Y*Y*Y, (Y-16.0/116)*3*s*s*Yn));
@@ -367,7 +367,7 @@ Image ColorConvert::rgb2y(Image im) {
 Image ColorConvert::y2rgb(Image im) {
     assert(im.channels == 1, "Image does not have one channel\n");
 
-    Image out(im.width, im.height, im.frames, 3);   
+    Image out(im.width, im.height, im.frames, 3);
 
     out.setChannels(im, im, im);
 
@@ -378,8 +378,8 @@ Image ColorConvert::rgb2yuv(Image im) {
     assert(im.channels == 3, "Image does not have 3 channels\n");
 
     Image out(im.width, im.height, im.frames, 3);
-    Image r = im.channel(0), g = im.channel(1), b = im.channel(2);    
-    out.setChannels(0.299f * r + 0.587f * g + 0.114f * b, 
+    Image r = im.channel(0), g = im.channel(1), b = im.channel(2);
+    out.setChannels(0.299f * r + 0.587f * g + 0.114f * b,
                     -0.169f * r - 0.332f * g + 0.500f * b + 0.5f,
                     0.500f * r - 0.419f * g - 0.0813f * b + 0.5f);
     return out;
@@ -400,14 +400,14 @@ Image ColorConvert::rgb2xyz(Image im) {
     assert(im.channels == 3, "Image does not have 3 channels\n");
 
     // convert to linear luminance srgb
-    Image out = Select(im <= 0.04045f, 
-                       im/12.95f, 
-                       pow(max((im + 0.055f)/1.055f, 0), 2.4f)); 
+    Image out = Select(im <= 0.04045f,
+                       im/12.95f,
+                       pow(max((im + 0.055f)/1.055f, 0), 2.4f));
     Image r = out.channel(0), g = out.channel(1), b = out.channel(2);
 
     // Apply the linear transform to get to xyz
     out.setChannels(0.4124f * r + 0.3576f * g + 0.1805f * b,
-                    0.2126f * r + 0.7152f * g + 0.0722f * b,                    
+                    0.2126f * r + 0.7152f * g + 0.0722f * b,
                     0.0193f * r + 0.1192f * g + 0.9505f * b);
     return out;
 }
@@ -420,8 +420,8 @@ Image ColorConvert::xyz2rgb(Image im) {
     Image x = im.channel(0), y = im.channel(1), z = im.channel(2);
     out.setChannels(3.2406f * x - 1.5372f * y - 0.4986f * z,
                     -0.9689f * x + 1.8758f * y + 0.0415f * z,
-                    0.0557f * x - 0.2040f * y + 1.0570f * z);                    
-    
+                    0.0557f * x - 0.2040f * y + 1.0570f * z);
+
     // Convert from linear luminance to gamma-encoded srgb
     out.set(Select(out <= 0.0031308f,
                    12.92f * out,
@@ -442,7 +442,7 @@ Image ColorConvert::uyvy2yuv(Image im) {
     for (int t = 0; t < out.frames; t++) {
         for (int y = 0; y < out.height; y++) {
             for (int x = 0; x < out.width; x+=2) {
-                out(x, y, t, 0) = im(x, y, t, 1); 
+                out(x, y, t, 0) = im(x, y, t, 1);
                 out(x, y, t, 1) = im(x, y, t, 0);
                 out(x, y, t, 2) = im(x+1, y, t, 0);
                 out(x+1, y, t, 0) = im(x+1, y, t, 1);
@@ -467,7 +467,7 @@ Image ColorConvert::yuyv2yuv(Image im) {
     for (int t = 0; t < out.frames; t++) {
         for (int y = 0; y < out.height; y++) {
             for (int x = 0; x < out.width; x+=2) {
-                out(x, y, t, 0) = im(x, y, t, 0); 
+                out(x, y, t, 0) = im(x, y, t, 0);
                 out(x, y, t, 1) = im(x, y, t, 1);
                 out(x, y, t, 2) = im(x+1, y, t, 1);
                 out(x+1, y, t, 0) = im(x+1, y, t, 0);
@@ -498,7 +498,7 @@ Image ColorConvert::argb2xyz(Image im) {
     // Apply argb to xyz linear transform
     out.setChannels(0.57667f * r + 0.18556f * g + 0.18823f * b,
                     0.29734f * r + 0.62736f * g + 0.07529f * b,
-                    0.02703f * r + 0.07069f * g + 0.99134f * b);   
+                    0.02703f * r + 0.07069f * g + 0.99134f * b);
 
     return out;
 }
@@ -780,7 +780,7 @@ Image Demosaic::apply(Image im, int xoff, int yoff, bool awb) {
             }
             for (int y = 0; y < im.height; y++) {
                 out(0, y, t, c) = 0;
-                out(1, y, t, c) = 0; 
+                out(1, y, t, c) = 0;
                 out(im.width-1, y, t, c) = 0;
                 out(im.width-2, y, t, c) = 0;
             }

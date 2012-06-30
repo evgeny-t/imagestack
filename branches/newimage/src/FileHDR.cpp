@@ -360,11 +360,11 @@ void save(Image im, string filename) {
     // Read image
     vector<float> scanline(im.width*3);
     for (int y = 0; y < im.height; y++) {
-	for (int x = 0; x < im.width; x++) {
-	    scanline[x*3+0] = im(x, y, 0);
-	    scanline[x*3+1] = im(x, y, 1);
-	    scanline[x*3+2] = im(x, y, 2);
-	}
+        for (int x = 0; x < im.width; x++) {
+            scanline[x*3+0] = im(x, y, 0);
+            scanline[x*3+1] = im(x, y, 1);
+            scanline[x*3+2] = im(x, y, 2);
+        }
         fwritescan((COLOR *)&scanline[0], im.width, f);
     }
 
@@ -392,11 +392,11 @@ Image load(string filename) {
     vector<float> scanline(width*3);
     for (int y = 0; y < height; y++) {
         FileHDR::freadscan((COLOR *)(&scanline[0]), width, f);
-	for (int x = 0; x < width; x++) {
-	    im(x, y, 0) = scanline[x*3+0];
-	    im(x, y, 1) = scanline[x*3+1];
-	    im(x, y, 2) = scanline[x*3+2];
-	}
+        for (int x = 0; x < width; x++) {
+            im(x, y, 0) = scanline[x*3+0];
+            im(x, y, 1) = scanline[x*3+1];
+            im(x, y, 2) = scanline[x*3+2];
+        }
     }
 
     fclose(f);

@@ -10,19 +10,19 @@
 //#define HDR_DEBUG
 
 void AssembleHDR::help() {
-  pprintf("-assemblehdr takes a volume in which each frame is a linear luminance"
-          " image taken at a different exposure, and compiles them all into a"
-          " single HDR image, gracefully handling oversaturated regions.\n"
-          "\n"
-          "If exposure values are known, they can be given in increasing frame"
-          " order. Otherwise, assemblehdr attempts to discover the exposure ratios"
-          " itself, which may fail if there are very few pixels that are properly"
-          " imaged in multiple frames. For best results, load the frames in either"
-          " increasing or decreasing exposure order.\n"
-          "\n"
-          "Usage: ImageStack -loadframes input*.jpg -gamma 0.45 -assemblehdr -save out.exr\n"
-          "   or  ImageStack -loadframes input*.jpg -gamma 0.45 -assemblehdr 1.0 0.5 0.1\n"
-          "                  -save output.exr\n");
+    pprintf("-assemblehdr takes a volume in which each frame is a linear luminance"
+            " image taken at a different exposure, and compiles them all into a"
+            " single HDR image, gracefully handling oversaturated regions.\n"
+            "\n"
+            "If exposure values are known, they can be given in increasing frame"
+            " order. Otherwise, assemblehdr attempts to discover the exposure ratios"
+            " itself, which may fail if there are very few pixels that are properly"
+            " imaged in multiple frames. For best results, load the frames in either"
+            " increasing or decreasing exposure order.\n"
+            "\n"
+            "Usage: ImageStack -loadframes input*.jpg -gamma 0.45 -assemblehdr -save out.exr\n"
+            "   or  ImageStack -loadframes input*.jpg -gamma 0.45 -assemblehdr 1.0 0.5 0.1\n"
+            "                  -save output.exr\n");
 
 }
 
@@ -89,8 +89,8 @@ struct gammaInfo {
 };
 
 Image AssembleHDR::apply(Image frames, const vector<float> &exposures, string gamma) {
-    assert(frames.frames == (int)exposures.size(), 
-	   "AssembleHDR::applyKnownExposures - mismatched exposure and frame counts");
+    assert(frames.frames == (int)exposures.size(),
+           "AssembleHDR::applyKnownExposures - mismatched exposure and frame counts");
     // Figure out gamma conversion
     gammaInfo gi;
     gi.gamma = 1.0; // to get rid of warning
@@ -159,14 +159,14 @@ Image AssembleHDR::apply(Image frames, const vector<float> &exposures, string ga
         int count = 0;
         for (int y = 0; y < frames.height; y++) {
             for (int x = 0; x < frames.width; x++) {
-		float maxVal = frames(x, y, t, 0);
-		for (int c = 1; c < frames.channels; c++) {
-		    maxVal = max(frames(x, y, t, c), maxVal);
-		}
+                float maxVal = frames(x, y, t, 0);
+                for (int c = 1; c < frames.channels; c++) {
+                    maxVal = max(frames(x, y, t, c), maxVal);
+                }
                 float w = weightFunc(maxVal, cutoff);
-                if (w < 1.0) { 
-		    count++; 
-		}
+                if (w < 1.0) {
+                    count++;
+                }
                 weight(x, y) += w;
                 if (gi.type == gammaInfo::None) {
                     for (int c = 0; c < frames.channels; c++) {
@@ -188,7 +188,7 @@ Image AssembleHDR::apply(Image frames, const vector<float> &exposures, string ga
                frames.height*frames.width-count,
                frames.height*frames.width,
                100*((float)(frames.height*frames.width-count)/
-		    (frames.height*frames.width)));
+                    (frames.height*frames.width)));
     }
 
     for (int c = 0; c < out.channels; c++) {
@@ -216,7 +216,7 @@ Image AssembleHDR::apply(Image frames) {
         double mean = 0;
         for (int y = 0; y < frames.height; y++) {
             for (int x = 0; x < frames.width; x++) {
-		mean += frames(x, y, t, 0);
+                mean += frames(x, y, t, 0);
             }
         }
         if (t == 0) {
@@ -250,10 +250,10 @@ Image AssembleHDR::apply(Image frames) {
 
     for (int y = 0; y < frames.height; y++) {
         for (int x = 0; x < frames.width; x++) {
-	    float maxVal = frames(x, y, 0, 0);
-	    for (int c = 1; c < frames.channels; c++) {
-		maxVal = max(frames(x, y, 0, c), maxVal);
-	    }
+            float maxVal = frames(x, y, 0, 0);
+            for (int c = 1; c < frames.channels; c++) {
+                maxVal = max(frames(x, y, 0, c), maxVal);
+            }
             float w = weightFunc(maxVal, cutoff);
             weight(x, y) = w;
             for (int c = 0; c < frames.channels; c++) {
@@ -283,20 +283,20 @@ Image AssembleHDR::apply(Image frames) {
                     continue;
                 }
 
-		float maxVal = frames(x, y, t, 0);
-		for (int c = 1; c < frames.channels; c++) {
-		    maxVal = max(frames(x, y, t, c), maxVal);
-		}
-		if (weightFunc(maxVal, Regular) < 1.0) {
+                float maxVal = frames(x, y, t, 0);
+                for (int c = 1; c < frames.channels; c++) {
+                    maxVal = max(frames(x, y, t, c), maxVal);
+                }
+                if (weightFunc(maxVal, Regular) < 1.0) {
                     continue;
                 }
                 for (int c = 0; c < frames.channels; c++) {
                     float valOld = out(x, y, c) / weightOld;
                     float valNew = frames(x, y, t, c);
                     if (weightFunc(valNew, Regular) < 1.0) {
-			// Some color channels may be zero even for good pixels
-			continue; 
-		    } 
+                        // Some color channels may be zero even for good pixels
+                        continue;
+                    }
                     ratio += valOld / valNew;
                     count++;
                 }
@@ -319,11 +319,11 @@ Image AssembleHDR::apply(Image frames) {
         // add that frame in
         for (int y = 0; y < frames.height; y++) {
             for (int x = 0; x < frames.width; x++) {
-		float maxVal = frames(x, y, t, 0);
-		for (int c = 1; c < frames.channels; c++) {
-		    maxVal = max(frames(x, y, t, c), maxVal);
-		}
-		float w = weightFunc(maxVal, cutoff);
+                float maxVal = frames(x, y, t, 0);
+                for (int c = 1; c < frames.channels; c++) {
+                    maxVal = max(frames(x, y, t, c), maxVal);
+                }
+                float w = weightFunc(maxVal, cutoff);
                 weight(x, y) += w;
                 for (int c = 0; c < frames.channels; c++) {
                     out(x, y, c) += w * ratio * frames(x, y, t, c);

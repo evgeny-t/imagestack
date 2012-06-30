@@ -59,7 +59,7 @@ public:
 };
 
 class MinFilter : public Operation {
-  public:
+public:
     void help();
     bool test();
     void parse(vector<string> args);
@@ -67,7 +67,7 @@ class MinFilter : public Operation {
 };
 
 class MaxFilter : public Operation {
-  public:
+public:
     void help();
     bool test();
     void parse(vector<string> args);

@@ -22,12 +22,12 @@ void save(Image im, string filename) {
     fprintf(f, "\n");
 
     for (int c = 0; c < im.channels; c++) {
-	for (int t = 0; t < im.frames; t++) {
-	    for (int y = 0; y < im.height; y++) {
-		for (int x = 0; x < im.width; x++) {
-		    fprintf(f, "%f ", im(x, y, t, c));
+        for (int t = 0; t < im.frames; t++) {
+            for (int y = 0; y < im.height; y++) {
+                for (int x = 0; x < im.width; x++) {
+                    fprintf(f, "%f ", im(x, y, t, c));
                 }
-		fprintf(f, "\n");
+                fprintf(f, "\n");
             }
             fprintf(f, "\n");
         }
@@ -71,9 +71,9 @@ Image load(string filename) {
 
     // read the data
     for (int c = 0; c < im.channels; c++) {
-	for (int t = 0; t < im.frames; t++) {
-	    for (int y = 0; y < im.height; y++) {
-		for (int x = 0; x < im.width; x++) {		    
+        for (int t = 0; t < im.frames; t++) {
+            for (int y = 0; y < im.height; y++) {
+                for (int x = 0; x < im.width; x++) {
                     assert(fscanf(f, "%f", &im(x, y, t, c)) == 1,
                            "Unexpected end of file reading %s\n", filename.c_str());
                 }

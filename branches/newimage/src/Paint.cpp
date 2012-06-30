@@ -22,55 +22,55 @@ bool Eval::test() {
 
     // Test basic arithmetic and channel selection
     {
-	printf("Testing arithmetic\n");
-	Image a = Eval::apply(im, "[1]*2 + val");
+        printf("Testing arithmetic\n");
+        Image a = Eval::apply(im, "[1]*2 + val");
         Image b(a.width, a.height, a.frames, a.channels);
-        b.setChannels(im.channel(1)*2 + im.channel(0), 
-                      im.channel(1)*2 + im.channel(1), 
+        b.setChannels(im.channel(1)*2 + im.channel(0),
+                      im.channel(1)*2 + im.channel(1),
                       im.channel(1)*2 + im.channel(2));
-	if (!nearlyEqual(a, b)) return false;
+        if (!nearlyEqual(a, b)) return false;
     }
 
     // Test some transcendentals
     {
-	printf("Testing transcendentals\n");
-	Image a = Eval::apply(im, "abs(cos(50*(log(exp(val-2) + 1))))");
-	Image b = abs(cos(50*(log(exp(im-2) + 1))));
-	if (!nearlyEqual(a, b)) return false;
+        printf("Testing transcendentals\n");
+        Image a = Eval::apply(im, "abs(cos(50*(log(exp(val-2) + 1))))");
+        Image b = abs(cos(50*(log(exp(im-2) + 1))));
+        if (!nearlyEqual(a, b)) return false;
     }
 
 
     // Test conditional
     {
-	printf("Testing conditionals\n");
-	Stats ims(im);
-	Image a = Eval::apply(im, "val > 0.5 ? (val / mean(2) + skew(0)) : -covariance(0, 1)");
-	Image b = Select(im > 0.5, im / ims.mean(2) + ims.skew(0), -ims.covariance(0, 1));
-	if (!nearlyEqual(a, b)) return false;
+        printf("Testing conditionals\n");
+        Stats ims(im);
+        Image a = Eval::apply(im, "val > 0.5 ? (val / mean(2) + skew(0)) : -covariance(0, 1)");
+        Image b = Select(im > 0.5, im / ims.mean(2) + ims.skew(0), -ims.covariance(0, 1));
+        if (!nearlyEqual(a, b)) return false;
     }
 
     // Test some more comparisons
     {
-	printf("Testing comparisons\n");
-	Stats ims(im);
-	Image a = Eval::apply(im, "(val > 0.5) + (x <= 50) + (y >= 10) + (c < 2) + (y != 23) + (x == 22)");
-	Image b = (Select(im > 0.5, 1.0f, 0.0f) + 
+        printf("Testing comparisons\n");
+        Stats ims(im);
+        Image a = Eval::apply(im, "(val > 0.5) + (x <= 50) + (y >= 10) + (c < 2) + (y != 23) + (x == 22)");
+        Image b = (Select(im > 0.5, 1.0f, 0.0f) +
                    Select(X() <= 50, 1.0f, 0.0f) +
-                   Select(Y() >= 10, 1.0f, 0.0f) + 
-                   Select(C() < 2, 1.0f, 0.0f) + 
-                   Select(Y() != 23, 1.0f, 0.0f) + 
+                   Select(Y() >= 10, 1.0f, 0.0f) +
+                   Select(C() < 2, 1.0f, 0.0f) +
+                   Select(Y() != 23, 1.0f, 0.0f) +
                    Select(X() == 22, 1.0f, 0.0f));
-	if (!nearlyEqual(a, b)) return false;
+        if (!nearlyEqual(a, b)) return false;
     }
 
     // Test sampling
     {
-	printf("Testing sampling\n");
-	Stats ims(im);
-	Image a = Eval::apply(im, "[x*0.8 + y*0.2, -x*0.2 + y*0.8]");
-	float matrix[] = {0.8, 0.2, 0, -0.2, 0.8, 0};
-	Image b = AffineWarp::apply(im, matrix);
-	if (!nearlyEqual(a, b)) return false;
+        printf("Testing sampling\n");
+        Stats ims(im);
+        Image a = Eval::apply(im, "[x*0.8 + y*0.2, -x*0.2 + y*0.8]");
+        float matrix[] = {0.8, 0.2, 0, -0.2, 0.8, 0};
+        Image b = AffineWarp::apply(im, matrix);
+        if (!nearlyEqual(a, b)) return false;
     }
 
     return true;
@@ -125,7 +125,7 @@ bool EvalChannels::test() {
     b.setChannels(im.channel(2)+1,
                   im.channel(0)/17,
                   im.channel(1) + Select(X() > 10, 50, 0));
-    return nearlyEqual(a, b);   
+    return nearlyEqual(a, b);
 }
 
 void EvalChannels::parse(vector<string> args) {
@@ -279,12 +279,12 @@ bool Composite::test() {
     Composite::apply(c, b, mask);
 
     for (int i = 0; i < 100; i++) {
-	int y = randomInt(0, a.height-1);
-	int x = randomInt(0, a.width-1);
-	float m = (x+y)/(123.0f + 234.0f);
-	float val = c(x, y, 1);
-	float correct = m*b(x, y, 1) + (1-m)*a(x, y, 1);
-	if (!nearlyEqual(val, correct)) return false;
+        int y = randomInt(0, a.height-1);
+        int x = randomInt(0, a.width-1);
+        float m = (x+y)/(123.0f + 234.0f);
+        float val = c(x, y, 1);
+        float correct = m*b(x, y, 1) + (1-m)*a(x, y, 1);
+        if (!nearlyEqual(val, correct)) return false;
     }
 
     return true;
@@ -309,17 +309,17 @@ void Composite::apply(Image dst, Image src) {
            "Source image and destination image must either have matching channel"
            " counts (if they both have an alpha channel), or the source image"
            " should have one more channel than the destination.\n");
-    assert(dst.frames == src.frames && dst.width == src.width 
+    assert(dst.frames == src.frames && dst.width == src.width
            && dst.height == src.height,
            "The source and destination images must be the same size\n");
 
     if (src.channels > dst.channels) {
-        apply(dst, 
-              src.region(0, 0, 0, 0, 
-			 src.width, src.height, 
-			 src.frames, dst.channels),
+        apply(dst,
+              src.region(0, 0, 0, 0,
+                         src.width, src.height,
+                         src.frames, dst.channels),
               src.channel(dst.channels));
-              
+
     } else {
         apply(dst, src, src.channel(dst.channels-1));
     }
@@ -334,7 +334,7 @@ void Composite::apply(Image dst, Image src, Image mask) {
            "The source and destination images must be the same size as the mask\n");
 
     for (int c = 0; c < dst.channels; c++) {
-	dst.channel(c).set(mask*src.channel(c) + (1-mask)*dst.channel(c));
+        dst.channel(c).set(mask*src.channel(c) + (1-mask)*dst.channel(c));
     }
 }
 

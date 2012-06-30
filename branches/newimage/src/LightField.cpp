@@ -40,7 +40,7 @@ Image LFFocalStack::apply(LightField lf, float minAlpha, float maxAlpha, float d
 
     int t = 0;
     for (float alpha = minAlpha; alpha <= maxAlpha; alpha += deltaAlpha) {
-        printf("computing frame %i\n", t+1);	
+        printf("computing frame %i\n", t+1);
 
         // Extract, shift, prefilter, and accumulate each view
         for (int v = 0; v < lf.vSize; v++) {
@@ -49,7 +49,7 @@ Image LFFocalStack::apply(LightField lf, float minAlpha, float maxAlpha, float d
                 for (int y = 0; y < lf.ySize; y++) {
                     for (int x = 0; x < lf.xSize; x++) {
                         for (int c = 0; c < lf.image.channels; c++) {
-			    view(x, y, c) = lf(x, y, u, v, c);
+                            view(x, y, c) = lf(x, y, u, v, c);
                         }
                     }
                 }
@@ -67,7 +67,7 @@ Image LFFocalStack::apply(LightField lf, float minAlpha, float maxAlpha, float d
                 }
 
                 // Accumulate it into the output
-		out.frame(t) += view;
+                out.frame(t) += view;
             }
         }
 
@@ -126,11 +126,11 @@ Image LFWarp::apply(LightField lf, Image warper, bool quick) {
                 ly = warper(x, y, t, 1)*(lf.ySize-1);
                 lu = warper(x, y, t, 2)*(lf.uSize-1);
                 lv = warper(x, y, t, 3)*(lf.vSize-1);
-                if (!quick) {		    
+                if (!quick) {
                     lf.sample4D(lx, ly, lu, lv, t, &sample[0]);
-		    for (int c = 0; c < lf.image.channels; c++) {
-			out(x, y, t, c) = sample[c];
-		    }
+                    for (int c = 0; c < lf.image.channels; c++) {
+                        out(x, y, t, c) = sample[c];
+                    }
                 } else {
                     int ilx = (int)(lx + 0.5);
                     int ily = (int)(ly + 0.5);

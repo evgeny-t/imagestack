@@ -15,7 +15,7 @@ public:
 
     static Image apply(Image im, Image filter, BoundaryCondition b = Zero,
                        Multiply::Mode m = Multiply::Outer);
- private:
+private:
     static void convolveSingle(Image im, Image filter, Image out, BoundaryCondition b);
 };
 

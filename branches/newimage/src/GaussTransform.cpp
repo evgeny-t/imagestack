@@ -58,7 +58,7 @@ bool GaussTransform::test() {
     Image out;
 
     printf("Testing bilateral grid\n");
-    out = GaussTransform::apply(slice, splat, values, sigma, GRID);            
+    out = GaussTransform::apply(slice, splat, values, sigma, GRID);
     out = out.channel(0) / out.channel(1);
     if (!nearlyEqual(out, correct)) return false;
 
@@ -79,7 +79,7 @@ void GaussTransform::parse(vector<string> args) {
     Method m = EXACT;
 
     assert(args.size() > 0, "-gausstransform takes at least one argument");
- 
+
     if (args[0] == "exact") {
         m = EXACT;
     } else if (args[0] == "grid") {
@@ -105,7 +105,7 @@ void GaussTransform::parse(vector<string> args) {
         panic("-gausstransform takes one argument, two arguments, or one plus the"
               " number of channels in the second image on the stack arguments\n");
     }
- 
+
     Image im = apply(stack(0), stack(1), stack(2), sigmas, m);
     pop();
     push(im);
@@ -132,24 +132,24 @@ Image GaussTransform::apply(Image slice, Image splat, Image values,
 
     switch (method) {
     case EXACT: {
-        Image out(slice.width, slice.height, 
-		     slice.frames, values.channels);
+        Image out(slice.width, slice.height,
+                  slice.frames, values.channels);
         for (int t1 = 0; t1 < slice.frames; t1++) {
             for (int t2 = 0; t2 < splat.frames; t2++) {
                 for (int y1 = 0; y1 < slice.height; y1++) {
                     for (int y2 = 0; y2 < splat.height; y2++) {
                         for (int x1 = 0; x1 < slice.width; x1++) {
                             for (int x2 = 0; x2 < splat.width; x2++) {
-                                float dist = 0; 
+                                float dist = 0;
                                 for (int c = 0; c < splat.channels; c++) {
-				    float d = (slice(x1, y1, t1, c) -
-					       splat(x2, y2, t2, c));
-				    dist += d*d * invVar[c];
+                                    float d = (slice(x1, y1, t1, c) -
+                                               splat(x2, y2, t2, c));
+                                    dist += d*d * invVar[c];
                                 }
                                 float weight = fastexp(-dist);
-				
+
                                 for (int c = 0; c < values.channels; c++) {
-				    out(x1, y1, t1, c) += weight * values(x2, y2, t2, c);
+                                    out(x1, y1, t1, c) += weight * values(x2, y2, t2, c);
                                 }
                             }
                         }
@@ -168,16 +168,16 @@ Image GaussTransform::apply(Image slice, Image splat, Image values,
         //printf("Splatting...\n");
 
         vector<float> pos(splat.channels);
-	vector<float> val(values.channels);
+        vector<float> val(values.channels);
         for (int t = 0; t < splat.frames; t++) {
             for (int y = 0; y < splat.height; y++) {
                 for (int x = 0; x < splat.width; x++) {
                     for (int c = 0; c < splat.channels; c++) {
                         pos[c] = splat(x, y, t, c) * invSigma[c];
                     }
-		    for (int c = 0; c < values.channels; c++) {
-			val[c] = values(x, y, t, c);
-		    }
+                    for (int c = 0; c < values.channels; c++) {
+                        val[c] = values(x, y, t, c);
+                    }
                     lattice.splat(&pos[0], &val[0]);
                 }
             }
@@ -195,12 +195,12 @@ Image GaussTransform::apply(Image slice, Image splat, Image values,
         if (slice == splat) {
             lattice.beginSlice();
             for (int t = 0; t < slice.frames; t++) {
-                for (int y = 0; y < slice.height; y++) {		    
+                for (int y = 0; y < slice.height; y++) {
                     for (int x = 0; x < slice.width; x++) {
                         lattice.slice(&val[0]);
-			for (int c = 0; c < out.channels; c++) {
-			    out(x, y, t, c) = val[c];
-			}
+                        for (int c = 0; c < out.channels; c++) {
+                            out(x, y, t, c) = val[c];
+                        }
                     }
                 }
             }
@@ -212,9 +212,9 @@ Image GaussTransform::apply(Image slice, Image splat, Image values,
                             pos[c] = slice(x, y, t, c) * invSigma[c];
                         }
                         lattice.slice(&pos[0], &val[0]);
-			for (int c = 0; c < out.channels; c++) {
-			    out(x, y, t, c) = val[c];
-			}			    
+                        for (int c = 0; c < out.channels; c++) {
+                            out(x, y, t, c) = val[c];
+                        }
                     }
                 }
             }
@@ -230,7 +230,7 @@ Image GaussTransform::apply(Image slice, Image splat, Image values,
         // Splat into the grid
 
         vector<float> pos(splat.channels);
-	vector<float> val(values.channels);
+        vector<float> val(values.channels);
 
         //printf("Allocating...\n");
         for (int t = 0; t < splat.frames; t++) {
@@ -263,9 +263,9 @@ Image GaussTransform::apply(Image slice, Image splat, Image values,
                     for (int c = 0; c < splat.channels; c++) {
                         pos[c] = splat(x, y, t, c) * invSigma[c];
                     }
-		    for (int c = 0; c < values.channels; c++) {
-			val[c] = values(x, y, t, c);
-		    }
+                    for (int c = 0; c < values.channels; c++) {
+                        val[c] = values(x, y, t, c);
+                    }
                     grid.splat(&pos[0], &val[0]);
                 }
             }
@@ -286,9 +286,9 @@ Image GaussTransform::apply(Image slice, Image splat, Image values,
                         pos[c] = slice(x, y, t, c) * invSigma[c];
                     }
                     grid.slice(&pos[0], &val[0]);
-		    for (int c = 0; c < out.channels; c++) {
-			out(x, y, t, c) = val[c];
-		    }
+                    for (int c = 0; c < out.channels; c++) {
+                        out(x, y, t, c) = val[c];
+                    }
                 }
             }
         }
@@ -298,24 +298,24 @@ Image GaussTransform::apply(Image slice, Image splat, Image values,
     case GKDTREE: {
         printf("Building...\n");
 
-	// The gkdtree requires channels to be densely packed
-	vector<float> ref(splat.channels*splat.width*splat.height*splat.frames);
+        // The gkdtree requires channels to be densely packed
+        vector<float> ref(splat.channels*splat.width*splat.height*splat.frames);
         vector<float *> points(splat.width*splat.height*splat.frames);
-	{
-	    int i = 0;
-	    for (int t = 0; t < splat.frames; t++) {            
-		for (int y = 0; y < splat.height; y++) {
-		    for (int x = 0; x < splat.width; x++) {	      
-			float *ptr = &ref[i*splat.channels];
-			for (int c = 0; c < splat.channels; c++) {
-			    ptr[c] = invSigma[c] * splat(x, y, t, c);
-			}
-			points[i] = ptr;
-			i++;
-		    }
-		}
-	    }  
-	}
+        {
+            int i = 0;
+            for (int t = 0; t < splat.frames; t++) {
+                for (int y = 0; y < splat.height; y++) {
+                    for (int x = 0; x < splat.width; x++) {
+                        float *ptr = &ref[i*splat.channels];
+                        for (int c = 0; c < splat.channels; c++) {
+                            ptr[c] = invSigma[c] * splat(x, y, t, c);
+                        }
+                        points[i] = ptr;
+                        i++;
+                    }
+                }
+            }
+        }
 
         GKDTree tree(splat.channels, &points[0], points.size(), 2*0.707107);
 
@@ -324,9 +324,9 @@ Image GaussTransform::apply(Image slice, Image splat, Image values,
         printf("%d leaves.\n", tree.getLeaves());
         printf("Splatting...");
 
-        int SPLAT_ACCURACY = 4; 
+        int SPLAT_ACCURACY = 4;
         int SLICE_ACCURACY = 64;
- 
+
         vector<int> indices(max(SPLAT_ACCURACY, SLICE_ACCURACY));
         vector<float> weights(max(SPLAT_ACCURACY, SLICE_ACCURACY));
         vector<double> leafValues(tree.getLeaves()*values.channels);
@@ -341,18 +341,18 @@ Image GaussTransform::apply(Image slice, Image splat, Image values,
         leafScale /= splat.height;
         printf("Multiplying all weights by %f\n", leafScale);
 
-	float *refPtr = &ref[0];
+        float *refPtr = &ref[0];
 
         for (int t = 0; t < values.frames; t++) {
-            printf("."); 
+            printf(".");
             fflush(stdout);
             for (int y = 0; y < values.height; y++) {
                 for (int x = 0; x < values.width; x++) {
-                    int results = tree.gaussianLookup(refPtr, 
-						      &indices[0], 
-						      &weights[0], 
-						      SPLAT_ACCURACY);
-		    refPtr += splat.channels;
+                    int results = tree.gaussianLookup(refPtr,
+                                                      &indices[0],
+                                                      &weights[0],
+                                                      SPLAT_ACCURACY);
+                    refPtr += splat.channels;
                     for (int i = 0; i < results; i++) {
                         double w = weights[i];
 
@@ -380,17 +380,17 @@ Image GaussTransform::apply(Image slice, Image splat, Image values,
 
         printf("Slicing...");
         for (int t = 0; t < out.frames; t++) {
-            printf("."); 
+            printf(".");
             fflush(stdout);
             for (int y = 0; y < out.height; y++) {
                 for (int x = 0; x < out.width; x++) {
                     for (int c = 0; c < slice.channels; c++) {
                         pos[c] = slice(x, y, t, c) * invSigma[c];
                     }
-                    int results = tree.gaussianLookup(&pos[0], 
-						      &indices[0], 
-						      &weights[0],
-						      SLICE_ACCURACY);
+                    int results = tree.gaussianLookup(&pos[0],
+                                                      &indices[0],
+                                                      &weights[0],
+                                                      SLICE_ACCURACY);
                     for (int c = 0; c < out.channels; c++) {
                         outDbl[c] = 0;
                     }
@@ -405,7 +405,7 @@ Image GaussTransform::apply(Image slice, Image splat, Image values,
                         for (int c = 0; c < out.channels; c++) {
                             outDbl[c] += vPtr[c]*w;
                         }
-                    }                    
+                    }
 
                     for (int c = 0; c < out.channels; c++) {
                         out(x, y, t, c) = (float)outDbl[c];
@@ -450,7 +450,7 @@ bool JointBilateral::test() {
     printf("Computing exact solution\n");
     Image out, correct = im.copy();
     JointBilateral::apply(correct, ref, 3, 4, 1, 0.25, GaussTransform::EXACT);
- 
+
     printf("Testing bilateral grid\n");
     out = im.copy();
     JointBilateral::apply(out, ref, 3, 4, 1, 0.25, GaussTransform::GRID);
@@ -569,8 +569,8 @@ void JointBilateral::apply(Image im, Image ref,
         Image filter(filterSizeX, filterSizeY, filterSizeT, 1);
 
         for (int t = 0; t < filter.frames; t++) {
-	    for (int y = 0; y < filter.height; y++) {
-		for (int x = 0; x < filter.width; x++) {
+            for (int y = 0; y < filter.height; y++) {
+                for (int x = 0; x < filter.width; x++) {
                     float dt = (t - filter.frames / 2) / filterFrames;
                     float dx = (x - filter.width / 2) / filterWidth;
                     float dy = (y - filter.height / 2) / filterHeight;
@@ -641,14 +641,14 @@ void JointBilateral::apply(Image im, Image ref,
         // theoretically be faster by calling the various Gauss transform
         // methods directly, but it would involve copy pasting large
         // amounts of code with minor tweaks.
-        
+
         Image splat(im.width, im.height, im.frames, posChannels);
         Image values(im.width, im.height, im.frames, im.channels+1);
-        
+
         // Add a homogeneous channel
         values.selectChannels(0, im.channels).set(im);
         values.channel(im.channels).set(1.0f);
-        
+
         // Compute the splat positions. First add the color terms
         splat.selectChannels(0, ref.channels).set(ref / colorSigma);
         {
@@ -668,7 +668,7 @@ void JointBilateral::apply(Image im, Image ref,
         // Do the Gauss transform
         vector<float> sigmas(splat.channels, 1);
         values = GaussTransform::apply(splat, splat, values, sigmas, method);
-        
+
         // Normalize
         for (int c = 0; c < im.channels; c++) {
             im.channel(c).set(values.channel(c) / values.channel(im.channels));
@@ -900,7 +900,7 @@ bool NLMeans3D::test() {
         return false;
     }
     NLMeans3D::apply(noisy, 1, 6, 16, 0.4);
-    return nearlyEqual(noisy, dog);    
+    return nearlyEqual(noisy, dog);
 }
 
 void NLMeans3D::parse(vector<string> args) {
@@ -935,7 +935,7 @@ void NLMeans3D::apply(Image image, float patchSize, int dimensions,
                       GaussTransform::Method method) {
 
     Image filters = PatchPCA3D::apply(image, patchSize, dimensions);
-    Image pca = Convolve::apply(image, filters, Convolve::Zero, Multiply::Inner);    
+    Image pca = Convolve::apply(image, filters, Convolve::Zero, Multiply::Inner);
     JointBilateral::apply(image, pca, spatialSigma, spatialSigma, INF, patchSigma);
 };
 

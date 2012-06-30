@@ -96,92 +96,92 @@ public:
 };
 
 namespace FileEXR {
-    void help();
-    Image load(string filename);
-    void save(Image im, string filename, string compression);
+void help();
+Image load(string filename);
+void save(Image im, string filename, string compression);
 }
 
 namespace FileFLO {
-    void help();
-    void save(Image im, string filename);
-    Image load(string filename);
+void help();
+void save(Image im, string filename);
+Image load(string filename);
 }
 
 namespace FileHDR {
-    void help();
-    void save(Image im, string filename);
-    Image load(string filename);
+void help();
+void save(Image im, string filename);
+Image load(string filename);
 }
 
 namespace FileJPG {
-    void help();
-    void save(Image im, string filename, int quality);
-    Image load(string filename);
+void help();
+void save(Image im, string filename, int quality);
+Image load(string filename);
 }
 
 namespace FilePNG {
-    void help();
-    Image load(string filename);
-    void save(Image im, string filename);
+void help();
+Image load(string filename);
+void save(Image im, string filename);
 }
 
 namespace FilePPM {
-    void help();
-    Image load(string filename);
-    void save(Image im, string filename, int depth);
+void help();
+Image load(string filename);
+void save(Image im, string filename, int depth);
 }
 
 namespace FilePGM {
-    void help();
-    Image load(string filename);
-    void save(Image im, string filename);
+void help();
+Image load(string filename);
+void save(Image im, string filename);
 }
 
 namespace FileRAW {
-    void help();
-    Image load(string filename);
+void help();
+Image load(string filename);
 }
 
 namespace FileTIFF {
-    void help();
-    Image load(string filename);
-    void save(Image im, string filename, string type);
+void help();
+Image load(string filename);
+void save(Image im, string filename, string type);
 }
 
 namespace FileTGA {
-    void help();
-    Image load(string filename);
-    void save(Image im, string filename);
+void help();
+Image load(string filename);
+void save(Image im, string filename);
 }
 
 namespace FileTMP {
-    void help();
-    void save(Image im, string filename, string type);
-    Image load(string filename);
+void help();
+void save(Image im, string filename, string type);
+Image load(string filename);
 }
 
 namespace FileYUV {
-    void help();
-    void save(Image im, string filename);
-    Image load(string filename);
+void help();
+void save(Image im, string filename);
+Image load(string filename);
 }
 
 namespace FileWAV {
-    void help();
-    void save(Image im, string filename);
-    Image load(string filename);
+void help();
+void save(Image im, string filename);
+Image load(string filename);
 }
 
 namespace FileCSV {
-    void help();
-    void save(Image im, string filename);
-    Image load(string filename);
+void help();
+void save(Image im, string filename);
+Image load(string filename);
 }
 
 namespace FilePBA {
-    void help();
-    void save(Image im, string filename);
-    Image load(string filename);
+void help();
+void save(Image im, string filename);
+Image load(string filename);
 }
 
 #include "footer.h"

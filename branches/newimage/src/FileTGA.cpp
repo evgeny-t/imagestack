@@ -40,9 +40,9 @@ Image load(string filename) {
     // skip xstart and ystart
     for (int i = 0; i < 4; i++) { fgetc(f); }
     width = fgetc(f);
-	width += (fgetc(f) << 8);
+    width += (fgetc(f) << 8);
     height = fgetc(f);
-	height += (fgetc(f) << 8);
+    height += (fgetc(f) << 8);
     bits = fgetc(f);
 
     // skip the descriptor
@@ -90,74 +90,74 @@ Image load(string filename) {
 
 
     if (!rle && channels == 1) {
-	for (int y = 0; y < height; y++) {
-	    for (int x = 0; x < width; x++) {
-		im(x, y) = LDRtoHDR(fgetc(f));
-	    }
-	}
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                im(x, y) = LDRtoHDR(fgetc(f));
+            }
+        }
     } else if (!rle && channels == 3) {
-	for (int y = 0; y < height; y++) {
-	    for (int x = 0; x < width; x++) {
-		im(x, y, 2) = LDRtoHDR(fgetc(f));
-		im(x, y, 1) = LDRtoHDR(fgetc(f));
-		im(x, y, 0) = LDRtoHDR(fgetc(f));
-	    }
-	}
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                im(x, y, 2) = LDRtoHDR(fgetc(f));
+                im(x, y, 1) = LDRtoHDR(fgetc(f));
+                im(x, y, 0) = LDRtoHDR(fgetc(f));
+            }
+        }
     } else if (!rle && channels == 4) {
-	for (int y = 0; y < height; y++) {
-	    for (int x = 0; x < width; x++) {
-		im(x, y, 2) = LDRtoHDR(fgetc(f));
-		im(x, y, 1) = LDRtoHDR(fgetc(f));
-		im(x, y, 0) = LDRtoHDR(fgetc(f));
-		im(x, y, 3) = LDRtoHDR(fgetc(f));
-	    }
-	}
-    } else if (rle && channels == 1) {	
-	for (int x = 0, y = 0; y < height;) {
-	    unsigned char ch = fgetc(f);
-	    unsigned char runlength = ch & 0x7f;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                im(x, y, 2) = LDRtoHDR(fgetc(f));
+                im(x, y, 1) = LDRtoHDR(fgetc(f));
+                im(x, y, 0) = LDRtoHDR(fgetc(f));
+                im(x, y, 3) = LDRtoHDR(fgetc(f));
+            }
+        }
+    } else if (rle && channels == 1) {
+        for (int x = 0, y = 0; y < height;) {
+            unsigned char ch = fgetc(f);
+            unsigned char runlength = ch & 0x7f;
 
             if (ch & 0x80) { // compressed
                 float val = LDRtoHDR(fgetc(f));
                 for (int j = 0; j < runlength; j++) {
-		    im(x, y) = val;
-		    x++; if (x == width) {x = 0; y++;}
+                    im(x, y) = val;
+                    x++; if (x == width) {x = 0; y++;}
                 }
             } else { // normal
                 for (int j = 0; j < runlength; j++) {
-		    im(x, y) = LDRtoHDR(fgetc(f));
-		    x++; if (x == width) {x = 0; y++;}
+                    im(x, y) = LDRtoHDR(fgetc(f));
+                    x++; if (x == width) {x = 0; y++;}
                 }
             }
-	}
+        }
     } else if (rle && channels == 3) {
-	for (int x = 0, y = 0; y < height;) {
-	    unsigned char ch = fgetc(f);
-	    unsigned char runlength = ch & 0x7f;
+        for (int x = 0, y = 0; y < height;) {
+            unsigned char ch = fgetc(f);
+            unsigned char runlength = ch & 0x7f;
 
             if (ch & 0x80) { // compressed
                 float b = LDRtoHDR(fgetc(f));
                 float g = LDRtoHDR(fgetc(f));
                 float r = LDRtoHDR(fgetc(f));
                 for (int j = 0; j < runlength; j++) {
-		    im(x, y, 0) = r;
-		    im(x, y, 1) = g;
-		    im(x, y, 2) = b;
-		    x++; if (x == width) {x = 0; y++;}
+                    im(x, y, 0) = r;
+                    im(x, y, 1) = g;
+                    im(x, y, 2) = b;
+                    x++; if (x == width) {x = 0; y++;}
                 }
             } else { // normal
                 for (int j = 0; j < runlength; j++) {
-		    im(x, y, 0) = LDRtoHDR(fgetc(f));
-		    im(x, y, 1) = LDRtoHDR(fgetc(f));
-		    im(x, y, 2) = LDRtoHDR(fgetc(f));
-		    x++; if (x == width) {x = 0; y++;}
+                    im(x, y, 0) = LDRtoHDR(fgetc(f));
+                    im(x, y, 1) = LDRtoHDR(fgetc(f));
+                    im(x, y, 2) = LDRtoHDR(fgetc(f));
+                    x++; if (x == width) {x = 0; y++;}
                 }
             }
-	}
+        }
     } else if (rle && channels == 4) {
-	for (int x = 0, y = 0; y < height;) {
-	    unsigned char ch = fgetc(f);
-	    unsigned char runlength = ch & 0x7f;
+        for (int x = 0, y = 0; y < height;) {
+            unsigned char ch = fgetc(f);
+            unsigned char runlength = ch & 0x7f;
 
             if (ch & 0x80) { // compressed
                 float b = LDRtoHDR(fgetc(f));
@@ -165,22 +165,22 @@ Image load(string filename) {
                 float r = LDRtoHDR(fgetc(f));
                 float a = LDRtoHDR(fgetc(f));
                 for (int j = 0; j < runlength; j++) {
-		    im(x, y, 0) = r;
-		    im(x, y, 1) = g;
-		    im(x, y, 2) = b;
-		    im(x, y, 3) = a;
-		    x++; if (x == width) {x = 0; y++;}
+                    im(x, y, 0) = r;
+                    im(x, y, 1) = g;
+                    im(x, y, 2) = b;
+                    im(x, y, 3) = a;
+                    x++; if (x == width) {x = 0; y++;}
                 }
             } else { // normal
                 for (int j = 0; j < runlength; j++) {
-		    im(x, y, 0) = LDRtoHDR(fgetc(f));
-		    im(x, y, 1) = LDRtoHDR(fgetc(f));
-		    im(x, y, 2) = LDRtoHDR(fgetc(f));
-		    im(x, y, 3) = LDRtoHDR(fgetc(f));
-		    x++; if (x == width) {x = 0; y++;}
+                    im(x, y, 0) = LDRtoHDR(fgetc(f));
+                    im(x, y, 1) = LDRtoHDR(fgetc(f));
+                    im(x, y, 2) = LDRtoHDR(fgetc(f));
+                    im(x, y, 3) = LDRtoHDR(fgetc(f));
+                    x++; if (x == width) {x = 0; y++;}
                 }
             }
-	}
+        }
     }
 
 

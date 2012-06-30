@@ -38,7 +38,7 @@ Image load(string filename) {
 
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width-1; x++) {
-	    assert(fscanf(f, "%f,", &out(x, y)) == 1, "Failed to parse file\n");
+            assert(fscanf(f, "%f,", &out(x, y)) == 1, "Failed to parse file\n");
         }
         assert(fscanf(f, "%f", &out(width-1, y)) == 1, "Failed to parse file\n");
     }
@@ -52,13 +52,13 @@ void save(Image im, string filename) {
     FILE *f = fopen(filename.c_str(), "w");
 
     for (int c = 0; c < im.channels; c++) {
-	for (int t = 0; t < im.frames; t++) {
-	    for (int y = 0; y < im.height; y++) {
-		for (int x = 0; x < im.width-1; x++) {
-		    fprintf(f, "%10.10f, ", im(x, y, t, c));
-		}
-		fprintf(f, "%10.10f\n", im(im.width-1, y, t, c));
-	    }
+        for (int t = 0; t < im.frames; t++) {
+            for (int y = 0; y < im.height; y++) {
+                for (int x = 0; x < im.width-1; x++) {
+                    fprintf(f, "%10.10f, ", im(x, y, t, c));
+                }
+                fprintf(f, "%10.10f\n", im(im.width-1, y, t, c));
+            }
         }
     }
 

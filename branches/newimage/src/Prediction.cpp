@@ -25,7 +25,7 @@ bool Inpaint::test() {
 
     // Patch a corrupted region of a smooth ramp
     Image im(99, 97, 1, 3);
-    im.set((x + y)/100); 
+    im.set((x + y)/100);
     Image corrupted = im.copy();
     Noise::apply(corrupted.region(40, 40, 0, 0, 20, 20, 1, 3), -20, 20);
     Image after = Inpaint::apply(corrupted, mask);
@@ -41,7 +41,7 @@ bool Inpaint::test() {
     im.set(0);
     Noise::apply(im, 0, 1);
     after = Inpaint::apply(im, mask);
-    
+
     // Statistics within the hole should be mean of 0.5, zero variance
     s = Stats(after.region(45, 45, 0, 0, 10, 10, 1, 3));
     if (s.mean() < 0.45 ||
@@ -77,7 +77,7 @@ Image Inpaint::apply(Image im, Image mask) {
     boundaryMask.set(max(mask - boundaryMask, 0));
 
     // Mask out the input image with it
-    Image boundary = im.copy();    
+    Image boundary = im.copy();
     for (int c = 0; c < im.channels; c++) {
         boundary.channel(c) *= boundaryMask;
     }
@@ -101,7 +101,7 @@ Image Inpaint::apply(Image im, Image mask) {
         blurred.channel(c) /= blurredMask;
     }
 
-    // Reattach the rest of the image    
+    // Reattach the rest of the image
     Composite::apply(blurred, im, mask);
     return blurred;
 }
@@ -110,8 +110,8 @@ Image Inpaint::apply(Image im, Image mask) {
 
 void SeamlessClone::help() {
     pprintf("-seamlessclone composites the top image in the stack over the next image in"
-           " the stack, using the last channel in the top image in the stack as alpha."
-           " The composite is done in such a way as to avoid hard edges around the"
+            " the stack, using the last channel in the top image in the stack as alpha."
+            " The composite is done in such a way as to avoid hard edges around the"
             " boundaries. If the top image in the stack has only one channel, it"
             " interprets this as a mask, and composites the second image in the"
             " stack over the third image in the stack using that mask.\n"
@@ -173,17 +173,17 @@ void SeamlessClone::apply(Image dst, Image src) {
            "Source image and destination image must either have matching channel"
            " counts (if they both have an alpha channel), or the source image"
            " should have one more channel than the destination.\n");
-    assert(dst.frames == src.frames && dst.width == src.width 
+    assert(dst.frames == src.frames && dst.width == src.width
            && dst.height == src.height,
            "The source and destination images must be the same size\n");
 
     if (src.channels > dst.channels) {
-        apply(dst, 
-              src.region(0, 0, 0, 0, 
-			 src.width, src.height, 
-			 src.frames, dst.channels),
+        apply(dst,
+              src.region(0, 0, 0, 0,
+                         src.width, src.height,
+                         src.frames, dst.channels),
               src.channel(dst.channels));
-              
+
     } else {
         apply(dst, src, src.channel(dst.channels-1));
     }

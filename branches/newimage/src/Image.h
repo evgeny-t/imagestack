@@ -14,23 +14,23 @@
 // that the pixel data doesn't. It's equivalent to "float * const
 // foo", not "const float * foo". This means that methods tagged const
 // are those which do not change the metadata, not those which do not
-// change the pixel data. 
+// change the pixel data.
 
 class Image {
-  public:
+public:
 
     int width, height, frames, channels;
-    int ystride, tstride, cstride;   
+    int ystride, tstride, cstride;
 
-    Image() : 
-        width(0), height(0), frames(0), channels(0), 
+    Image() :
+        width(0), height(0), frames(0), channels(0),
         ystride(0), tstride(0), cstride(0), data(), base(NULL) {
     }
 
     Image(int w, int h, int f, int c) :
-        width(w), height(h), frames(f), channels(c), 
-        ystride(w), tstride(w*h), cstride(w*h*f),
-        data(new Payload(w*h*f*c+7)), base(compute_base(data)) {
+        width(w), height(h), frames(f), channels(c),
+        ystride(w), tstride(w *h), cstride(w *h *f),
+        data(new Payload(w *h *f*c+7)), base(compute_base(data)) {
     }
 
     inline float &operator()(int x, int y) const {
@@ -42,14 +42,14 @@ class Image {
     }
 
     inline float &operator()(int x, int y, int t, int c) const {
-        #ifdef BOUNDS_CHECKING
+#ifdef BOUNDS_CHECKING
         assert(x >= 0 && x < width &&
                y >= 0 && y < height &&
                t >= 0 && t < frames &&
-               c >= 0 && c < channels, 
-               "Access out of bounds: %d %d %d %d\n", 
+               c >= 0 && c < channels,
+               "Access out of bounds: %d %d %d %d\n",
                x, y, t, c);
-        #endif
+#endif
         return (((base + c*cstride) + t*tstride) + y*ystride)[x];
     }
 
@@ -79,7 +79,7 @@ class Image {
     const Image frame(int t) const {
         return region(0, 0, t, 0, width, height, 1, channels);
     }
-    
+
     const Image channel(int c) const {
         return region(0, 0, 0, c, width, height, frames, 1);
     }
@@ -103,7 +103,7 @@ class Image {
     bool dense() const {
         return (cstride == width*height*frames && tstride == width*height && ystride == width);
     }
-   
+
 
     bool defined() const {
         return base != NULL;
@@ -316,12 +316,12 @@ class Image {
 
     }
 
-    void sample3D(float fx, float fy, float ft, 
+    void sample3D(float fx, float fy, float ft,
                   vector<float> &result, BoundaryCondition boundary = ZERO) const {
         sample3D(fx, fy, ft, &result[0], boundary);
     }
 
-    void sample3D(float fx, float fy, float ft, 
+    void sample3D(float fx, float fy, float ft,
                   float *result, BoundaryCondition boundary = ZERO) const {
         int ix = (int)fx;
         int iy = (int)fy;
@@ -442,7 +442,7 @@ class Image {
     }
 
     // A macro to check if a type is castable to a lazy expression type
-    #define LazyType(T) typename ImageStack::Lazy::Lazyable<T>::t
+#define LazyType(T) typename ImageStack::Lazy::Lazyable<T>::t
 
     // Evaluate a expression object defined in Lazy.h
     // The second template argument prevents instantiations from
@@ -465,17 +465,17 @@ class Image {
         const int vec_width = ImageStack::Lazy::Vec::width;
         for (int c = 0; c < channels; c++) {
             for (int t = 0; t < frames; t++) {
-                
-                #ifdef _OPENMP
+
+#ifdef _OPENMP
                 #pragma omp parallel for
-                #endif
+#endif
                 for (int y = 0; y < height; y++) {
                     const int w = width;
                     const LazyType(T)::Iter iter = expr.scanline(y, t, c);
-                    float * const dst = base + c*cstride + t*tstride + y*ystride;
-                    
-                    int x = 0;                      
-                    
+                    float *const dst = base + c*cstride + t*tstride + y*ystride;
+
+                    int x = 0;
+
                     if (vec_width > 1 && width > vec_width*2) {
                         // warm up
                         while ((size_t)(dst+x) & (vec_width*sizeof(float) - 1)) {
@@ -494,10 +494,10 @@ class Image {
                         x++;
                     }
                 }
-            }   
+            }
         }
     }
-    
+
     /*
     // Special-case setting an image to a float value, because it
     // won't implicitly cast things like int literals to Lazy::Const
@@ -520,9 +520,9 @@ class Image {
                      LazyType(C) *pc = NULL,
                      LazyType(D) *pd = NULL) const {
         setChannelsGeneric<4, LazyType(A), LazyType(B), LazyType(C), LazyType(D)>(
-            LazyType(A)(a), 
-            LazyType(B)(b), 
-            LazyType(C)(c), 
+            LazyType(A)(a),
+            LazyType(B)(b),
+            LazyType(C)(c),
             LazyType(D)(d));
     }
 
@@ -532,9 +532,9 @@ class Image {
                      LazyType(B) *pb = NULL,
                      LazyType(C) *pc = NULL) const {
         setChannelsGeneric<3, LazyType(A), LazyType(B), LazyType(C), LazyType(float)>(
-            LazyType(A)(a), 
-            LazyType(B)(b), 
-            LazyType(C)(c), 
+            LazyType(A)(a),
+            LazyType(B)(b),
+            LazyType(C)(c),
             LazyType(float)(0));
     }
 
@@ -543,8 +543,8 @@ class Image {
                      LazyType(A) *pa = NULL,
                      LazyType(B) *pb = NULL) const {
         setChannelsGeneric<2, LazyType(A), LazyType(B), LazyType(float), LazyType(float)>(
-            LazyType(A)(a), 
-            LazyType(B)(b), 
+            LazyType(A)(a),
+            LazyType(B)(b),
             LazyType(float)(0),
             LazyType(float)(0));
     }
@@ -553,7 +553,7 @@ class Image {
     // interface it needs to implement for that to happen:
     typedef Image Lazy;
     int getSize(int i) const {
-        switch(i) {
+        switch (i) {
         case 0: return width;
         case 1: return height;
         case 2: return frames;
@@ -562,7 +562,7 @@ class Image {
         return 0;
     }
     struct Iter {
-        const float * const addr;
+        const float *const addr;
         Iter(const float *a) : addr(a) {}
         float operator[](int x) const {return addr[x];}
         ImageStack::Lazy::Vec::type vec(int x) const {
@@ -578,8 +578,8 @@ class Image {
     // general LazyType(T) macro.
     template<typename T>
     Image(const T &func, const typename T::Lazy *ptr = NULL) :
-        width(0), height(0), frames(0), channels(0), 
-        ystride(0), tstride(0), cstride(0), data(), base(NULL) { 
+        width(0), height(0), frames(0), channels(0),
+        ystride(0), tstride(0), cstride(0), data(), base(NULL) {
         assert(func.getSize(0) && func.getSize(1) && func.getSize(2) && func.getSize(3),
                "Can only construct an image from a bounded expression\n");
         (*this) = Image(func.getSize(0), func.getSize(1), func.getSize(2), func.getSize(3));
@@ -588,15 +588,15 @@ class Image {
 
     Image(const Image &other) :
         width(other.width), height(other.height), frames(other.frames), channels(other.channels),
-        ystride(other.ystride), tstride(other.tstride), cstride(other.cstride), 
+        ystride(other.ystride), tstride(other.tstride), cstride(other.cstride),
         data(other.data), base(other.base) {
     }
 
-  private:
+private:
 
 
     template<int outChannels, typename A, typename B, typename C, typename D>
-    void setChannelsGeneric(const A &funcA, 
+    void setChannelsGeneric(const A &funcA,
                             const B &funcB,
                             const C &funcC,
                             const D &funcD) const {
@@ -604,12 +604,12 @@ class Image {
         int wB = funcB.getSize(0), hB = funcB.getSize(1), fB = funcB.getSize(2);
         int wC = funcC.getSize(0), hC = funcC.getSize(1), fC = funcC.getSize(2);
         int wD = funcD.getSize(0), hD = funcD.getSize(1), fD = funcD.getSize(2);
-        assert(channels == outChannels, 
+        assert(channels == outChannels,
                "The number of channels must equal the number of arguments\n");
         assert(funcA.getSize(3) <= 1 &&
                funcB.getSize(3) <= 1 &&
                funcC.getSize(3) <= 1 &&
-               funcD.getSize(3) <= 1, 
+               funcD.getSize(3) <= 1,
                "Each argument must be unbounded across channels or single-channel\n");
         assert((width == wA || wA == 0) &&
                (height == hA || hA == 0) &&
@@ -631,22 +631,22 @@ class Image {
         // 4 or 8-wide vector code, distributed across cores
         const int vec_width = ImageStack::Lazy::Vec::width;
         for (int t = 0; t < frames; t++) {
-            
-            #ifdef _OPENMP
+
+#ifdef _OPENMP
             #pragma omp parallel for
-            #endif
+#endif
             for (int y = 0; y < height; y++) {
                 const int w = width;
                 const int cs = cstride;
-                float * const dst = base + t*tstride + y*ystride;
+                float *const dst = base + t*tstride + y*ystride;
                 const typename A::Iter iterA = funcA.scanline(y, t, 0);
                 const typename B::Iter iterB = funcB.scanline(y, t, 0);
                 const typename C::Iter iterC = funcC.scanline(y, t, 0);
                 const typename D::Iter iterD = funcD.scanline(y, t, 0);
 
-                
+
                 int x = 0;
-                
+
                 if (vec_width > 1 && w > vec_width*2) {
                     while (x < (w-(ImageStack::Lazy::Vec::width-1))) {
                         ImageStack::Lazy::Vec::type va, vb, vc, vd;
@@ -656,30 +656,30 @@ class Image {
                         if (outChannels > 1) vb = iterB.vec(x);
                         if (outChannels > 2) vc = iterC.vec(x);
                         if (outChannels > 3) vd = iterD.vec(x);
-                        
+
                         // Store the results
                         ImageStack::Lazy::Vec::store(va, dst + x);
-                        if (outChannels > 1) 
+                        if (outChannels > 1)
                             ImageStack::Lazy::Vec::store(vb, dst + cs + x);
-                        if (outChannels > 2) 
+                        if (outChannels > 2)
                             ImageStack::Lazy::Vec::store(vc, dst + cs*2 + x);
-                        if (outChannels > 3) 
+                        if (outChannels > 3)
                             ImageStack::Lazy::Vec::store(vd, dst + cs*3 + x);
                         x += vec_width;
                     }
                 }
-                
+
                 // Scalar part at the end
                 while (x < w) {
                     float va, vb, vc, vd;
-                    
+
                     va = iterA[x];
                     if (outChannels > 1) vb = iterB[x];
                     if (outChannels > 2) vc = iterC[x];
                     if (outChannels > 3) vd = iterD[x];
 
                     dst[x] = va;
-                    if (outChannels > 1) 
+                    if (outChannels > 1)
                         dst[x + cs] = vb;
                     if (outChannels > 2)
                         dst[x + cs*2] = vc;
@@ -687,25 +687,25 @@ class Image {
                         dst[x + cs*3] = vd;
                     x++;
                 }
-            }   
-        } 
+            }
+        }
     }
 
     struct Payload {
-        Payload(size_t size) : data(NULL) {            
+        Payload(size_t size) : data(NULL) {
             // In some cases we don't need to clear the memory, but
             // typically this is optimized away by the system, so we
             // don't care. On linux it just mmaps /dev/zero.
             data = (float *)calloc(size, sizeof(float));
             //printf("Allocating %d bytes\n", (int)(size * sizeof(float)));
             if (!data) {
-                panic("Could not allocate %d bytes for image data\n", 
+                panic("Could not allocate %d bytes for image data\n",
                       size * sizeof(float));
             }
         }
         ~Payload() {
             free(data);
-        }        
+        }
         float *data;
     private:
         Payload(const Payload &other) : data(NULL) {}
@@ -715,7 +715,7 @@ class Image {
     // Compute a 32-byte aligned address within data
     static float *compute_base(const std::shared_ptr<const Payload> &payload) {
         float *base = payload->data;
-        while (((size_t)base) & 0x1f) base++;    
+        while (((size_t)base) & 0x1f) base++;
         return base;
     }
 
@@ -724,20 +724,20 @@ class Image {
           int xs, int ys, int ts, int cs) :
         width(xs), height(ys), frames(ts), channels(cs),
         ystride(im.ystride), tstride(im.tstride), cstride(im.cstride),
-        data(im.data), base(&im(x, y, t, c)) {  
+        data(im.data), base(&im(x, y, t, c)) {
         // Note that base is no longer aligned. You're only guaranteed
         // alignment if you allocate an image from scratch.
-        assert(xs > 0 && ys > 0 && ts > 0 && cs > 0, 
+        assert(xs > 0 && ys > 0 && ts > 0 && cs > 0,
                "Region must have strictly positive size: %d %d %d %d\n", xs, ys, ts, cs);
-        assert(x >= 0 && x+xs <= im.width && 
+        assert(x >= 0 && x+xs <= im.width &&
                y >= 0 && y+ys <= im.height &&
                t >= 0 && t+ts <= im.frames &&
                c >= 0 && c+cs <= im.channels,
                "Region must fit within original image\n");
-    }    
+    }
 
     std::shared_ptr<const Payload> data;
-    float * base;
+    float *base;
 };
 
 // Clean up after myself

@@ -25,7 +25,7 @@ class PCG {
     };
 public:
     PCG(Image d, Image gx, Image gy, Image w_, Image sx_, Image sy_)
-	: AW(d.width, d.height, 1, 1),
+        : AW(d.width, d.height, 1, 1),
           AN(d.width, d.height, 1, 1),
           w(w_),
           sx(sx_),
@@ -65,7 +65,7 @@ public:
                     if (y == sy.height-1) {
                         AN(x,y,t,0) = 0;
                     } else {
-			AN(x,y,t,0) = -sy(x,y+1,t,0);
+                        AN(x,y,t,0) = -sy(x,y+1,t,0);
                     }
 
                     if (x == sx.width-1) {
@@ -88,8 +88,8 @@ public:
                         }
 
                         b(x,y,t,c) = (gy(x,y,t,c)*sy(x,y,t,0) - sub_y +
-                                       gx(x,y,t,c)*sx(x,y,t,0) - sub_x
-                                       + w(x,y,t,0)*d(x,y,t,c));
+                                      gx(x,y,t,c)*sx(x,y,t,0) - sub_x
+                                      + w(x,y,t,0)*d(x,y,t,c));
                     }
                 }
             }
@@ -277,7 +277,7 @@ void PCG::constructPreconditioner() {
              idx != index_map[k].end(); ++idx) {
             //int x, y, x1, y1;// x2, y2;
 
-	    S_elems elems;
+            S_elems elems;
 
             ind2xy(*idx, x, y);
 
@@ -658,7 +658,7 @@ Image PCG::hbPrecondition(Image r) {
 
     // invert the diagonal
     for (int c = 0; c < hbRes.channels; c++) {
-	hbRes.channel(c) /= AD;
+        hbRes.channel(c) /= AD;
     }
 
     // lowest level is identity matrix so it's ignored (not even stored in index_map)
@@ -730,9 +730,9 @@ Image PCG::hbPrecondition(Image r) {
 // compute dot product
 float PCG::dot(Image im1, Image im2) {
     assert(im1.frames == im2.frames &&
-	   im1.height == im2.height &&
-	   im1.width == im2.width && 
-	   im1.channels == im2.channels,
+           im1.height == im2.height &&
+           im1.width == im2.width &&
+           im1.channels == im2.channels,
            "a and b need to be the same size\n");
     double result = 0;
     for (int t = 0; t < im1.frames; t++) {
@@ -768,17 +768,17 @@ void PCG::solve(Image guess, int max_iter, float tol) {
         Image wr = Ax(dr);
         float alpha = delta / dot(dr,wr);
 
-	guess += dr * alpha;
-	r -= wr * alpha;
-	float resNorm = dot(r, r);
+        guess += dr * alpha;
+        r -= wr * alpha;
+        float resNorm = dot(r, r);
         printf("iteration %d, error %f\n", i, resNorm);
-	if (resNorm < epsilon) break;
-	
-	s = hbPrecondition(r);
+        if (resNorm < epsilon) break;
+
+        s = hbPrecondition(r);
         float delta_old = delta;
         delta = dot(r,s);
 
-	dr = s + dr * (delta / delta_old);
+        dr = s + dr * (delta / delta_old);
     }
 
 }
@@ -873,8 +873,8 @@ Image LAHBPCG::apply(Image d, Image gx, Image gy, Image w, Image sx, Image sy, i
     // solves frames independently
     for (int t = 0; t < d.frames; t++) {
         printf("Computing preconditioner...\n");
-	PCG solver(d.frame(t), gx.frame(t), gy.frame(t),
-		   w.frame(t), sx.frame(t), sy.frame(t));
+        PCG solver(d.frame(t), gx.frame(t), gy.frame(t),
+                   w.frame(t), sx.frame(t), sy.frame(t));
 
         printf("Solving...\n");
         solver.solve(out.frame(t), max_iter, tol);

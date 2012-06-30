@@ -29,11 +29,11 @@ void save(Image im, string filename) {
 
     vector<float> scanline(im.width*2);
     for (int y = 0; y < im.height; y++) {
-	for (int x = 0; x < im.width; x++) {
-	    scanline[x*2] = im(x, y, 0);
-	    scanline[x*2+1] = im(x, y, 1);
-	}
-	fwrite(&scanline[0], sizeof(float), im.width*2, stream);
+        for (int x = 0; x < im.width; x++) {
+            scanline[x*2] = im(x, y, 0);
+            scanline[x*2+1] = im(x, y, 1);
+        }
+        fwrite(&scanline[0], sizeof(float), im.width*2, stream);
     }
 
     fclose(stream);
@@ -63,12 +63,12 @@ Image load(string filename) {
     vector<float> scanline(width*2);
 
     for (int y = 0; y < height; y++) {
-	assert(fread(&scanline[0], sizeof(float), width*2, stream) == (size_t)width*2, 
-	       "Unexpected end of file\n");
-	for (int x = 0; x < width; x++) {
-	    out(x, y, 0) = scanline[2*x];
-	    out(x, y, 1) = scanline[2*x+1];
-	}
+        assert(fread(&scanline[0], sizeof(float), width*2, stream) == (size_t)width*2,
+               "Unexpected end of file\n");
+        for (int x = 0; x < width; x++) {
+            out(x, y, 0) = scanline[2*x];
+            out(x, y, 1) = scanline[2*x+1];
+        }
     }
 
     fclose(stream);

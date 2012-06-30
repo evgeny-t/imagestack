@@ -288,8 +288,8 @@ void Help::parse(vector<string> args) {
 
 void Test::help() {
     pprintf("-test runs the test suite for the operation given by the first"
-	    " argument. If no argument is given, all operations are tested (which"
-            " may take some time).\n");    
+            " argument. If no argument is given, all operations are tested (which"
+            " may take some time).\n");
 }
 
 void Test::parse(vector<string> args) {

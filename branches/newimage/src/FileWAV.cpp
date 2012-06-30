@@ -102,7 +102,7 @@ Image load(string filename) {
         float mult = 1.0f/128;
         for (int x = 0; x < sound.width; x++) {
             for (int c = 0; c < sound.channels; c++) {
-		sound(x, 0, 0, c) = (*wavPtr++ - 128) * mult;
+                sound(x, 0, 0, c) = (*wavPtr++ - 128) * mult;
             }
         }
         break;
@@ -112,7 +112,7 @@ Image load(string filename) {
         float mult = 1.0f/128;
         for (int x = 0; x < sound.width; x++) {
             for (int c = 0; c < sound.channels; c++) {
-		sound(x, 0, 0, c) = *wavPtr++ * mult;
+                sound(x, 0, 0, c) = *wavPtr++ * mult;
             }
         }
         break;
@@ -122,7 +122,7 @@ Image load(string filename) {
         float mult = 1.0f/(1<<15);
         for (int x = 0; x < sound.width; x++) {
             for (int c = 0; c < sound.channels; c++) {
-		sound(x, 0, 0, c) = ntohs(*wavPtr++) * mult;
+                sound(x, 0, 0, c) = ntohs(*wavPtr++) * mult;
             }
         }
         break;
@@ -132,7 +132,7 @@ Image load(string filename) {
         float mult = 1.0f/(1<<15);
         for (int x = 0; x < sound.width; x++) {
             for (int c = 0; c < sound.channels; c++) {
-		sound(x, 0, 0, c) = (ntohs(*wavPtr++)-(1<<15)) * mult;
+                sound(x, 0, 0, c) = (ntohs(*wavPtr++)-(1<<15)) * mult;
             }
         }
         break;
@@ -144,7 +144,7 @@ Image load(string filename) {
             for (int c = 0; c < sound.channels; c++) {
                 short val1 = ntohs(*wavPtr++);
                 short val2 = ((val1 & 255) << 8) | ((val1 >> 8) & 255);
-		sound(x, 0, 0, c) = (val2 - (1<<15)) * mult;
+                sound(x, 0, 0, c) = (val2 - (1<<15)) * mult;
             }
         }
         break;

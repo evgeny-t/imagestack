@@ -29,12 +29,12 @@ bool Send::test() {
 
 // An anonymous namespace confines these globals to this translation unit
 namespace {
-    int Send_test_port;
-    Image Send_test_image;
-    int Send_test_thread(void *) {
-	Send::apply(Send_test_image, "localhost", Send_test_port);
-	return 0;
-    }
+int Send_test_port;
+Image Send_test_image;
+int Send_test_thread(void *) {
+    Send::apply(Send_test_image, "localhost", Send_test_port);
+    return 0;
+}
 }
 
 bool Send::test() {
@@ -49,7 +49,7 @@ bool Send::test() {
     // Wait to receive it
     Image im = Receive::apply(Send_test_port);
 
-    // Check it's identical to a    
+    // Check it's identical to a
     im -= Send_test_image;
     Stats s(im);
 

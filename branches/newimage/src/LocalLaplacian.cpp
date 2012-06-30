@@ -17,9 +17,9 @@ Image LocalLaplacian::pyramidUp(const Image im, int w, int h, int f) {
     Image larger(w, h, f, im.channels);
 
     for (int c = 0; c < im.channels; c++) {
-	for (int t = 0; t < f; t++) {
-	    for (int y = 0; y < h; y++) {
-		for (int x = 0; x < w; x++) {
+        for (int t = 0; t < f; t++) {
+            for (int y = 0; y < h; y++) {
+                for (int x = 0; x < w; x++) {
                     larger(x, y, t, c) = im(x/2, y/2, t/2, c);
                 }
             }
@@ -55,7 +55,7 @@ void LocalLaplacian::parse(vector<string> args) {
     assert(args.size() == 2, "-locallaplacian takes two arguments");
     Image im = stack(0);
     pop();
-    push(apply(im, readFloat(args[0]), readFloat(args[1]))); 
+    push(apply(im, readFloat(args[0]), readFloat(args[1])));
 }
 
 Image LocalLaplacian::apply(Image im, float alpha, float beta) {
@@ -83,7 +83,7 @@ Image LocalLaplacian::apply(Image im, float alpha, float beta) {
         int oldF = imPyramid[j-1].frames;
         imPyramid[j] = pyramidDown(imPyramid[j-1]);
         imLPyramid[j] = imPyramid[j].copy();
-	imLPyramid[j-1] -= pyramidUp(imPyramid[j], oldW, oldH, oldF);
+        imLPyramid[j-1] -= pyramidUp(imPyramid[j], oldW, oldH, oldF);
     }
 
     // Make a set of K processed images
@@ -91,8 +91,8 @@ Image LocalLaplacian::apply(Image im, float alpha, float beta) {
     Image processed[K];
     Image pyramid[K][J];
     for (int i = 0; i < K; i++) {
-	Image p = im.copy();
-        
+        Image p = im.copy();
+
 
         for (int t = 0; t < im.frames; t++) {
             for (int y = 0; y < im.height; y++) {
@@ -119,15 +119,15 @@ Image LocalLaplacian::apply(Image im, float alpha, float beta) {
         }
         processed[i] = p;
 
-	// Compute a J-level laplacian pyramid per processed image
+        // Compute a J-level laplacian pyramid per processed image
         pyramid[i][0] = processed[i];
         for (int j = 1; j < J; j++) {
-	    int oldW = pyramid[i][j-1].width;
+            int oldW = pyramid[i][j-1].width;
             int oldH = pyramid[i][j-1].height;
             int oldF = pyramid[i][j-1].frames;
             pyramid[i][j] = pyramidDown(pyramid[i][j-1]);
-	    pyramid[i][j-1] -= pyramidUp(pyramid[i][j], oldW, oldH, oldF);
-        }	
+            pyramid[i][j-1] -= pyramidUp(pyramid[i][j], oldW, oldH, oldF);
+        }
     }
 
     // Now construct output laplacian pyramid by looking up the
@@ -138,7 +138,7 @@ Image LocalLaplacian::apply(Image im, float alpha, float beta) {
 
         float scale;
         if (beta < 0) {
-            // when j = 0, scale = 
+            // when j = 0, scale =
             scale = ((float)j/(J-1))*(-beta) + 1-(-beta);
         } else {
             scale = (1.0f - ((float)j/(J-1)))*beta + 1-beta;
@@ -158,7 +158,7 @@ Image LocalLaplacian::apply(Image im, float alpha, float beta) {
                     luminance -= s.minimum();
                     luminance /= s.maximum() - s.minimum();
                     luminance *= K-1;
-                    
+
                     int K0 = int(luminance);
                     if (K0 < 0) K0 = 0;
                     if (K0 >= K-1) K0 = K-1;
@@ -168,11 +168,11 @@ Image LocalLaplacian::apply(Image im, float alpha, float beta) {
                     float interp = luminance - K0;
 
                     for (int c = 0; c < im.channels; c++) {
-                        float modified = 
+                        float modified =
                             interp * pyramid[K1][j](x, y, t, c) +
                             (1 - interp) * pyramid[K0][j](x, y, t, c);
 
-                        imLPyramid[j](x, y, t, c) = 
+                        imLPyramid[j](x, y, t, c) =
                             (1-scale) * imLPyramid[j](x, y, t, c) + scale * modified;
 
                     }
@@ -184,9 +184,9 @@ Image LocalLaplacian::apply(Image im, float alpha, float beta) {
     // Now collapse the output laplacian pyramid
     printf("Collapsing laplacian pyramid down to output image\n");
     Image output = imLPyramid[J-1];
-    for (int j = J-2; j >= 0; j--) { 
+    for (int j = J-2; j >= 0; j--) {
         output = pyramidUp(output, imLPyramid[j].width, imLPyramid[j].height, imLPyramid[j].frames);
-	output += imLPyramid[j];
+        output += imLPyramid[j];
     }
 
     return output;

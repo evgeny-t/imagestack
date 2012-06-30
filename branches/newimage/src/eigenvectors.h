@@ -10,10 +10,10 @@ public:
         d_in = in_dimensions;
         d_out = out_dimensions;
 
-	covariance.resize(d_in*d_in);
-	mean.resize(d_in);
-	eigenvectors.resize(d_in*d_out);
-	tmp.resize(d_in*d_out);
+        covariance.resize(d_in*d_in);
+        mean.resize(d_in);
+        eigenvectors.resize(d_in*d_out);
+        tmp.resize(d_in*d_out);
         computed = false;
         for (int i = 0; i < d_in; i++) {
             mean[i] = 0;
@@ -88,7 +88,7 @@ public:
         //        printf("%3.4f ", eigenvectors[i*d_out+j]);
         //    }
         //    printf("\n");
-        //}        
+        //}
 
 
         while (1) {
@@ -128,14 +128,14 @@ public:
 
                 dot = 1.0/dot;
 
-		/*
+                /*
                 // make sure the largest element of each eigenvector is positive
-		int max_elt = 0;
-		for (int k = 1; k < d_in; k++) {
-		    if (fabs(eigenvectors[k*d_out+i]) > fabs(eigenvectors[k*d_out+max_elt])) max_elt = k;
-		}
+                int max_elt = 0;
+                for (int k = 1; k < d_in; k++) {
+                    if (fabs(eigenvectors[k*d_out+i]) > fabs(eigenvectors[k*d_out+max_elt])) max_elt = k;
+                }
                 if (max_elt < 0) { dot = -dot; }
-		*/
+                */
 
                 for (int k = 0; k < d_in; k++) {
                     eigenvectors[k *d_out+i] *= dot;
@@ -143,7 +143,7 @@ public:
 
             }
 
-	    /*
+            /*
             printf("eigenvector matrix:\n");
             for (int i = 0; i < d_in; i++) {
                 for (int j = 0; j < d_out; j++) {
@@ -151,7 +151,7 @@ public:
                 }
                 printf("\n");
             }
-	    */
+            */
 
             // check for convergence
             double dist = 0;
@@ -164,7 +164,7 @@ public:
             if (dist < 0.00001) { break; }
 
             //printf("%f\n", dist);
-            
+
             // multiply by the covariance matrix
             for (int i = 0; i < d_in; i++) {
                 for (int j = 0; j < d_out; j++) {
@@ -174,7 +174,7 @@ public:
                     }
                 }
             }
-	    tmp.swap(eigenvectors);
+            tmp.swap(eigenvectors);
 
         }
 

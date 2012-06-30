@@ -26,17 +26,17 @@ bool GaussianBlur::test() {
     Image blurry = GaussianBlur::apply(impulse, 0.7, 0.8, 0.5);
     float ratio = blurry(10, 10, 10, 0);
     for (int t = 0; t < 21; t++) {
-	float ft = (t - 10.0f)/0.5f;
-	for (int y = 0; y < 21; y++) {
-	    float fy = (y - 10.0f)/0.8f;
-	    for (int x = 0; x < 21; x++) {		
-		float fx = (x - 10.0f)/0.7f;
-		float correct = expf(-0.5f*(fx*fx + fy*fy + ft*ft))*ratio;
-		if (!nearlyEqual(blurry(x, y, t, 0), correct*1)) return false;
-		if (!nearlyEqual(blurry(x, y, t, 1), correct*2)) return false;
-		if (!nearlyEqual(blurry(x, y, t, 2), correct*3)) return false;
-	    }
-	}
+        float ft = (t - 10.0f)/0.5f;
+        for (int y = 0; y < 21; y++) {
+            float fy = (y - 10.0f)/0.8f;
+            for (int x = 0; x < 21; x++) {
+                float fx = (x - 10.0f)/0.7f;
+                float correct = expf(-0.5f*(fx*fx + fy*fy + ft*ft))*ratio;
+                if (!nearlyEqual(blurry(x, y, t, 0), correct*1)) return false;
+                if (!nearlyEqual(blurry(x, y, t, 1), correct*2)) return false;
+                if (!nearlyEqual(blurry(x, y, t, 2), correct*3)) return false;
+            }
+        }
     }
     return nearlyEqual(Stats(blurry).sum(), 6);
 }
@@ -222,222 +222,222 @@ void FastBlur::apply(Image im, float filterWidth, float filterHeight, float filt
     // Deal with very large filters by splitting into multiple smaller filters
     int xIterations = 1, yIterations = 1, tIterations = 1;
     while (filterWidth > 64) {
-	filterWidth /= sqrtf(2);
-	xIterations *= 2;
+        filterWidth /= sqrtf(2);
+        xIterations *= 2;
     }
     while (filterHeight > 64) {
-	filterHeight /= sqrtf(2);
-	yIterations *= 2;
+        filterHeight /= sqrtf(2);
+        yIterations *= 2;
     }
     while (filterFrames > 64) {
-	filterFrames /= sqrtf(2);
-	tIterations *= 2;
+        filterFrames /= sqrtf(2);
+        tIterations *= 2;
     }
 
     const int w = 16;
 
     // blur in x
     if (filterWidth > 0) {
-	const int size = im.width + (int)(filterWidth*6);
+        const int size = im.width + (int)(filterWidth*6);
 
-	float c0, c1, c2, c3;
-	calculateCoefficients(filterWidth, &c0, &c1, &c2, &c3);
+        float c0, c1, c2, c3;
+        calculateCoefficients(filterWidth, &c0, &c1, &c2, &c3);
 
-	vector<float> scale(size);
-	computeAttenuation(&scale[0], size, im.width, c0, c1, c2, c3, xIterations);
-	
-	for (int c = 0; c < im.channels; c++) {
-	    for (int t = 0; t < im.frames; t++) {
-                #ifdef _OPENMP
-		#pragma omp parallel for
-		#endif
-		for (int y = 0; y < im.height; y += w) {
-		    vector<float> chunk(size*w, 0);
+        vector<float> scale(size);
+        computeAttenuation(&scale[0], size, im.width, c0, c1, c2, c3, xIterations);
 
-		    // prepare 16 scanlines
-		    for (int x = 0; x < im.width; x++) {
-			for (int i = 0; i < w && y+i < im.height; i++) {
-			    chunk[x*w + i] = im(x, y+i, t, c);
-			}
-		    }
+        for (int c = 0; c < im.channels; c++) {
+            for (int t = 0; t < im.frames; t++) {
+#ifdef _OPENMP
+                #pragma omp parallel for
+#endif
+                for (int y = 0; y < im.height; y += w) {
+                    vector<float> chunk(size*w, 0);
 
-		    // blur them
-		    for (int i = 0; i < xIterations; i++) {
-			blurChunk(&chunk[0], size, c0, c1, c2, c3);
-			blurChunk(&chunk[0], size, c0, c1, c2, c3);
-		    }
+                    // prepare 16 scanlines
+                    for (int x = 0; x < im.width; x++) {
+                        for (int i = 0; i < w && y+i < im.height; i++) {
+                            chunk[x*w + i] = im(x, y+i, t, c);
+                        }
+                    }
 
-		    // read them back
-		    for (int x = 0; x < im.width; x++) {
-			for (int i = 0; i < w && y+i < im.height; i++) {
-			    im(x, y+i, t, c) = chunk[x*w + i] * scale[x];
-			}
-		    }		    
-		}
-	    }
-	}
+                    // blur them
+                    for (int i = 0; i < xIterations; i++) {
+                        blurChunk(&chunk[0], size, c0, c1, c2, c3);
+                        blurChunk(&chunk[0], size, c0, c1, c2, c3);
+                    }
+
+                    // read them back
+                    for (int x = 0; x < im.width; x++) {
+                        for (int i = 0; i < w && y+i < im.height; i++) {
+                            im(x, y+i, t, c) = chunk[x*w + i] * scale[x];
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // blur in y
     if (filterHeight > 0) {
-	const int size = im.height + (int)(filterHeight*6);
+        const int size = im.height + (int)(filterHeight*6);
 
-	float c0, c1, c2, c3;
-	calculateCoefficients(filterHeight, &c0, &c1, &c2, &c3);
-	
-	vector<float> scale(size);
-	computeAttenuation(&scale[0], size, im.height, c0, c1, c2, c3, yIterations);
+        float c0, c1, c2, c3;
+        calculateCoefficients(filterHeight, &c0, &c1, &c2, &c3);
 
-	for (int c = 0; c < im.channels; c++) {
-	    for (int t = 0; t < im.frames; t++) {
-                #ifdef _OPENMP
-		#pragma omp parallel for
-		#endif
-		for (int x = 0; x < im.width; x += w) {
-		    vector<float> chunk(size*w, 0);
+        vector<float> scale(size);
+        computeAttenuation(&scale[0], size, im.height, c0, c1, c2, c3, yIterations);
 
-		    // prepare 16 columns
-		    for (int y = 0; y < im.height; y++) {
-			for (int i = 0; i < w && x+i < im.width; i++) {
-			    chunk[y*w + i] = im(x+i, y, t, c);
-			}
-		    }
+        for (int c = 0; c < im.channels; c++) {
+            for (int t = 0; t < im.frames; t++) {
+#ifdef _OPENMP
+                #pragma omp parallel for
+#endif
+                for (int x = 0; x < im.width; x += w) {
+                    vector<float> chunk(size*w, 0);
 
-		    // blur them
-		    for (int i = 0; i < yIterations; i++) {
-			blurChunk(&chunk[0], size, c0, c1, c2, c3);
-			blurChunk(&chunk[0], size, c0, c1, c2, c3);
-		    }
+                    // prepare 16 columns
+                    for (int y = 0; y < im.height; y++) {
+                        for (int i = 0; i < w && x+i < im.width; i++) {
+                            chunk[y*w + i] = im(x+i, y, t, c);
+                        }
+                    }
 
-		    // read them back
-		    for (int y = 0; y < im.height; y++) {
-			for (int i = 0; i < w && x+i < im.width; i++) {
-			    im(x+i, y, t, c) = chunk[y*w + i] * scale[y];
-			}
-		    }		    
-		}
-	    }
-	}
+                    // blur them
+                    for (int i = 0; i < yIterations; i++) {
+                        blurChunk(&chunk[0], size, c0, c1, c2, c3);
+                        blurChunk(&chunk[0], size, c0, c1, c2, c3);
+                    }
+
+                    // read them back
+                    for (int y = 0; y < im.height; y++) {
+                        for (int i = 0; i < w && x+i < im.width; i++) {
+                            im(x+i, y, t, c) = chunk[y*w + i] * scale[y];
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // blur in t
     if (filterFrames > 0) {
-	const int size = im.frames + (int)(filterFrames*6);
+        const int size = im.frames + (int)(filterFrames*6);
 
-	float c0, c1, c2, c3;
-	calculateCoefficients(filterFrames, &c0, &c1, &c2, &c3);
-	
-	vector<float> scale(size);
-	computeAttenuation(&scale[0], size, im.frames, c0, c1, c2, c3, tIterations);
+        float c0, c1, c2, c3;
+        calculateCoefficients(filterFrames, &c0, &c1, &c2, &c3);
 
-	for (int c = 0; c < im.channels; c++) {
-	    for (int y = 0; y < im.height; y++) {		
-                #ifdef _OPENMP
-		#pragma omp parallel for
-		#endif
-		for (int x = 0; x < im.width; x += w) {
-		    vector<float> chunk(size*w, 0);
+        vector<float> scale(size);
+        computeAttenuation(&scale[0], size, im.frames, c0, c1, c2, c3, tIterations);
 
-		    // prepare 16 scanlines
-		    for (int t = 0; t < im.frames; t++) {
-			for (int i = 0; i < w && x+i < im.width; i++) {
-			    chunk[t*w + i] = im(x+i, y, t, c);
-			}
-		    }
+        for (int c = 0; c < im.channels; c++) {
+            for (int y = 0; y < im.height; y++) {
+#ifdef _OPENMP
+                #pragma omp parallel for
+#endif
+                for (int x = 0; x < im.width; x += w) {
+                    vector<float> chunk(size*w, 0);
 
-		    // blur them
-		    for (int i = 0; i < tIterations; i++) {
-			blurChunk(&chunk[0], size, c0, c1, c2, c3);
-			blurChunk(&chunk[0], size, c0, c1, c2, c3);
-		    }
+                    // prepare 16 scanlines
+                    for (int t = 0; t < im.frames; t++) {
+                        for (int i = 0; i < w && x+i < im.width; i++) {
+                            chunk[t*w + i] = im(x+i, y, t, c);
+                        }
+                    }
 
-		    // read them back
-		    for (int t = 0; t < im.frames; t++) {
-			for (int i = 0; i < w && x+i < im.width; i++) {
-			    im(x+i, y, t, c) = chunk[t*w + i] * scale[t];
-			}
-		    }		    
-		}
-	    }
-	}
+                    // blur them
+                    for (int i = 0; i < tIterations; i++) {
+                        blurChunk(&chunk[0], size, c0, c1, c2, c3);
+                        blurChunk(&chunk[0], size, c0, c1, c2, c3);
+                    }
+
+                    // read them back
+                    for (int t = 0; t < im.frames; t++) {
+                        for (int i = 0; i < w && x+i < im.width; i++) {
+                            im(x+i, y, t, c) = chunk[t*w + i] * scale[t];
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
-void FastBlur::blurChunk(float *data, int size, 
-			 const float c0, const float c1,
-			 const float c2, const float c3) {
+void FastBlur::blurChunk(float *data, int size,
+                         const float c0, const float c1,
+                         const float c2, const float c3) {
     // filter a 16-wide chunk of data in place
 
     const int w = 16;
 
     // Warm up
     for (int x = 0; x < w; x++) {
-	data[x] = c0*data[x];
-	data[w + x] = (c0*data[w + x] +
-		       c1*data[x]);
-	data[2*w + x] = (c0*data[2*w + x] + 
-			 c1*data[w + x] + 
-			 c2*data[x]);
+        data[x] = c0*data[x];
+        data[w + x] = (c0*data[w + x] +
+                       c1*data[x]);
+        data[2*w + x] = (c0*data[2*w + x] +
+                         c1*data[w + x] +
+                         c2*data[x]);
     }
 
     // Filter
     for (int x = 3*w; x < size*w; x++) {
-	data[x] = (c0 * data[x] + 
-		   c1 * data[x-w] + 
-		   c2 * data[x-w*2] + 
-		   c3 * data[x-w*3]);
+        data[x] = (c0 * data[x] +
+                   c1 * data[x-w] +
+                   c2 * data[x-w*2] +
+                   c3 * data[x-w*3]);
     }
 
     // Flip the data
     for (int y = 0; y < size/2; y++) {
-	for (int x = 0; x < w; x++) {
-	    swap(data[y*w+x], data[(size-1-y)*w+x]);
-	}
+        for (int x = 0; x < w; x++) {
+            swap(data[y*w+x], data[(size-1-y)*w+x]);
+        }
     }
 }
 
-void FastBlur::computeAttenuation(float *scale, int size, int width, 
-				  const float c0, const float c1, 
-				  const float c2, const float c3,
-				  int iterations) {
+void FastBlur::computeAttenuation(float *scale, int size, int width,
+                                  const float c0, const float c1,
+                                  const float c2, const float c3,
+                                  int iterations) {
     // Initial value
     for (int x = 0; x < width; x++) {
-	scale[x] = 1.0f;
+        scale[x] = 1.0f;
     }
     for (int x = width; x < size; x++) {
-	scale[x] = 0.0f;
+        scale[x] = 0.0f;
     }
 
     for (int i = 0; i < iterations; i++) {
-	// Forward pass
-	scale[0] = c0 * scale[0];
-	scale[1] = c0 * scale[1] + c1 * scale[0];
-	scale[2] = c0 * scale[2] + c1 * scale[1] + c2 * scale[0];
-	for (int x = 3; x < size; x++) {
-	    scale[x] = (c0 * scale[x] +
-			c1 * scale[x-1] + 
-			c2 * scale[x-2] + 
-			c3 * scale[x-3]);
-	}
-	
-	// Backward pass
-	scale[size-1] = c0 * scale[size-1];
-	scale[size-2] = (c0 * scale[size-2] + 
-			 c1 * scale[size-1]);
-	scale[size-3] = (c0 * scale[size-3] + 
-			 c1 * scale[size-2] + 
-			 c2 * scale[size-1]);    
-	for (int x = size-4; x >= 0; x--) {
-	    scale[x] = (c0 * scale[x] + 
-			c1 * scale[x+1] + 
-			c2 * scale[x+2] + 
-			c3 * scale[x+3]);
-	}
+        // Forward pass
+        scale[0] = c0 * scale[0];
+        scale[1] = c0 * scale[1] + c1 * scale[0];
+        scale[2] = c0 * scale[2] + c1 * scale[1] + c2 * scale[0];
+        for (int x = 3; x < size; x++) {
+            scale[x] = (c0 * scale[x] +
+                        c1 * scale[x-1] +
+                        c2 * scale[x-2] +
+                        c3 * scale[x-3]);
+        }
+
+        // Backward pass
+        scale[size-1] = c0 * scale[size-1];
+        scale[size-2] = (c0 * scale[size-2] +
+                         c1 * scale[size-1]);
+        scale[size-3] = (c0 * scale[size-3] +
+                         c1 * scale[size-2] +
+                         c2 * scale[size-1]);
+        for (int x = size-4; x >= 0; x--) {
+            scale[x] = (c0 * scale[x] +
+                        c1 * scale[x+1] +
+                        c2 * scale[x+2] +
+                        c3 * scale[x+3]);
+        }
     }
 
     // Invert
     for (int x = 0; x < size; x++) {
-	scale[x] = 1.0f/scale[x];
+        scale[x] = 1.0f/scale[x];
     }
 }
 
@@ -482,19 +482,19 @@ bool RectFilter::test() {
     impulse(10, 10, 10, 2) = 3;
     RectFilter::apply(impulse, 3, 5, 7, 1);
     for (int t = 0; t < 21; t++) {
-	for (int y = 0; y < 21; y++) {
-	    for (int x = 0; x < 21; x++) {
-		bool inside = (x > 8 && x < 12 &&
-			       y > 7 && y < 13 && 
-			       t > 6 && t < 14);
-		float correct = inside ? 1.0f/(3*5*7) : 0.0f;
-		if (!nearlyEqual(impulse(x, y, t, 0), correct*1)) return false;
-		if (!nearlyEqual(impulse(x, y, t, 1), correct*2)) return false;
-		if (!nearlyEqual(impulse(x, y, t, 2), correct*3)) return false;
-	    }
-	}
+        for (int y = 0; y < 21; y++) {
+            for (int x = 0; x < 21; x++) {
+                bool inside = (x > 8 && x < 12 &&
+                               y > 7 && y < 13 &&
+                               t > 6 && t < 14);
+                float correct = inside ? 1.0f/(3*5*7) : 0.0f;
+                if (!nearlyEqual(impulse(x, y, t, 0), correct*1)) return false;
+                if (!nearlyEqual(impulse(x, y, t, 1), correct*2)) return false;
+                if (!nearlyEqual(impulse(x, y, t, 2), correct*3)) return false;
+            }
+        }
     }
-    return true;    
+    return true;
 }
 
 void RectFilter::parse(vector<string> args) {
@@ -715,20 +715,20 @@ bool LanczosBlur::test() {
     Image blurry = LanczosBlur::apply(impulse, 1.7, 1.8, 1.5);
     float ratio = blurry(10, 10, 10, 0);
     for (int t = 0; t < 21; t++) {
-	float ft = (t - 10.0f)/1.5f;
-	ft = (ft == 0) ? 1 : (sinc(ft) * sinc(ft/3));
-	for (int y = 0; y < 21; y++) {
-	    float fy = (y - 10.0f)/1.8f;
-	    fy = (fy == 0) ? 1 : (sinc(fy) * sinc(fy/3));
-	    for (int x = 0; x < 21; x++) {		
-		float fx = (x - 10.0f)/1.7f;
-		fx = (fx == 0) ? 1 : (sinc(fx) * sinc(fx/3));
-		float correct = fx*fy*ft*ratio;
-		if (!nearlyEqual(blurry(x, y, t, 0), correct*1)) return false;
-		if (!nearlyEqual(blurry(x, y, t, 1), correct*2)) return false;
-		if (!nearlyEqual(blurry(x, y, t, 2), correct*3)) return false;
-	    }
-	}
+        float ft = (t - 10.0f)/1.5f;
+        ft = (ft == 0) ? 1 : (sinc(ft) * sinc(ft/3));
+        for (int y = 0; y < 21; y++) {
+            float fy = (y - 10.0f)/1.8f;
+            fy = (fy == 0) ? 1 : (sinc(fy) * sinc(fy/3));
+            for (int x = 0; x < 21; x++) {
+                float fx = (x - 10.0f)/1.7f;
+                fx = (fx == 0) ? 1 : (sinc(fx) * sinc(fx/3));
+                float correct = fx*fy*ft*ratio;
+                if (!nearlyEqual(blurry(x, y, t, 0), correct*1)) return false;
+                if (!nearlyEqual(blurry(x, y, t, 1), correct*2)) return false;
+                if (!nearlyEqual(blurry(x, y, t, 2), correct*3)) return false;
+            }
+        }
     }
     return nearlyEqual(Stats(blurry).sum(), 6);
 }
@@ -851,19 +851,19 @@ void MinFilter::apply(Image im, int radius) {
     // to the root.
 
     vector<float> heap(4*radius+1);
-    
+
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
             for (int c = 0; c < im.channels; c++) {
                 // Initialize the heap to contain all inf
                 std::fill(heap.begin(), heap.end(), INF);
                 size_t pos = 2*radius;
-                for (int x = 0; x < im.width + radius; x++) {                                        
+                for (int x = 0; x < im.width + radius; x++) {
                     // Get the next input
                     float val;
                     if (x < im.width) val = im(x, y, t, c);
                     else val = INF;
-                    // Stuff it in the heap                    
+                    // Stuff it in the heap
                     heap[pos] = val;
                     // Update parents
                     size_t p = pos;
@@ -887,11 +887,11 @@ void MinFilter::apply(Image im, int radius) {
                 // Initialize the heap to contain all inf
                 std::fill(heap.begin(), heap.end(), INF);
                 size_t pos = 2*radius;
-                for (int y = 0; y < im.height + radius; y++) {                                        
+                for (int y = 0; y < im.height + radius; y++) {
                     float val;
                     if (y < im.height) val = im(x, y, t, c);
                     else val = INF;
-                    // stuff it in the heap                    
+                    // stuff it in the heap
                     heap[pos] = val;
                     // update parents
                     size_t p = pos;
@@ -900,7 +900,7 @@ void MinFilter::apply(Image im, int radius) {
                         heap[p] = min(heap[2*p+1], heap[2*p+2]);
                     } while (p);
                     // write out min
-                    if (y-radius > 0) 
+                    if (y-radius > 0)
                         im(x, y-radius, t, c) = heap[0];
                     // update position in circular buffer
                     pos++;
@@ -945,19 +945,19 @@ void MaxFilter::apply(Image im, int radius) {
     // to the root.
 
     vector<float> heap(4*radius+1);
-    
+
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
             for (int c = 0; c < im.channels; c++) {
                 // Initialize the heap to contain all inf
                 std::fill(heap.begin(), heap.end(), -INF);
                 size_t pos = 2*radius;
-                for (int x = 0; x < im.width + radius; x++) {                                        
+                for (int x = 0; x < im.width + radius; x++) {
                     // Get the next input
                     float val;
                     if (x < im.width) val = im(x, y, t, c);
                     else val = -INF;
-                    // Stuff it in the heap                    
+                    // Stuff it in the heap
                     heap[pos] = val;
                     // Update parents
                     size_t p = pos;
@@ -981,11 +981,11 @@ void MaxFilter::apply(Image im, int radius) {
                 // Initialize the heap to contain all inf
                 std::fill(heap.begin(), heap.end(), -INF);
                 size_t pos = 2*radius;
-                for (int y = 0; y < im.height + radius; y++) {                                        
+                for (int y = 0; y < im.height + radius; y++) {
                     float val;
                     if (y < im.height) val = im(x, y, t, c);
                     else val = -INF;
-                    // Stuff it in the heap                    
+                    // Stuff it in the heap
                     heap[pos] = val;
                     // Update parents
                     size_t p = pos;
@@ -994,7 +994,7 @@ void MaxFilter::apply(Image im, int radius) {
                         heap[p] = max(heap[2*p+1], heap[2*p+2]);
                     } while (p);
                     // write out max
-                    if (y-radius > 0) 
+                    if (y-radius > 0)
                         im(x, y-radius, t, c) = heap[0];
                     // update position in circular buffer
                     pos++;
@@ -1008,7 +1008,7 @@ void MaxFilter::apply(Image im, int radius) {
 
 
 void MedianFilter::help() {
-    pprintf("-medianfilter applies a median filter with a circular support. The " 
+    pprintf("-medianfilter applies a median filter with a circular support. The "
             "sole argument is the pixel radius of the filter.\n"
             "\n"
             "Usage: ImageStack -load input.jpg -medianfilter 10 -save output.jpg\n");
@@ -1044,7 +1044,7 @@ bool PercentileFilter::test() {
     Image a(1024, 1024, 1, 1);
     Noise::apply(a, 0, 2);
     Image b = PercentileFilter::apply(a, 5, 0.75);
-    Stats s(b);    
+    Stats s(b);
     return nearlyEqual(s.mean(), 1.5) && nearlyEqual(s.variance(), 0);
 }
 
@@ -1067,10 +1067,10 @@ Image PercentileFilter::apply(Image im, int radius, float percentile) {
         // buffer as the leaves. The internal nodes point to the smaller
         // or greater child. Each node in the buffer belongs to at most
         // one of the two heaps at any given time.
-        
+
         // Buffer to contain pixel values
         vector<float> buf;
- 
+
         // The pair represents:
         // 1) Index in the circular buffer of the value at this node
         // 2) How many valid children this node has. If zero, then 1) is meaningless.
@@ -1103,7 +1103,7 @@ Image PercentileFilter::apply(Image im, int radius, float percentile) {
         void insert(int key, float val) {
             float p = pivot();
             buf[key] = val;
-            int heapIdx = key + buf.size() - 1;            
+            int heapIdx = key + buf.size() - 1;
             if (isEmpty() || val < p) {
                 // add to the max heap
                 maxHeap[heapIdx].second = 1;
@@ -1139,7 +1139,7 @@ Image PercentileFilter::apply(Image im, int radius, float percentile) {
                 if (minHeap[p] == parent) break;
                 minHeap[p] = parent;
             }
-                 
+
             p = pos;
             while (p) {
                 p = (p-1)/2;
@@ -1186,10 +1186,10 @@ Image PercentileFilter::apply(Image im, int radius, float percentile) {
                 int heapIdx = maxHeap[0].first + (buf.size()-1);
                 minHeap[heapIdx].second = 1;
                 maxHeap[heapIdx].second = 0;
-                updateFrom(heapIdx);                
+                updateFrom(heapIdx);
             }
         }
-        
+
         bool isEmpty() {
             return ((maxHeap[0].second + minHeap[0].second) == 0);
         }
@@ -1200,25 +1200,25 @@ Image PercentileFilter::apply(Image im, int radius, float percentile) {
 
         void debug() {
             int heapSize = minHeap.size();
-            printf("min heap:\n");            
+            printf("min heap:\n");
             for (int sz = heapSize+1; sz > 1; sz /= 2) {
                 for (int i = sz/2-1; i < sz-1; i++) {
                     pair<int, int> node = minHeap[i];
                     if (node.second)
                         printf("%02d ", (int)(buf[node.first]*100));
                     else
-                        printf("-- ");                    
+                        printf("-- ");
                 }
                 printf("\n");
             }
-            printf("max heap:\n");            
+            printf("max heap:\n");
             for (int sz = heapSize+1; sz > 1; sz /= 2) {
                 for (int i = sz/2-1; i < sz-1; i++) {
                     pair<int, int> node = maxHeap[i];
                     if (node.second)
                         printf("%02d ", (int)(buf[node.first]*100));
                     else
-                        printf("-- ");                    
+                        printf("-- ");
                 }
                 printf("\n");
             }
@@ -1291,11 +1291,11 @@ Image PercentileFilter::apply(Image im, int radius, float percentile) {
 
 
 void CircularFilter::help() {
-  pprintf("-circularfilter convolves the image with a uniform circular kernel. It"
-          "is a good approximation to out-of-focus blur. The sole argument is the"
-          "radius of the filter.\n"
-          "\n"
-          "Usage: ImageStack -load in.jpg -circularfilter 10 -save out.jpg\n\n");
+    pprintf("-circularfilter convolves the image with a uniform circular kernel. It"
+            "is a good approximation to out-of-focus blur. The sole argument is the"
+            "radius of the filter.\n"
+            "\n"
+            "Usage: ImageStack -load in.jpg -circularfilter 10 -save out.jpg\n\n");
 }
 
 bool CircularFilter::test() {
@@ -1306,14 +1306,14 @@ bool CircularFilter::test() {
     Image blurry = CircularFilter::apply(impulse, 5);
     float ratio = blurry(10, 10, 0, 0);
     for (int y = 0; y < 21; y++) {
-	float fy = (y - 10.0f)/5;
-	for (int x = 0; x < 21; x++) {		
-	    float fx = (x - 10.0f)/5;
-	    float correct = (fx*fx + fy*fy) <= 1.00001 ? ratio : 0;
-	    if (!nearlyEqual(blurry(x, y, 0, 0), correct*1)) return false;
-	    if (!nearlyEqual(blurry(x, y, 0, 1), correct*2)) return false;
-	    if (!nearlyEqual(blurry(x, y, 0, 2), correct*3)) return false;
-	}
+        float fy = (y - 10.0f)/5;
+        for (int x = 0; x < 21; x++) {
+            float fx = (x - 10.0f)/5;
+            float correct = (fx*fx + fy*fy) <= 1.00001 ? ratio : 0;
+            if (!nearlyEqual(blurry(x, y, 0, 0), correct*1)) return false;
+            if (!nearlyEqual(blurry(x, y, 0, 1), correct*2)) return false;
+            if (!nearlyEqual(blurry(x, y, 0, 2), correct*3)) return false;
+        }
     }
     return nearlyEqual(Stats(blurry).sum(), 6);
 }
@@ -1397,23 +1397,23 @@ void Envelope::help() {
 
 bool Envelope::test() {
     {
-	Image a(123, 234, 2, 3);
-	Noise::apply(a, 0, 1);
-	Image b = a.copy();
-	Envelope::apply(b, Upper, 3);
-	b -= a;
-	if (!nearlyEqual(Stats(b).minimum(), 0)) return false;
+        Image a(123, 234, 2, 3);
+        Noise::apply(a, 0, 1);
+        Image b = a.copy();
+        Envelope::apply(b, Upper, 3);
+        b -= a;
+        if (!nearlyEqual(Stats(b).minimum(), 0)) return false;
     }
 
     {
-	Image a(123, 234, 2, 3);
-	Noise::apply(a, 0, 1);
-	Image b = a.copy();
-	Envelope::apply(b, Lower, 3);
-	a -= b;
-	if (!nearlyEqual(Stats(a).minimum(), 0)) return false;
+        Image a(123, 234, 2, 3);
+        Noise::apply(a, 0, 1);
+        Image b = a.copy();
+        Envelope::apply(b, Lower, 3);
+        a -= b;
+        if (!nearlyEqual(Stats(a).minimum(), 0)) return false;
     }
-    
+
     return true;
 }
 
@@ -1433,7 +1433,7 @@ void Envelope::apply(Image im, Mode m, int radius) {
         RectFilter::apply(im, 2*radius+1, 2*radius+1, 1);
         radius = (radius+2)/3;
         MaxFilter::apply(im, radius);
-        RectFilter::apply(im, 2*radius+1, 2*radius+1, 1);  
+        RectFilter::apply(im, 2*radius+1, 2*radius+1, 1);
     }
 
     if (m == Lower) {
@@ -1441,7 +1441,7 @@ void Envelope::apply(Image im, Mode m, int radius) {
         RectFilter::apply(im, 2*radius+1, 2*radius+1, 1);
         radius = (radius+2)/3;
         MinFilter::apply(im, radius);
-        RectFilter::apply(im, 2*radius+1, 2*radius+1, 1);            
+        RectFilter::apply(im, 2*radius+1, 2*radius+1, 1);
     }
 }
 
@@ -1457,22 +1457,22 @@ bool HotPixelSuppression::test() {
     Noise::apply(a, -4, 12);
     Image b = HotPixelSuppression::apply(a);
     for (int y = 1; y < 99; y++) {
-	for (int x = 1; x < 99; x++) {
-	    if (b(x, y) > a(x-1, y) && 
-		b(x, y) > a(x+1, y) && 
-		b(x, y) > a(x, y-1) && 
-		b(x, y) > a(x, y+1)) return false;
-	    if (b(x, y) < a(x-1, y) && 
-		b(x, y) < a(x+1, y) && 
-		b(x, y) < a(x, y-1) && 
-		b(x, y) < a(x, y+1)) return false;
-	}
+        for (int x = 1; x < 99; x++) {
+            if (b(x, y) > a(x-1, y) &&
+                b(x, y) > a(x+1, y) &&
+                b(x, y) > a(x, y-1) &&
+                b(x, y) > a(x, y+1)) return false;
+            if (b(x, y) < a(x-1, y) &&
+                b(x, y) < a(x+1, y) &&
+                b(x, y) < a(x, y-1) &&
+                b(x, y) < a(x, y+1)) return false;
+        }
     }
     return true;
 }
 
 void HotPixelSuppression::parse(vector<string> args) {
-    assert(args.size() == 0, 
+    assert(args.size() == 0,
            "-hotpixelsuppression takes no arguments\n");
     Image im = apply(stack(0));
     pop();
@@ -1486,24 +1486,24 @@ Image HotPixelSuppression::apply(Image im) {
         for (int y = 0; y < im.height; y++) {
             for (int x = 0; x < im.width; x++) {
                 for (int c = 0; c < im.channels; c++) {
-		    float maxn = -INF;
-		    float minn = INF;
-		    if (x > 0) {
-			maxn = max(maxn, im(x-1, y, t, c));
-			minn = min(minn, im(x-1, y, t, c));
-		    }
-		    if (x < im.width-1) {
-			maxn = max(maxn, im(x+1, y, t, c));
-			minn = min(minn, im(x+1, y, t, c));
-		    }
-		    if (y > 0) {
-			maxn = max(maxn, im(x, y-1, t, c));
-			minn = min(minn, im(x, y-1, t, c));
-		    }
-		    if (y < im.height-1) {
-			maxn = max(maxn, im(x, y+1, t, c));
-			minn = min(minn, im(x, y+1, t, c));
-		    }
+                    float maxn = -INF;
+                    float minn = INF;
+                    if (x > 0) {
+                        maxn = max(maxn, im(x-1, y, t, c));
+                        minn = min(minn, im(x-1, y, t, c));
+                    }
+                    if (x < im.width-1) {
+                        maxn = max(maxn, im(x+1, y, t, c));
+                        minn = min(minn, im(x+1, y, t, c));
+                    }
+                    if (y > 0) {
+                        maxn = max(maxn, im(x, y-1, t, c));
+                        minn = min(minn, im(x, y-1, t, c));
+                    }
+                    if (y < im.height-1) {
+                        maxn = max(maxn, im(x, y+1, t, c));
+                        minn = min(minn, im(x, y+1, t, c));
+                    }
                     float here = im(x, y, t, c);
                     if (here > maxn) here = maxn;
                     if (here < minn) here = minn;

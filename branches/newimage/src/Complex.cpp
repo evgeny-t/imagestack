@@ -26,7 +26,7 @@ bool ComplexMultiply::test() {
     Image d = b.copy();
     ComplexMultiply::apply(d, a, true);
     if (!nearlyEqual(c, d)) return false;
-    
+
     return true;
 }
 
@@ -93,7 +93,7 @@ bool ComplexDivide::test() {
     Image a(123, 234, 4, 2);
     Image b(123, 234, 4, 2);
     Image c(123, 234, 4, 2);
-    
+
     // (a + b) / (conj(conj(c))) = a / c + b / c
     Noise::apply(a, -1, 1);
     Noise::apply(b, -1, 1);
@@ -152,7 +152,7 @@ void ComplexDivide::apply(Image a, Image b, bool conj) {
             apply(a.selectChannels(c, 2),
                   b.selectChannels(c, 2), conj);
         }
-    }    
+    }
 }
 
 
@@ -225,8 +225,8 @@ void RealComplex::parse(vector<string> args) {
 
 Image RealComplex::apply(Image im) {
     Image out(im.width, im.height, im.frames, im.channels*2);
-    
-    for (int c = 0; c < im.channels; c++) {                    
+
+    for (int c = 0; c < im.channels; c++) {
         out.channel(2*c).set(im.channel(c));
     }
 
@@ -279,7 +279,7 @@ void ComplexMagnitude::help() {
 
 bool ComplexMagnitude::test() {
     // tested by ComplexReal
-    return true;   
+    return true;
 }
 
 void ComplexMagnitude::parse(vector<string> args) {
@@ -326,7 +326,7 @@ bool ComplexPhase::test() {
     ComplexMultiply::apply(a, b);
     b = ComplexPhase::apply(a);
     Stats s(b);
-    if (!(nearlyEqual(s.mean(), M_PI/4) && 
+    if (!(nearlyEqual(s.mean(), M_PI/4) &&
           nearlyEqual(s.variance(), 0))) return false;
 
     // Squaring should double phase
@@ -334,7 +334,7 @@ bool ComplexPhase::test() {
     Noise::apply(a, 1, 2);
     b = a.copy();
     ComplexMultiply::apply(b, b);
-    return nearlyEqual(ComplexPhase::apply(b), 
+    return nearlyEqual(ComplexPhase::apply(b),
                        2*ComplexPhase::apply(a));
 }
 
@@ -348,7 +348,7 @@ void ComplexPhase::parse(vector<string> args) {
 Image ComplexPhase::apply(Image im) {
     assert(im.channels % 2 == 0, "complex images must have an even number of channels\n");
 
-    Image out(im.width, im.height, im.frames, im.channels/2);    
+    Image out(im.width, im.height, im.frames, im.channels/2);
 
     for (int c = 0; c < out.channels; c++) {
         Image real = im.channel(2*c);

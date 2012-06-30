@@ -60,7 +60,7 @@ void save(Image im, string filename, int quality) {
         JSAMPLE *dstPtr = row;
         for (int x = 0; x < im.width; x++) {
             for (int c = 0; c < im.channels; c++) {
-	      *dstPtr++ = (JSAMPLE)(HDRtoLDR(im(x, cinfo.next_scanline, c)));
+                *dstPtr++ = (JSAMPLE)(HDRtoLDR(im(x, cinfo.next_scanline, c)));
             }
         }
         jpeg_write_scanlines(&cinfo, &row, 1);
@@ -100,7 +100,7 @@ Image load(string filename) {
         JSAMPLE *srcPtr = buffer[0];
         for (int x = 0; x < im.width; x++) {
             for (int c = 0; c < im.channels; c++) {
-		im(x, cinfo.output_scanline-1, c) = LDRtoHDR(*srcPtr++);
+                im(x, cinfo.output_scanline-1, c) = LDRtoHDR(*srcPtr++);
             }
         }
     }
