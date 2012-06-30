@@ -33,7 +33,7 @@ namespace {
         printf("%s ", fmt.c_str()); 
         fflush(stdout);
         TempFile t(string("_test") + "." + fmt);
-        Save::apply(im, t.name);
+		Save::apply(im, t.name);
         Image b = Load::apply(t.name);
         return nearlyEqual(im, b);        
     }
