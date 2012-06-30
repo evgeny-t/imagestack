@@ -128,7 +128,7 @@ bool Multiply::test() {
     return true;
 }
 
-Image Multiply::apply(const Image a, const Image b, Mode m) {
+Image Multiply::apply(Image a, Image b, Mode m) {
     if (a.channels < b.channels) { return apply(b, a, m); }
 
     assert(a.width == b.width &&
@@ -271,7 +271,7 @@ void Maximum::parse(vector<string> args) {
     pop();
 }
 
-void Maximum::apply(Image a, const Image b) {
+void Maximum::apply(Image a, Image b) {
     assert(a.width == b.width &&
            a.height == b.height &&
            a.frames == b.frames &&
@@ -313,7 +313,7 @@ void Minimum::parse(vector<string> args) {
     pop();
 }
 
-void Minimum::apply(Image a, const Image b) {
+void Minimum::apply(Image a, Image b) {
     assert(a.width == b.width &&
            a.height == b.height &&
            a.frames == b.frames &&

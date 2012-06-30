@@ -47,7 +47,7 @@ Image load(string filename) {
            "Could not read header of %s\n", filename.c_str());
 
     int ch, wi, he, fr;
-    int ret = sscanf(header, "SIZE %d %d %d %d", &ch, &wi, &he, &fr);
+    int ret = sscanf(header, "SIZE %20d %20d %20d %20d", &ch, &wi, &he, &fr);
     if (ret == 0) { // 0D
         ch = wi = he = fr = 1;
     } else if (ret == 1) { // 1D
@@ -74,12 +74,14 @@ Image load(string filename) {
         for (int t = 0; t < im.frames; t++) {
             for (int y = 0; y < im.height; y++) {
                 for (int x = 0; x < im.width; x++) {
-                    assert(fscanf(f, "%f", &im(x, y, t, c)) == 1,
+                    assert(fscanf(f, "%20f", &im(x, y, t, c)) == 1,
                            "Unexpected end of file reading %s\n", filename.c_str());
                 }
             }
         }
     }
+
+    fclose(f);
 
     return im;
 }

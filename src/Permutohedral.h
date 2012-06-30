@@ -537,14 +537,14 @@ public:
         // depending where we ended up, we may have to copy data
         if (oldValue != hashTableBase) {
             memcpy(hashTableBase, oldValue, hashTable.size()*vd*sizeof(float));
-            delete oldValue;
+            delete[] oldValue;
         } else {
-            delete newValue;
+            delete[] newValue;
         }
 
-        delete zero;
-        delete neighbor1;
-        delete neighbor2;
+        delete[] zero;
+        delete[] neighbor1;
+        delete[] neighbor2;
     }
 
 private:
@@ -559,7 +559,7 @@ private:
         int offset;
         float weight;
     } *replay;
-    int nReplay, nReplaySub;
+    int nReplay;
 
 public:
     char  *rank;

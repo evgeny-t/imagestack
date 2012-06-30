@@ -19,7 +19,7 @@ using ::std::string;
 
 class Address {
 public:
-    Address() {}
+    Address() : port(0) {}
     Address(string name_, unsigned short port_);
     Address(struct sockaddr_in addr_);
 

@@ -30,6 +30,7 @@ Stats::Stats(Image im) : im_(im) {
     channels = im.channels;
 
     min_ = max_ = im(0, 0);
+    nans_ = posinfs_ = neginfs_ = 0;
 
     for (int c = 0; c < im.channels; c++) {
         means.push_back(0);
@@ -55,7 +56,6 @@ Stats::Stats(Image im) : im_(im) {
 
 void Stats::computeBasicStats() {
     vector<int> counts(im_.channels, 0);
-    nans_ = posinfs_ = neginfs_ = 0;
     int count = 0;
     for (int t = 0; t < im_.frames; t++) {
         for (int y = 0; y < im_.height; y++) {
@@ -63,9 +63,9 @@ void Stats::computeBasicStats() {
                 for (int c = 0; c < im_.channels; c++) {
                     float val = im_(x, y, t, c);
                     if (!isfinite(val)) {
-                        if (isnan(val)) { nans_++; }
-                        else if (val > 0) { posinfs_++; }
-                        else { neginfs_++; }
+                        if (isnan(val)) nans_++;
+                        else if (val > 0) posinfs_++;
+                        else neginfs_++;
                         continue;
                     };
                     counts[c]++;

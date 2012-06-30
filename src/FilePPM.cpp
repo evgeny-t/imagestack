@@ -61,7 +61,7 @@ Image load(string filename) {
     }
 
     int width, height, maxval;
-    assert(fscanf(f, " %d %d %d", &width, &height, &maxval) == 3, "Could not read image dimensions from ppm");
+    assert(fscanf(f, " %20d %20d %20d", &width, &height, &maxval) == 3, "Could not read image dimensions from ppm");
 
     // remove the next whitespace char
     fgetc(f);
