@@ -210,7 +210,7 @@ Image Deconvolve::applyShan2008(Image B, Image K) {
         // also independent for x and y.
         //  2 gamma (Psi_x - deriv_x L) + 2 lambda_2 (Psi_x - deriv_x I) .* mask
         //   + lambda_1 (non-linear prior on Psi_x)' = 0.
-        float ans_x, ans_y, tmp, fscore, tmpscore;
+        float ans_x = 0, ans_y = 0, tmp, fscore = 0, tmpscore;
         bool fscore_valid;
         Image dLdx = Convolve::apply(L, Crop::apply(FDeriv[1], -1, 0, 3, 1), Convolve::Wrap);
         Image dLdy = Convolve::apply(L, Crop::apply(FDeriv[3], 0, -1, 1, 3), Convolve::Wrap);

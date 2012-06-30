@@ -21,7 +21,7 @@ namespace {
     
     struct TempFile {
         string name;
-        TempFile() : name(tmpnam(NULL)) {}
+        TempFile() : name("_test") {}
         TempFile(string name_) : name(name_) {}
         ~TempFile() {
             remove(name.c_str());
@@ -32,10 +32,10 @@ namespace {
     bool testFormat(Image im, string fmt) {
         printf("%s ", fmt.c_str()); 
         fflush(stdout);
-        TempFile t(string(tmpnam(NULL)) + "." + fmt);
+        TempFile t(string("_test") + "." + fmt);
         Save::apply(im, t.name);
         Image b = Load::apply(t.name);
-        return nearlyEqual(im, b);
+        return nearlyEqual(im, b);        
     }
 
 
@@ -174,7 +174,7 @@ bool LoadFrames::test() {
     Noise::apply(a, 0, 1);
     FastBlur::apply(a, 1, 1, 1);
 
-    string prefix = tmpnam(NULL);
+    string prefix = "_test";
     TempFile f1(prefix + "0.jpg");
     TempFile f2(prefix + "1.jpg");
     TempFile f3(prefix + "2.jpg");
@@ -226,7 +226,7 @@ bool LoadChannels::test() {
     Noise::apply(a, 0, 1);
     FastBlur::apply(a, 1, 1, 1);
 
-    string prefix = tmpnam(NULL);
+    string prefix = "_test";
     TempFile t1(prefix + "0.jpg");
     TempFile t2(prefix + "1.jpg");
     TempFile t3(prefix + "2.jpg");
@@ -453,7 +453,7 @@ bool LoadBlock::test() {
     Noise::apply(a, 0, 1);
     FastBlur::apply(a, 1, 1, 1);
 
-    TempFile f(string(tmpnam(NULL)) + ".tmp");
+    TempFile f(string("_test") + ".tmp");
 
     CreateTmp::apply(f.name, 234, 342, 5, 5);
 
@@ -551,7 +551,7 @@ Image LoadBlock::apply(string filename, int xoff, int yoff, int toff, int coff,
     off_t xStride = sizeof(float);
     off_t yStride = header.width*xStride;
     off_t tStride = header.height*yStride;
-    off_t cStride = header.frames*cStride;
+    off_t cStride = header.frames*tStride;
     const off_t headerBytes = 5*sizeof(int);
 
     int xmin = max(xoff, 0);
@@ -649,7 +649,7 @@ void SaveBlock::apply(Image im, string filename, int xoff, int yoff, int toff, i
     off_t xStride = sizeof(float);
     off_t yStride = header.width*xStride;
     off_t tStride = header.height*yStride;
-    off_t cStride = header.frames*cStride;
+    off_t cStride = header.frames*tStride;
     const int headerBytes = 5*sizeof(float);
 
     int xmin = max(xoff, 0);
@@ -694,7 +694,7 @@ bool CreateTmp::test() {
 }
 
 void CreateTmp::parse(vector<string> args) {
-    int frames = 1, width, height, channels;
+    int frames = 1, width = 1, height = 1, channels = 1;
     if (args.size() == 5) {
         width = readInt(args[1]);
         height = readInt(args[2]);
@@ -751,7 +751,7 @@ namespace {
     template<typename T>
     bool testLoadArray() {
         Image a(123, 234, 3, 4);
-        Noise::apply(a, -1234, 12324);
+        Noise::apply(a, 0, 12324);
         TempFile f;
         SaveArray::apply<T>(a, f.name);
         Image b = LoadArray::apply<T>(f.name, 123, 234, 3, 4);
