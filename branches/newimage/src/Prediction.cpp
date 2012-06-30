@@ -203,7 +203,7 @@ void SeamlessClone::apply(Image dst, Image src, Image mask) {
     Image patch = Inpaint::apply(dst-src, mask);
 
     for (int c = 0; c < dst.channels; c++) {
-	dst.channel(c).set((1-mask)*(src.channel(c) + patch.channel(c)) + mask*dst.channel(c));
+        dst.channel(c).set((1-mask)*(src.channel(c) + patch.channel(c)) + mask*dst.channel(c));
     }
 }
 

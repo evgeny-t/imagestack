@@ -590,7 +590,6 @@ class Image {
         width(other.width), height(other.height), frames(other.frames), channels(other.channels),
         ystride(other.ystride), tstride(other.tstride), cstride(other.cstride), 
         data(other.data), base(other.base) {
-        
     }
 
   private:
@@ -743,6 +742,9 @@ class Image {
 
 // Clean up after myself
 #undef LazyType
+
+
+
 
 #include "footer.h"
 #endif

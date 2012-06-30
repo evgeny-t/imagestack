@@ -39,8 +39,10 @@ Image load(string filename) {
     for (int i = 0; i < 5; i++) { fgetc(f); }
     // skip xstart and ystart
     for (int i = 0; i < 4; i++) { fgetc(f); }
-    width  = fgetc(f) + (fgetc(f) << 8);
-    height = fgetc(f) + (fgetc(f) << 8);
+    width = fgetc(f);
+	width += (fgetc(f) << 8);
+    height = fgetc(f);
+	height += (fgetc(f) << 8);
     bits = fgetc(f);
 
     // skip the descriptor
