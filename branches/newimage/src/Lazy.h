@@ -1010,23 +1010,23 @@ namespace Lazy {
 // In this second case, the fourth arg is the type of the numeric const.
 #define MAKE_OP_LL(T, S, N) \
 	template<typename A, typename B> \
-	Lazy:: ## T<typename A::Lazy, typename B::Lazy, Lazy::Vec:: ## N> \
-	operator ## S(const A &a, const B &b) { \
-	return Lazy:: ## T<A, B, Lazy::Vec:: ## N>(a, b); \
+	Lazy::T<typename A::Lazy, typename B::Lazy, Lazy::Vec::N> \
+	operator S(const A &a, const B &b) { \
+	return Lazy::T<A, B, Lazy::Vec::N>(a, b); \
 }
 
 #define MAKE_OP_CL(T, S, N, CT) \
 	template<typename B> \
-	Lazy:: ## T<Lazy::Const, typename B::Lazy, Lazy::Vec:: ## N> \
-	operator ## S(CT a, const B &b) { \
-	return Lazy:: ## T<Lazy::Const, B, Lazy::Vec:: ## N>(Lazy::Const(a), b); \
+	Lazy::T<Lazy::Const, typename B::Lazy, Lazy::Vec::N> \
+	operator S(CT a, const B &b) { \
+	return Lazy::T<Lazy::Const, B, Lazy::Vec::N>(Lazy::Const(a), b); \
 }
 
 #define MAKE_OP_LC(T, S, N, CT) \
 	template<typename A> \
-	Lazy:: ## T<typename A::Lazy, Lazy::Const, Lazy::Vec:: ## N> \
-	operator ## S(const A &a, CT b) { \
-	return Lazy:: ## T<A, Lazy::Const, Lazy::Vec:: ## N>(a, Lazy::Const(b)); \
+	Lazy::T<typename A::Lazy, Lazy::Const, Lazy::Vec::N> \
+	operator S(const A &a, CT b) { \
+	return Lazy::T<A, Lazy::Const, Lazy::Vec::N>(a, Lazy::Const(b)); \
 }
 
 // Make the full set of operator overloads for a given operator
