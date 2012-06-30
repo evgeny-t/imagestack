@@ -15,7 +15,7 @@ public:
     bool test();
     void parse(vector<string> args);
     enum Mode {Elementwise = 0, Inner, Outer};
-    static Image apply(const Image a, const Image b, Mode m);
+    static Image apply(Image a, Image b, Mode m);
 };
 
 class Subtract : public Operation {
@@ -37,7 +37,7 @@ public:
     void help();
     bool test();
     void parse(vector<string> args);
-    static void apply(Image a, const Image b);
+    static void apply(Image a, Image b);
 };
 
 class Minimum : public Operation {
@@ -45,7 +45,7 @@ public:
     void help();
     bool test();
     void parse(vector<string> args);
-    static void apply(Image a, const Image b);
+    static void apply(Image a, Image b);
 };
 
 class Log : public Operation {

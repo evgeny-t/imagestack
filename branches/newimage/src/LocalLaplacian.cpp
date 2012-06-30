@@ -7,13 +7,13 @@
 #include "File.h"
 #include "header.h"
 
-Image LocalLaplacian::pyramidDown(const Image im) {
+Image LocalLaplacian::pyramidDown(Image im) {
     Image blurry = im.copy();
     FastBlur::apply(blurry, 2, 2, 2);
     return Subsample::apply(blurry, 2, 2, 0, 0);
 }
 
-Image LocalLaplacian::pyramidUp(const Image im, int w, int h, int f) {
+Image LocalLaplacian::pyramidUp(Image im, int w, int h, int f) {
     Image larger(w, h, f, im.channels);
 
     for (int c = 0; c < im.channels; c++) {

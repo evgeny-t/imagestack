@@ -106,10 +106,10 @@ char *tempbuffer(size_t len) {                       /* get a temporary buffer *
 
     if (len > tempbuflen) {
         if (tempbuflen > 0) {
-            tempbuf = (char *)realloc((void *)tempbuf, len);
-        } else {
-            tempbuf = (char *)malloc(len);
+            free(tempbuf);
+            tempbuf = NULL;
         }
+        tempbuf = (char *)malloc(len);
         tempbuflen = tempbuf==NULL ? 0 : len;
     }
     return(tempbuf);
@@ -292,12 +292,11 @@ int fwritescan(COLOR *scanline, int len, FILE *fp) {              /* write out a
 
 
 void colr_color(COLOR col, COLR clr) {              /* convert short to float color */
-    double  f;
 
     if (clr[EXP] == 0) {
         col[RED] = col[GRN] = col[BLU] = 0.0;
     } else {
-        f = ldexp(1.0, (int)clr[EXP]-(COLXS+8));
+        double f = ldexp(1.0, (int)clr[EXP]-(COLXS+8));
         col[RED] = (clr[RED] + 0.5f)*f;
         col[GRN] = (clr[GRN] + 0.5f)*f;
         col[BLU] = (clr[BLU] + 0.5f)*f;
@@ -384,7 +383,7 @@ Image load(string filename) {
     } while (lastChar != '\n' || thisChar != '\n');
 
     int height, width;
-    assert(2 == fscanf(f, "-Y %d +X %d\n", &height, &width),
+    assert(2 == fscanf(f, "-Y %20d +X %20d\n", &height, &width),
            "Could not parse HDR header\n");
     Image im(width, height, 1, 3);
 

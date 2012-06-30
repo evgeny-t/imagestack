@@ -107,6 +107,7 @@ public:
         minPosition = NULL;
         maxPosition = NULL;
         stride = NULL;
+        sizes = NULL;
         grid = NULL;
 
         for (int i = 0; i < d; i++) {
@@ -136,6 +137,7 @@ public:
         delete[] minPosition;
         delete[] maxPosition;
         delete[] stride;
+        delete[] sizes;
         delete[] grid;
     }
 
@@ -274,9 +276,9 @@ private:
 
             }
         }
-        delete rowLocation;
-        delete tmp1;
-        delete tmp2;
+        delete[] rowLocation;
+        delete[] tmp1;
+        delete[] tmp2;
     }
 
     template<bool splatting>

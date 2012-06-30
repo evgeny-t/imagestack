@@ -397,8 +397,6 @@ public:
     // 128-bit SIFT-like descriptor.
     struct Descriptor {
     public:
-        Descriptor() {}
-
         Descriptor(LocalMaxima::Maximum m,
                    Image *magPyramid, Image *ornPyramid,
                    vector<float> *sigma, float orientation) {
@@ -477,15 +475,13 @@ public:
 
     struct Feature : public LocalMaxima::Maximum {
     public:
-        Feature(LocalMaxima::Maximum m, Image *magPyramid, Image *ornPyramid, vector<float> *sigma, float orientation) {
-            x = m.x;
-            y = m.y;
-            t = floor(m.t + 0.5);
-
-            value = m.value;
-            descriptor = Descriptor(m, magPyramid, ornPyramid, sigma, orientation);
-            usage = 0;
-        }
+        Feature(LocalMaxima::Maximum m, 
+                Image *magPyramid, Image *ornPyramid, 
+                vector<float> *sigma, float orientation) :
+            LocalMaxima::Maximum(m.x, m.y, floor(m.t+0.5), m.value), 
+            usage(0),
+            descriptor(m, magPyramid, ornPyramid, sigma, orientation)
+            {}
 
         // Distance between two features is the sum of squared differences between the two descriptors
         float distance(Feature *other) {
@@ -504,9 +500,6 @@ public:
         // features is used, so we don't depend too heavily on a
         // single feature.
         int usage;
-
-        bool usePatch;
-        Image patch;
         Descriptor descriptor;
     };
 

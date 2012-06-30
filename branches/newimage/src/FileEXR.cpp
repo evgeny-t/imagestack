@@ -160,7 +160,6 @@ void save(Image im, string filename, string compression = "piz") {
             }
         }
     } else if (im.channels == 4) {
-        float *ptr = im(0,0);
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 Imf::Rgba &p = pixels[y][x];

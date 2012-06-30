@@ -34,8 +34,8 @@ class Expression {
 public:
 
     struct State {
-        State(Image im_) : im(im_), stats(im_) {}
-        int t, x, y, c;
+        State(Image im_) : x(0), y(0), t(0), c(0), im(im_), stats(im_) {}
+        int x, y, t, c;
         Image im;
         Stats stats;
     };

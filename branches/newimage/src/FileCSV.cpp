@@ -38,9 +38,9 @@ Image load(string filename) {
 
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width-1; x++) {
-            assert(fscanf(f, "%f,", &out(x, y)) == 1, "Failed to parse file\n");
+            assert(fscanf(f, "%20f,", &out(x, y)) == 1, "Failed to parse file\n");
         }
-        assert(fscanf(f, "%f", &out(width-1, y)) == 1, "Failed to parse file\n");
+        assert(fscanf(f, "%20f", &out(width-1, y)) == 1, "Failed to parse file\n");
     }
 
     fclose(f);

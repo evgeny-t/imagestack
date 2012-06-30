@@ -152,8 +152,8 @@ public:
 
         root->computeBounds(kdtreeMins, kdtreeMaxs);
 
-        delete kdtreeMins;
-        delete kdtreeMaxs;
+        delete[] kdtreeMins;
+        delete[] kdtreeMaxs;
     }
 
     int getLeaves() {
@@ -293,7 +293,7 @@ private:
         }
 
         ~Leaf() {
-            delete position;
+            delete[] position;
         }
 
         int gaussianLookup(float *query, int **ids, float **weights, int nSamples, float p) {

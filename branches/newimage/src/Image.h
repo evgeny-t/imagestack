@@ -708,8 +708,9 @@ private:
         }
         float *data;
     private:
+        // These are private to prevent copying a Payload
         Payload(const Payload &other) : data(NULL) {}
-        void operator=(const Payload &other) {}
+        void operator=(const Payload &other) {data = NULL;}
     };
 
     // Compute a 32-byte aligned address within data
