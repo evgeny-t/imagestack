@@ -92,7 +92,7 @@ void Stats::computeBasicStats() {
 
 void Stats::computeMoments() {
     if (!basicStatsComputed) computeBasicStats();
-    
+
     // figure out variance, skew, and kurtosis
     vector<int> counts(im_.channels, 0);
     int count = 0;
@@ -167,65 +167,65 @@ bool Statistics::test() {
 
     // You get 10 tries to pass the statistical tests
     for (int i = 0; i < 10; i++) {
-	Image a(160, 300, 100, 2);    
-	Noise::apply(a, 0, 10);
-	Noise::apply(a, 0, 10);
-	// We now expect a to have certain statistical properties. Let's check them.
-	Stats s(a);
-	
-	printf("Sum: %f\n", s.sum());	
-	if (!nearlyEqual(s.sum(), 160*300*100*2*10)) continue;
-	
-	printf("Mean: %f\n", s.mean());
-	if (!nearlyEqual(s.mean(), 10)) continue;
-	
-	printf("Minimum: %f\n", s.minimum());
-	if (!nearlyEqual(s.minimum(), 0)) continue;
-	
-	printf("Maximum: %f\n", s.maximum());
-	if (!nearlyEqual(s.maximum(), 20)) continue;
-	
-	printf("NaNs: %d\n", s.nans());
-	if (s.nans() != 0) continue;
-	
-	printf("PosInfs: %d\n", s.posinfs());
-	if (s.posinfs() != 0) continue;
-	
-	printf("NegInfs: %d\n", s.neginfs());
-	if (s.neginfs() != 0) continue;
-	
-	printf("covariance matrix:\n%f %f\n%f %f\n",
-	       s.covariance(0, 0), s.covariance(1, 0),
-	       s.covariance(0, 1), s.covariance(1, 1));
-	// variance of a uniform distribution is (b - a)^2 / 12
-	if (!nearlyEqual(s.covariance(0, 0), 2*100/12.0f)) continue;
-	if (!nearlyEqual(s.covariance(1, 1), 2*100/12.0f)) continue;
-	if (!nearlyEqual(s.covariance(0, 1), 0)) continue;
-	if (!nearlyEqual(s.covariance(1, 0), 0)) continue;
-	
-	printf("skew: %f\n", s.skew());
-	// A tent is symmetric about the mean
-	if (!nearlyEqual(s.skew(), 0)) continue;
-	
-	printf("kurtosis: %f\n", s.kurtosis());
-	// Kurtosis of uniform is -1.2. 
-	// Kurtosis of sum of n vars = 1/n^2 * sum of kurtosis
-	// So kurtosis of tent = 1/4 * (-1.2 + -1.2) = -0.6
-	if (!nearlyEqual(s.kurtosis(), -0.6)) continue;
-	
-	printf("barycenter: %f %f\n", s.barycenterX(0), s.barycenterY(0));
-	printf("barycenter: %f %f\n", s.barycenterX(1), s.barycenterY(1));
-	if (!nearlyEqual(s.barycenterX(0), 79.5f)) continue;
-	if (!nearlyEqual(s.barycenterY(0), 149.5f)) continue;
-	if (!nearlyEqual(s.barycenterX(1), 79.5f)) continue;
-	if (!nearlyEqual(s.barycenterY(1), 149.5f)) continue;
-	
-	printf("spatial variance: %f %f\n", s.spatialVarianceX(1), s.spatialVarianceY(1));
-	// What should the spatial variance be?
-	
-	return true;
+        Image a(160, 300, 100, 2);
+        Noise::apply(a, 0, 10);
+        Noise::apply(a, 0, 10);
+        // We now expect a to have certain statistical properties. Let's check them.
+        Stats s(a);
+
+        printf("Sum: %f\n", s.sum());
+        if (!nearlyEqual(s.sum(), 160*300*100*2*10)) continue;
+
+        printf("Mean: %f\n", s.mean());
+        if (!nearlyEqual(s.mean(), 10)) continue;
+
+        printf("Minimum: %f\n", s.minimum());
+        if (!nearlyEqual(s.minimum(), 0)) continue;
+
+        printf("Maximum: %f\n", s.maximum());
+        if (!nearlyEqual(s.maximum(), 20)) continue;
+
+        printf("NaNs: %d\n", s.nans());
+        if (s.nans() != 0) continue;
+
+        printf("PosInfs: %d\n", s.posinfs());
+        if (s.posinfs() != 0) continue;
+
+        printf("NegInfs: %d\n", s.neginfs());
+        if (s.neginfs() != 0) continue;
+
+        printf("covariance matrix:\n%f %f\n%f %f\n",
+               s.covariance(0, 0), s.covariance(1, 0),
+               s.covariance(0, 1), s.covariance(1, 1));
+        // variance of a uniform distribution is (b - a)^2 / 12
+        if (!nearlyEqual(s.covariance(0, 0), 2*100/12.0f)) continue;
+        if (!nearlyEqual(s.covariance(1, 1), 2*100/12.0f)) continue;
+        if (!nearlyEqual(s.covariance(0, 1), 0)) continue;
+        if (!nearlyEqual(s.covariance(1, 0), 0)) continue;
+
+        printf("skew: %f\n", s.skew());
+        // A tent is symmetric about the mean
+        if (!nearlyEqual(s.skew(), 0)) continue;
+
+        printf("kurtosis: %f\n", s.kurtosis());
+        // Kurtosis of uniform is -1.2.
+        // Kurtosis of sum of n vars = 1/n^2 * sum of kurtosis
+        // So kurtosis of tent = 1/4 * (-1.2 + -1.2) = -0.6
+        if (!nearlyEqual(s.kurtosis(), -0.6)) continue;
+
+        printf("barycenter: %f %f\n", s.barycenterX(0), s.barycenterY(0));
+        printf("barycenter: %f %f\n", s.barycenterX(1), s.barycenterY(1));
+        if (!nearlyEqual(s.barycenterX(0), 79.5f)) continue;
+        if (!nearlyEqual(s.barycenterY(0), 149.5f)) continue;
+        if (!nearlyEqual(s.barycenterX(1), 79.5f)) continue;
+        if (!nearlyEqual(s.barycenterY(1), 149.5f)) continue;
+
+        printf("spatial variance: %f %f\n", s.spatialVarianceX(1), s.spatialVarianceY(1));
+        // What should the spatial variance be?
+
+        return true;
     }
-    
+
     return false;
 
 }
@@ -387,13 +387,13 @@ bool Histogram::test() {
     float expected = 1/17.0f;
 
     for (int c = 0; c < a.channels; c++) {
-	float sum = 0;
-	for (int bucket = 0; bucket < 17; bucket++) {
-	    float val = hist(bucket, 0, 0, c);
-	    sum += val;
-	    if (!nearlyEqual(val, expected)) return false;
-	}
-	if (!nearlyEqual(sum, 1)) return false;
+        float sum = 0;
+        for (int bucket = 0; bucket < 17; bucket++) {
+            float val = hist(bucket, 0, 0, c);
+            sum += val;
+            if (!nearlyEqual(val, expected)) return false;
+        }
+        if (!nearlyEqual(sum, 1)) return false;
     }
 
     return true;
@@ -438,7 +438,7 @@ Image Histogram::apply(Image im, int buckets, float minVal, float maxVal) {
                         if (bucket >= buckets) { bucket = buckets-1; }
                         if (bucket < 0) { bucket = 0; }
                     }
-		    count[bucket*im.channels + c]++;
+                    count[bucket*im.channels + c]++;
                 }
             }
         }
@@ -447,10 +447,10 @@ Image Histogram::apply(Image im, int buckets, float minVal, float maxVal) {
     float invScale = 1.0 / (im.width * im.height * im.frames);
     Image hg(buckets, 1, 1, im.channels);
     for (int c = 0; c < im.channels; c++) {
-	for (int x = 0; x < buckets; x++) {
-	    hg(x, 0, 0, c) = count[x*im.channels + c] * invScale;
-	}
-    }	
+        for (int x = 0; x < buckets; x++) {
+            hg(x, 0, 0, c) = count[x*im.channels + c] * invScale;
+        }
+    }
 
     return hg;
 }
@@ -479,13 +479,13 @@ bool Equalize::test() {
     float expected = 1/17.0f;
 
     for (int c = 0; c < a.channels; c++) {
-	float sum = 0;
-	for (int bucket = 0; bucket < 17; bucket++) {
-	    float val = hist(bucket, 0, 0, c);
-	    sum += val;
-	    if (!nearlyEqual(val, expected)) return false;
-	}
-	if (!nearlyEqual(sum, 1)) return false;
+        float sum = 0;
+        for (int bucket = 0; bucket < 17; bucket++) {
+            float val = hist(bucket, 0, 0, c);
+            sum += val;
+            if (!nearlyEqual(val, expected)) return false;
+        }
+        if (!nearlyEqual(sum, 1)) return false;
     }
 
     return true;
@@ -560,9 +560,9 @@ bool HistogramMatch::test() {
     Image hb = Histogram::apply(b, 4, sa.minimum(), sa.maximum());
 
     for (int c = 0; c < a.channels; c++) {
-	for (int x = 0; x < ha.width; x++) {
-	    if (!nearlyEqual(ha(x, 0, 0, c), hb(x, 0, 0, c))) return false;
-	}
+        for (int x = 0; x < ha.width; x++) {
+            if (!nearlyEqual(ha(x, 0, 0, c), hb(x, 0, 0, c))) return false;
+        }
     }
     return true;
 }
@@ -658,16 +658,16 @@ bool Shuffle::test() {
     Image a(123, 456, 2, 1);
     Image sum(123, 456, 2, 1);
     for (int i = 0; i < 100; i++) {
-	for (int t = 0; t < a.frames; t++) {
-	    for (int y = 0; y < a.height; y++) {
-		for (int x = 0; x < a.width; x++) {
-		    a(x, y, t, 0) = ((t * a.height + y) * a.width + x);
-		}
-	    }
-	}
+        for (int t = 0; t < a.frames; t++) {
+            for (int y = 0; y < a.height; y++) {
+                for (int x = 0; x < a.width; x++) {
+                    a(x, y, t, 0) = ((t * a.height + y) * a.width + x);
+                }
+            }
+        }
 
-	Shuffle::apply(a);	
-	sum += a;
+        Shuffle::apply(a);
+        sum += a;
     }
 
     // sum should be pretty uniform
@@ -690,14 +690,14 @@ void Shuffle::apply(Image im) {
         for (int y = 0; y < im.height; y++) {
             for (int x = 0; x < im.width; x++) {
                 // pick a random new location after this one
-		idx++;
-		if (idx > maxIdx) return;
-		int idx2 = randomInt(idx, maxIdx);
-		int ot = idx2 / (im.width * im.height);
-		int oy = (idx2 % (im.width * im.height)) / im.width;
-		int ox = idx2 % im.width;
+                idx++;
+                if (idx > maxIdx) return;
+                int idx2 = randomInt(idx, maxIdx);
+                int ot = idx2 / (im.width * im.height);
+                int oy = (idx2 % (im.width * im.height)) / im.width;
+                int ox = idx2 % im.width;
                 for (int c = 0; c < im.channels; c++) {
-		    swap(im(x, y, t, c), im(ox, oy, ot, c));
+                    swap(im(x, y, t, c), im(ox, oy, ot, c));
                 }
             }
         }
@@ -719,54 +719,54 @@ bool KMeans::test() {
     Noise::apply(a, -0.1, 0.1);
 
     for (int t = 0; t < a.frames; t++) {
-	for (int y = 0; y < a.height; y++) {
-	    for (int x = 0; x < a.width; x++) {
-		switch (randomInt(0, 2)) {
-		case 0:
-		    b(x, y, t, 0) = 1;
-		    b(x, y, t, 1) = 5;
-		    b(x, y, t, 2) = 4;
-		    break;
-		case 1:
-		    b(x, y, t, 0) = 5;
-		    b(x, y, t, 1) = 2;
-		    b(x, y, t, 2) = -4;
-		    break;
-		case 2:
-		    b(x, y, t, 0) = 2;
-		    b(x, y, t, 1) = 2;
-		    b(x, y, t, 2) = 8;
-		    break;
-		}
-	    }
-	}
+        for (int y = 0; y < a.height; y++) {
+            for (int x = 0; x < a.width; x++) {
+                switch (randomInt(0, 2)) {
+                case 0:
+                    b(x, y, t, 0) = 1;
+                    b(x, y, t, 1) = 5;
+                    b(x, y, t, 2) = 4;
+                    break;
+                case 1:
+                    b(x, y, t, 0) = 5;
+                    b(x, y, t, 1) = 2;
+                    b(x, y, t, 2) = -4;
+                    break;
+                case 2:
+                    b(x, y, t, 0) = 2;
+                    b(x, y, t, 1) = 2;
+                    b(x, y, t, 2) = 8;
+                    break;
+                }
+            }
+        }
     }
 
     a += b;
 
     KMeans::apply(a, 3);
-    
+
     for (int t = 0; t < a.frames; t++) {
-	for (int y = 0; y < a.height; y++) {
-	    for (int x = 0; x < a.width; x++) {
-		float R = a(x, y, t, 0), G = a(x, y, t, 1), B = a(x, y, t, 2);
-		bool ok = ((nearlyEqual(R, 1) && nearlyEqual(G, 5) && nearlyEqual(B, 4)) ||
-			   (nearlyEqual(R, 5) && nearlyEqual(G, 2) && nearlyEqual(B, -4)) ||
-			   (nearlyEqual(R, 2) && nearlyEqual(G, 2) && nearlyEqual(B, 8)));
-		if (!ok) {
-		    printf("%d %d %f %f %f\n", x, y, R, G, B);
-		    return false;
-		}
-	    }
-	}
+        for (int y = 0; y < a.height; y++) {
+            for (int x = 0; x < a.width; x++) {
+                float R = a(x, y, t, 0), G = a(x, y, t, 1), B = a(x, y, t, 2);
+                bool ok = ((nearlyEqual(R, 1) && nearlyEqual(G, 5) && nearlyEqual(B, 4)) ||
+                           (nearlyEqual(R, 5) && nearlyEqual(G, 2) && nearlyEqual(B, -4)) ||
+                           (nearlyEqual(R, 2) && nearlyEqual(G, 2) && nearlyEqual(B, 8)));
+                if (!ok) {
+                    printf("%d %d %f %f %f\n", x, y, R, G, B);
+                    return false;
+                }
+            }
+        }
     }
-    
+
     return true;
 }
 
 void KMeans::parse(vector<string> args) {
     assert(args.size() == 1, "-kmeans takes one argument\n");
-    apply(stack(0), readInt(args[0]));			       	  
+    apply(stack(0), readInt(args[0]));
 }
 
 void KMeans::apply(Image im, int clusters) {
@@ -783,77 +783,77 @@ void KMeans::apply(Image im, int clusters) {
 
     // Initialization is super-important for k-means. We initialize
     // using k-means++ on a subset of the data
-    Image subset(1000 + clusters, 1, 1, im.channels); 
+    Image subset(1000 + clusters, 1, 1, im.channels);
     for (int i = 0; i < subset.width; i++) {
-	int x = randomInt(0, im.width-1);
-	int y = randomInt(0, im.height-1);
-	int t = randomInt(0, im.frames-1);
-	for (int c = 0; c < im.channels; c++) {
-	    subset(i, 0, 0, c) = im(x, y, t, c);
-	}
+        int x = randomInt(0, im.width-1);
+        int y = randomInt(0, im.height-1);
+        int t = randomInt(0, im.frames-1);
+        for (int c = 0; c < im.channels; c++) {
+            subset(i, 0, 0, c) = im(x, y, t, c);
+        }
     }
 
     // Initialize the first cluster to a randomly selected pixel
     for (int c = 0; c < im.channels; c++) {
-	cluster[c][0] = subset(0, 0, 0, c);
-    }    
+        cluster[c][0] = subset(0, 0, 0, c);
+    }
 
     Image distance(subset.width, 1, 1, 1);
     for (int i = 1; i < clusters; i++) {
-	// For each pixel, find the square distance to the nearest cluster already defined
-	double sum = 0;
-	for (int x = 0; x < subset.width; x++) {
-	    float bestDistance = 1e20;
-	    for (int j = 0; j < i; j++) {
-		float dist = 0;
-		for (int c = 0; c < im.channels; c++) {
-		    float delta = subset(x, 0, 0, c) - cluster[c][j];
-		    dist += delta*delta;
-		}
-		if (dist < bestDistance) bestDistance = dist;
-	    }
-	    distance(x, 0) = bestDistance;
-	    sum += bestDistance;
-	}
-	distance /= sum;
-	
-	// Compute cdf
-	for (int x = 1; x < subset.width; x++) {
-	    distance(x, 0) += distance(x-1, 0);
-	}
-	
-	// Now select one with probability proportional to the square distance
-	int x;
-	float choice = randomFloat(0, 1);
-	for (x = 0; x < subset.width; x++) {	
-	    if (choice < distance(x, 0)) break;
-	}
-	for (int c = 0; c < im.channels; c++) {
-	    cluster[c][i] = subset(x, 0, 0, c);
-	}    
+        // For each pixel, find the square distance to the nearest cluster already defined
+        double sum = 0;
+        for (int x = 0; x < subset.width; x++) {
+            float bestDistance = 1e20;
+            for (int j = 0; j < i; j++) {
+                float dist = 0;
+                for (int c = 0; c < im.channels; c++) {
+                    float delta = subset(x, 0, 0, c) - cluster[c][j];
+                    dist += delta*delta;
+                }
+                if (dist < bestDistance) bestDistance = dist;
+            }
+            distance(x, 0) = bestDistance;
+            sum += bestDistance;
+        }
+        distance /= sum;
+
+        // Compute cdf
+        for (int x = 1; x < subset.width; x++) {
+            distance(x, 0) += distance(x-1, 0);
+        }
+
+        // Now select one with probability proportional to the square distance
+        int x;
+        float choice = randomFloat(0, 1);
+        for (x = 0; x < subset.width; x++) {
+            if (choice < distance(x, 0)) break;
+        }
+        for (int c = 0; c < im.channels; c++) {
+            cluster[c][i] = subset(x, 0, 0, c);
+        }
     }
-    
+
     for (int iter = 0;; iter++) {
 
-	// print the clusters
-	/*
-	for (int i = 0; i < clusters; i++) {
-	    printf("cluster %d: ", i);
+        // print the clusters
+        /*
+        for (int i = 0; i < clusters; i++) {
+            printf("cluster %d: ", i);
             for (int c = 0; c < im.channels; c++) {
-		printf(" %f", cluster[c][i]);
+                printf(" %f", cluster[c][i]);
             }
-	    printf("\n");
+            printf("\n");
         }
-	*/
+        */
 
-	// wipe the newCluster
-	for (int i = 0; i < clusters; i++) {
+        // wipe the newCluster
+        for (int i = 0; i < clusters; i++) {
             newClusterMembers[i] = 0;
             for (int c = 0; c < im.channels; c++) {
                 newCluster[c][i] = 0;
             }
         }
-	
+
         for (int t = 0; t < im.frames; t++) {
             for (int y = 0; y < im.height; y++) {
                 for (int x = 0; x < im.width; x++) {
@@ -883,9 +883,9 @@ void KMeans::apply(Image im, int clusters) {
         // normalize the new clusters (reset any zero ones to random)
         for (int i = 0; i < clusters; i++) {
             if (newClusterMembers[i] == 0) {
-		int x = randomInt(0, im.width-1);
-		int y = randomInt(0, im.height-1);
-		int t = randomInt(0, im.frames-1);
+                int x = randomInt(0, im.width-1);
+                int y = randomInt(0, im.height-1);
+                int t = randomInt(0, im.frames-1);
                 for (int c = 0; c < im.channels; c++) {
                     newCluster[c][i] = im(x, y, t, c) + randomFloat(-0.1, 0.1);
                 }
@@ -938,75 +938,76 @@ void Sort::help() {
 }
 
 bool Sort::test() {
-    { // test x
-	Image a(12, 34, 2, 7);
-	Noise::apply(a, -5, 5);
-	Image h1 = Histogram::apply(a, 32, -5, 5);
-	Sort::apply(a, 'x');
-	Image h2 = Histogram::apply(a, 32, -5, 5);
-	for (int i = 0; i < 100; i++) {
-	    int x1 = randomInt(1, a.width-1);
-	    int x2 = randomInt(0, x1-1);
-	    int y = randomInt(0, a.height-1);
-	    int t = randomInt(0, a.frames-1);
-	    int c = randomInt(0, a.channels-1);
-	    if (a(x1, y, t, c) < a(x2, y, t, c)) return false;
-	}
-	for (int x = 0; x < h1.width; x++) {
-	    for (int c = 0; c < h1.channels; c++) {
-		if (!nearlyEqual(h1(x, 0, 0, c), h2(x, 0, 0, c))) return false;
-	    }
-	}
+    {
+        // test x
+        Image a(12, 34, 2, 7);
+        Noise::apply(a, -5, 5);
+        Image h1 = Histogram::apply(a, 32, -5, 5);
+        Sort::apply(a, 'x');
+        Image h2 = Histogram::apply(a, 32, -5, 5);
+        for (int i = 0; i < 100; i++) {
+            int x1 = randomInt(1, a.width-1);
+            int x2 = randomInt(0, x1-1);
+            int y = randomInt(0, a.height-1);
+            int t = randomInt(0, a.frames-1);
+            int c = randomInt(0, a.channels-1);
+            if (a(x1, y, t, c) < a(x2, y, t, c)) return false;
+        }
+        for (int x = 0; x < h1.width; x++) {
+            for (int c = 0; c < h1.channels; c++) {
+                if (!nearlyEqual(h1(x, 0, 0, c), h2(x, 0, 0, c))) return false;
+            }
+        }
     } { // test y
-	Image a(12, 34, 2, 7);
-	Noise::apply(a, -5, 5);
-	Image h1 = Histogram::apply(a, 32, -5, 5);
-	Sort::apply(a, 'y');
-	Image h2 = Histogram::apply(a, 32, -5, 5);
-	for (int i = 0; i < 100; i++) {
-	    int x = randomInt(0, a.width-1);
-	    int y1 = randomInt(1, a.height-1);
-	    int y2 = randomInt(0, y1-1);
-	    int t = randomInt(0, a.frames-1);
-	    int c = randomInt(0, a.channels-1);
-	    if (a(x, y1, t, c) < a(x, y2, t, c)) return false;
-	}
-	for (int x = 0; x < h1.width; x++) {
-	    for (int c = 0; c < h1.channels; c++) {
-		if (!nearlyEqual(h1(x, 0, 0, c), h2(x, 0, 0, c))) return false;
-	    }
-	}
+        Image a(12, 34, 2, 7);
+        Noise::apply(a, -5, 5);
+        Image h1 = Histogram::apply(a, 32, -5, 5);
+        Sort::apply(a, 'y');
+        Image h2 = Histogram::apply(a, 32, -5, 5);
+        for (int i = 0; i < 100; i++) {
+            int x = randomInt(0, a.width-1);
+            int y1 = randomInt(1, a.height-1);
+            int y2 = randomInt(0, y1-1);
+            int t = randomInt(0, a.frames-1);
+            int c = randomInt(0, a.channels-1);
+            if (a(x, y1, t, c) < a(x, y2, t, c)) return false;
+        }
+        for (int x = 0; x < h1.width; x++) {
+            for (int c = 0; c < h1.channels; c++) {
+                if (!nearlyEqual(h1(x, 0, 0, c), h2(x, 0, 0, c))) return false;
+            }
+        }
     } { // test t
-	Image a(12, 34, 2, 7);
-	Noise::apply(a, -5, 5);
-	Image h1 = Histogram::apply(a, 32, -5, 5);
-	Sort::apply(a, 't');
-	Image h2 = Histogram::apply(a, 32, -5, 5);
-	for (int i = 0; i < 100; i++) {
-	    int x = randomInt(0, a.width-1);
-	    int y = randomInt(0, a.height-1);
-	    int t1 = randomInt(1, a.frames-1);
-	    int t2 = randomInt(0, t1-1);
-	    int c = randomInt(0, a.channels-1);
-	    if (a(x, y, t1, c) < a(x, y, t2, c)) return false;
-	}
-	for (int x = 0; x < h1.width; x++) {
-	    for (int c = 0; c < h1.channels; c++) {
-		if (!nearlyEqual(h1(x, 0, 0, c), h2(x, 0, 0, c))) return false;
-	    }
-	}
+        Image a(12, 34, 2, 7);
+        Noise::apply(a, -5, 5);
+        Image h1 = Histogram::apply(a, 32, -5, 5);
+        Sort::apply(a, 't');
+        Image h2 = Histogram::apply(a, 32, -5, 5);
+        for (int i = 0; i < 100; i++) {
+            int x = randomInt(0, a.width-1);
+            int y = randomInt(0, a.height-1);
+            int t1 = randomInt(1, a.frames-1);
+            int t2 = randomInt(0, t1-1);
+            int c = randomInt(0, a.channels-1);
+            if (a(x, y, t1, c) < a(x, y, t2, c)) return false;
+        }
+        for (int x = 0; x < h1.width; x++) {
+            for (int c = 0; c < h1.channels; c++) {
+                if (!nearlyEqual(h1(x, 0, 0, c), h2(x, 0, 0, c))) return false;
+            }
+        }
     } { // test c
-	Image a(12, 34, 2, 7);
-	Noise::apply(a, -5, 5);
-	Sort::apply(a, 'c');
-	for (int i = 0; i < 100; i++) {
-	    int x = randomInt(0, a.width-1);
-	    int y = randomInt(0, a.height-1);
-	    int t = randomInt(0, a.frames-1);
-	    int c1 = randomInt(1, a.channels-1);
-	    int c2 = randomInt(0, c1-1);
-	    if (a(x, y, t, c1) < a(x, y, t, c2)) return false;
-	}
+        Image a(12, 34, 2, 7);
+        Noise::apply(a, -5, 5);
+        Sort::apply(a, 'c');
+        for (int i = 0; i < 100; i++) {
+            int x = randomInt(0, a.width-1);
+            int y = randomInt(0, a.height-1);
+            int t = randomInt(0, a.frames-1);
+            int c1 = randomInt(1, a.channels-1);
+            int c2 = randomInt(0, c1-1);
+            if (a(x, y, t, c1) < a(x, y, t, c2)) return false;
+        }
     }
     return true;
 }
@@ -1021,25 +1022,25 @@ void Sort::apply(Image im, char dimension) {
            "Dimension must be x, y, t, or c\n");
 
     if (dimension == 'c') {
-	vector<float> tmp(im.channels);
+        vector<float> tmp(im.channels);
         for (int t = 0; t < im.frames; t++) {
             for (int y = 0; y < im.height; y++) {
                 for (int x = 0; x < im.width; x++) {
-		    for (int c = 0; c < im.channels; c++) {
-			tmp[c] = im(x, y, t, c);
-		    }
+                    for (int c = 0; c < im.channels; c++) {
+                        tmp[c] = im(x, y, t, c);
+                    }
                     ::std::sort(tmp.begin(), tmp.end());
-		    for (int c = 0; c < im.channels; c++) {
-			im(x, y, t, c) = tmp[c];
-		    }
+                    for (int c = 0; c < im.channels; c++) {
+                        im(x, y, t, c) = tmp[c];
+                    }
                 }
             }
         }
     } else if (dimension == 'x') {
         vector<float> tmp(im.width);
-	for (int c = 0; c < im.channels; c++) {		    
-	    for (int t = 0; t < im.frames; t++) {
-		for (int y = 0; y < im.height; y++) {
+        for (int c = 0; c < im.channels; c++) {
+            for (int t = 0; t < im.frames; t++) {
+                for (int y = 0; y < im.height; y++) {
                     for (int x = 0; x < im.width; x++) {
                         tmp[x] = im(x, y, t, c);
                     }
@@ -1052,9 +1053,9 @@ void Sort::apply(Image im, char dimension) {
         }
     } else if (dimension == 'y') {
         vector<float> tmp(im.height);
-	for (int c = 0; c < im.channels; c++) {	    
-	    for (int t = 0; t < im.frames; t++) {
-		for (int x = 0; x < im.width; x++) {
+        for (int c = 0; c < im.channels; c++) {
+            for (int t = 0; t < im.frames; t++) {
+                for (int x = 0; x < im.width; x++) {
                     for (int y = 0; y < im.height; y++) {
                         tmp[y] = im(x, y, t, c);
                     }
@@ -1068,9 +1069,9 @@ void Sort::apply(Image im, char dimension) {
 
     } else if (dimension == 't') {
         vector<float> tmp(im.frames);
-	for (int c = 0; c < im.channels; c++) {
-	    for (int y = 0; y < im.height; y++) {
-		for (int x = 0; x < im.width; x++) {
+        for (int c = 0; c < im.channels; c++) {
+            for (int y = 0; y < im.height; y++) {
+                for (int x = 0; x < im.width; x++) {
                     for (int t = 0; t < im.frames; t++) {
                         tmp[t] = im(x, y, t, c);
                     }
@@ -1100,25 +1101,25 @@ bool DimensionReduction::test() {
     Image a(2000, 2000, 1, 3);
     Noise::apply(a, 0, 1);
     for (int y = 0; y < a.height; y++) {
-	for (int x = 0; x < a.width; x++) {
-	    float alpha = a(x, y, 0);
-	    float beta = a(x, y, 1);
-	    a(x, y, 0) = 7 * alpha + 4 * beta;
-	    a(x, y, 1) = 2 * alpha + 9 * beta;
-	    a(x, y, 2) = 6 * a(x, y, 0) + 2 * a(x, y, 1);
-	}
+        for (int x = 0; x < a.width; x++) {
+            float alpha = a(x, y, 0);
+            float beta = a(x, y, 1);
+            a(x, y, 0) = 7 * alpha + 4 * beta;
+            a(x, y, 1) = 2 * alpha + 9 * beta;
+            a(x, y, 2) = 6 * a(x, y, 0) + 2 * a(x, y, 1);
+        }
     }
     Image b = a.copy();
     Noise::apply(b, -0.1, 0.1);
     DimensionReduction::apply(b, 2);
     for (int y = 0; y < a.height; y++) {
-	for (int x = 0; x < a.width; x++) {
-	    // Check b belongs to the correct subspace.	    
-	    //printf("%f %f %f %f\n", b(x, y, 0), b(x, y, 1), 6*b(x, y, 0) + 2 * b(x, y, 1), b(x, y, 2));
-	    if (!nearlyEqual(b(x, y, 2), 6 * b(x, y, 0) + 2 * b(x, y, 1))) return false;
-	}
+        for (int x = 0; x < a.width; x++) {
+            // Check b belongs to the correct subspace.
+            //printf("%f %f %f %f\n", b(x, y, 0), b(x, y, 1), 6*b(x, y, 0) + 2 * b(x, y, 1), b(x, y, 2));
+            if (!nearlyEqual(b(x, y, 2), 6 * b(x, y, 0) + 2 * b(x, y, 1))) return false;
+        }
     }
-    
+
     return true;
 }
 
@@ -1267,7 +1268,7 @@ bool LocalMaxima::test() {
 
     if (!nearlyEqual(results[0].x, 90)) return false;
     if (!nearlyEqual(results[0].y, 90)) return false;
-    if (!nearlyEqual(results[0].t, 2)) return false;    
+    if (!nearlyEqual(results[0].t, 2)) return false;
 
     if (!nearlyEqual(results[1].x, 4)) return false;
     if (!nearlyEqual(results[1].y, 6)) return false;
@@ -1331,7 +1332,7 @@ struct LocalMaximaCollision {
 };
 
 vector<LocalMaxima::Maximum> LocalMaxima::apply(Image im, bool tCheck, bool xCheck, bool yCheck,
-						float threshold, float minDistance) {
+                                                float threshold, float minDistance) {
 
     vector<LocalMaxima::Maximum> results;
 
@@ -1613,22 +1614,22 @@ bool PCA::test() {
 
     // PCA-reduce it to 2d
     Image b = PCA::apply(a, 2);
-    
+
     // check that distance before == distance after
     for (int i = 0; i < 1000; i++) {
-	int x1 = randomInt(0, a.width-1);
-	int y1 = randomInt(0, a.height-1);
-	int x2 = randomInt(0, a.width-1);
-	int y2 = randomInt(0, a.height-1);
-	float da0 = a(x1, y1, 0) - a(x2, y2, 0);
-	float da1 = a(x1, y1, 1) - a(x2, y2, 1);
-	float da2 = a(x1, y1, 2) - a(x2, y2, 2);
-	float db0 = b(x1, y1, 0) - b(x2, y2, 0);
-	float db1 = b(x1, y1, 1) - b(x2, y2, 1);	
-	float dist_a = da0*da0 + da1*da1 + da2*da2;
-	if (dist_a < 0.1) continue;
-	float dist_b = db0*db0 + db1*db1;
-	if (!nearlyEqual(dist_a, dist_b)) return false;
+        int x1 = randomInt(0, a.width-1);
+        int y1 = randomInt(0, a.height-1);
+        int x2 = randomInt(0, a.width-1);
+        int y2 = randomInt(0, a.height-1);
+        float da0 = a(x1, y1, 0) - a(x2, y2, 0);
+        float da1 = a(x1, y1, 1) - a(x2, y2, 1);
+        float da2 = a(x1, y1, 2) - a(x2, y2, 2);
+        float db0 = b(x1, y1, 0) - b(x2, y2, 0);
+        float db1 = b(x1, y1, 1) - b(x2, y2, 1);
+        float dist_a = da0*da0 + da1*da1 + da2*da2;
+        if (dist_a < 0.1) continue;
+        float dist_b = db0*db0 + db1*db1;
+        if (!nearlyEqual(dist_a, dist_b)) return false;
     }
 
     return true;
@@ -1653,22 +1654,22 @@ Image PCA::apply(Image im, int newChannels) {
         int t = randomInt(0, im.frames-1);
         int x = randomInt(0, im.width-1);
         int y = randomInt(0, im.height-1);
-	for (int c = 0; c < im.channels; c++) {
-	    imSample[c] = im(x, y, t, c);
-	}
+        for (int c = 0; c < im.channels; c++) {
+            imSample[c] = im(x, y, t, c);
+        }
         e.add(&imSample[0]);
     }
 
     for (int t = 0; t < im.frames; t++) {
         for (int y = 0; y < im.height; y++) {
             for (int x = 0; x < im.width; x++) {
-		for (int c = 0; c < im.channels; c++) {
-		    imSample[c] = im(x, y, t, c);
-		}
+                for (int c = 0; c < im.channels; c++) {
+                    imSample[c] = im(x, y, t, c);
+                }
                 e.apply(&imSample[0], &outSample[0]);
-		for (int c = 0; c < out.channels; c++) {
-		    out(x, y, t, c) = outSample[c];
-		}
+                for (int c = 0; c < out.channels; c++) {
+                    out(x, y, t, c) = outSample[c];
+                }
             }
         }
     }
@@ -1736,7 +1737,7 @@ Image PatchPCA::apply(Image im, float sigma, int newChannels) {
                 for (int c = 0; c < im.channels; c++) {
                     vec[j] = (mask[dx+patchSize/2]*
                               mask[dy+patchSize/2]*
-			      im(x+dx, y+dy, t, c));
+                              im(x+dx, y+dy, t, c));
                     j++;
                 }
             }
@@ -1822,7 +1823,7 @@ Image PatchPCA3D::apply(Image im, float sigma, int newChannels) {
                         vec[j] = (mask[dx+patchSize/2]*
                                   mask[dy+patchSize/2]*
                                   mask[dt+patchSize/2]*
-				  im(x+dx, y+dy, t+dy, c));
+                                  im(x+dx, y+dy, t+dy, c));
                         j++;
                     }
                 }
@@ -1841,7 +1842,7 @@ Image PatchPCA3D::apply(Image im, float sigma, int newChannels) {
         for (int t = 0; t < patchSize; t++) {
             for (int y = 0; y < patchSize; y++) {
                 for (int x = 0; x < patchSize; x++) {
-		    for (int c = 0; c < im.channels; c++) {
+                    for (int c = 0; c < im.channels; c++) {
                         filters(x, y, t, i*im.channels+c) = vec[j];
                         j++;
                     }

@@ -65,11 +65,11 @@ Image Upsample::apply(Image im, int boxWidth, int boxHeight, int boxFrames) {
                 for (int x = 0; x < out.width; x++) {
                     int ix = x / boxWidth;
                     out(x, y, t, c) = im(ix, iy, it, c);
-                }                
+                }
             }
         }
     }
-    
+
     return out;
 
 }
@@ -125,7 +125,7 @@ void Downsample::parse(vector<string> args) {
 Image Downsample::apply(Image im, int boxWidth, int boxHeight, int boxFrames) {
 
     if (!((im.width % boxWidth == 0) && (im.height % boxHeight == 0) && (im.frames % boxFrames == 0))) {
-        printf("Warning: Image dimensions are not a multiple of the downsample size. Ignoring some pixels.\n");        
+        printf("Warning: Image dimensions are not a multiple of the downsample size. Ignoring some pixels.\n");
     }
 
     int newWidth = im.width / boxWidth;
@@ -167,14 +167,14 @@ void Resample::help() {
 bool Resample::test() {
     Image a(4, 8, 3, 3);
     Noise::apply(a, 0, 1);
-    a = Resample::apply(a, 50, 50, 3); 
+    a = Resample::apply(a, 50, 50, 3);
     Image b = Resample::apply(a, 225, 175, 3);
     if (b.width != 225 || b.height != 175 || b.frames != 3) return false;
     Image a2 = Resample::apply(b, 50, 50, 3);
     Stats s1(a), s2(a2);
     if (!nearlyEqual(s1.mean(), s2.mean())) return false;
     if (!nearlyEqual(s1.variance(), s2.variance())) return false;
-    
+
     for (int c = 0; c < a.channels; c++) {
         for (int t = 0; t < a.frames; t++) {
             for (int y = 6; y < a.height-7; y++) {
@@ -233,14 +233,14 @@ void Resample::computeWeights(int oldSize, int newSize, vector<vector<pair<int, 
 
     for (int x = 0; x < newSize; x++) {
         // This x in the output corresponds to which x in the input?
-        float inX = (x + 0.5f) / newSize * oldSize - 0.5f;                
+        float inX = (x + 0.5f) / newSize * oldSize - 0.5f;
 
         // Now compute a filter surrounding said x in the input
         int minX = ceilf(inX - filterWidth*3);
         int maxX = floorf(inX + filterWidth*3);
         minX = clamp(minX, 0, oldSize-1);
-        maxX = clamp(maxX, 0, oldSize-1); 
-        
+        maxX = clamp(maxX, 0, oldSize-1);
+
         assert(minX < maxX, "Wha?");
 
         // Compute a row of the sparse matrix
@@ -270,7 +270,7 @@ Image Resample::resampleX(Image im, int width) {
                 for (int x = 0; x < out.width; x++) {
                     float val = 0;
                     for (size_t i = 0; i < matrix[x].size(); i++) {
-                        val += matrix[x][i].second * im(matrix[x][i].first, y, t, c); 
+                        val += matrix[x][i].second * im(matrix[x][i].first, y, t, c);
                     }
                     out(x, y, t, c) = val;
                 }
@@ -293,7 +293,7 @@ Image Resample::resampleY(Image im, int height) {
                 for (int x = 0; x < out.width; x++) {
                     float val = 0;
                     for (size_t i = 0; i < matrix[y].size(); i++) {
-                        val += matrix[y][i].second * im(x, matrix[y][i].first, t, c); 
+                        val += matrix[y][i].second * im(x, matrix[y][i].first, t, c);
                     }
                     out(x, y, t, c) = val;
                 }
@@ -316,7 +316,7 @@ Image Resample::resampleT(Image im, int frames) {
                 for (int x = 0; x < out.width; x++) {
                     float val = 0;
                     for (size_t i = 0; i < matrix[t].size(); i++) {
-                        val += matrix[t][i].second * im(x, y, matrix[t][i].first, c); 
+                        val += matrix[t][i].second * im(x, y, matrix[t][i].first, c);
                     }
                     out(x, y, t, c) = val;
                 }
@@ -349,7 +349,7 @@ bool Interleave::test() {
         int y = randomInt(0, 9);
         int t = randomInt(0, 4);
         for (int c = 0; c < a.channels; c++) {
-            if (a(tx*60+x, ty*10+y, tt*5+t, c) != 
+            if (a(tx*60+x, ty*10+y, tt*5+t, c) !=
                 b(x*2+tx, y*3+ty, t*4+tt, c)) {
                 return false;
             }
@@ -378,7 +378,7 @@ void Interleave::apply(Image im, int rx, int ry, int rt) {
             for (int y = 0; y < im.height; y++) {
                 for (int x = 0; x < im.width; x++) {
                     // copy out this chunk
-                    for (int t = 0; t < im.frames; t++) {                        
+                    for (int t = 0; t < im.frames; t++) {
                         tmp[t] = im(x, y, t, c);
                     }
 
@@ -387,7 +387,7 @@ void Interleave::apply(Image im, int rx, int ry, int rt) {
                     for (int t = 0; t < im.frames; t++) {
                         im(x, y, oldT, c) = tmp[t];
                         oldT += rt;
-                        if (oldT >= im.frames) oldT = (oldT % rt) + 1; 
+                        if (oldT >= im.frames) oldT = (oldT % rt) + 1;
                     }
                 }
             }
@@ -450,7 +450,7 @@ void Deinterleave::help() {
 
 bool Deinterleave::test() {
     Image a(120, 30, 20, 2);
-    Noise::apply(a, -1, 1);    
+    Noise::apply(a, -1, 1);
     Image b = a.copy();
     Deinterleave::apply(b, 2, 3, 4);
     for (int i = 0; i < 10; i++) {
@@ -461,7 +461,7 @@ bool Deinterleave::test() {
         int y = randomInt(0, 9);
         int t = randomInt(0, 4);
         for (int c = 0; c < a.channels; c++) {
-            if (b(tx*60+x, ty*10+y, tt*5+t, c) != 
+            if (b(tx*60+x, ty*10+y, tt*5+t, c) !=
                 a(x*2+tx, y*3+ty, t*4+tt, c)) {
                 return false;
             }
@@ -490,7 +490,7 @@ void Deinterleave::apply(Image im, int rx, int ry, int rt) {
             for (int y = 0; y < im.height; y++) {
                 for (int x = 0; x < im.width; x++) {
                     // copy out this chunk
-                    for (int t = 0; t < im.frames; t++) {                        
+                    for (int t = 0; t < im.frames; t++) {
                         tmp[t] = im(x, y, t, c);
                     }
 
@@ -499,7 +499,7 @@ void Deinterleave::apply(Image im, int rx, int ry, int rt) {
                     for (int t = 0; t < im.frames; t++) {
                         im(x, y, t, c) = tmp[oldT];
                         oldT += rt;
-                        if (oldT >= im.frames) oldT = (oldT % rt) + 1; 
+                        if (oldT >= im.frames) oldT = (oldT % rt) + 1;
                     }
                 }
             }
@@ -550,7 +550,7 @@ void Deinterleave::apply(Image im, int rx, int ry, int rt) {
             }
         }
     }
-    
+
 }
 
 
@@ -575,7 +575,7 @@ bool Rotate::test() {
         int t = randomInt(0, a.frames-1);
         for (int c = 0; c < a.channels; c++) {
             if (!nearlyEqual(a(x, y, t, c),
-			     b(a.width-1-x, a.height-1-y, t, c))) {
+                             b(a.width-1-x, a.height-1-y, t, c))) {
                 return false;
             }
         }
@@ -634,7 +634,7 @@ Image AffineWarp::apply(Image im, vector<float> matrix) {
     assert(matrix.size() == 6, "An affine warp requires a vector with 6 entries\n");
     return apply(im, &matrix[0]);
 }
-    
+
 Image AffineWarp::apply(Image im, float *matrix) {
     Image out(im.width, im.height, im.frames, im.channels);
 
@@ -647,11 +647,11 @@ Image AffineWarp::apply(Image im, float *matrix) {
                 float fy = matrix[3] * x + matrix[4] * y + matrix[5];
                 // don't sample outside the image
                 if (fx < 0 || fx > im.width || fy < 0 || fy > im.height) {
-                    for (int c = 0; c < im.channels; c++) 
-                        out(x, y, t, c) = 0; 
+                    for (int c = 0; c < im.channels; c++)
+                        out(x, y, t, c) = 0;
                 } else {
                     im.sample2D(fx, fy, t, sample);
-                    for (int c = 0; c < im.channels; c++) 
+                    for (int c = 0; c < im.channels; c++)
                         out(x, y, t, c) = sample[c];
                 }
             }
@@ -683,26 +683,26 @@ bool Crop::test() {
 
     // within
     {
-	Image b = Crop::apply(a, 2, 3, 4, 100, 200, 30);
-	b -= a.region(2, 3, 4, 0, 100, 200, 30, 2);
-	Stats sb(b);
-	if (sb.mean() != 0 || sb.variance() != 0) return false;
+        Image b = Crop::apply(a, 2, 3, 4, 100, 200, 30);
+        b -= a.region(2, 3, 4, 0, 100, 200, 30, 2);
+        Stats sb(b);
+        if (sb.mean() != 0 || sb.variance() != 0) return false;
     }
 
     // off the top left
     {
-	Image b = Crop::apply(a, -5, -5, -5, 100, 200, 30);
-	b.region(5, 5, 5, 0, 100-5, 200-5, 30-5, 2) -= a.region(0, 0, 0, 0, 100-5, 200-5, 30-5, 2);
-	Stats sb(b);
-	if (sb.mean() != 0 || sb.variance() != 0) return false;
+        Image b = Crop::apply(a, -5, -5, -5, 100, 200, 30);
+        b.region(5, 5, 5, 0, 100-5, 200-5, 30-5, 2) -= a.region(0, 0, 0, 0, 100-5, 200-5, 30-5, 2);
+        Stats sb(b);
+        if (sb.mean() != 0 || sb.variance() != 0) return false;
     }
 
     // bottom right
     {
-	Image b = Crop::apply(a, 50, 50, 10, 100, 200, 40);
-	b.region(0, 0, 0, 0, 123-50, 234-50, 43-10, 2) -= a.region(50, 50, 10, 0, 123-50, 234-50, 43-10, 2);
-	Stats sb(b);
-	if (sb.mean() != 0 || sb.variance() != 0) return false;
+        Image b = Crop::apply(a, 50, 50, 10, 100, 200, 40);
+        b.region(0, 0, 0, 0, 123-50, 234-50, 43-10, 2) -= a.region(50, 50, 10, 0, 123-50, 234-50, 43-10, 2);
+        Stats sb(b);
+        if (sb.mean() != 0 || sb.variance() != 0) return false;
     }
 
     return true;
@@ -741,7 +741,7 @@ Image Crop::apply(Image im) {
     for (minX = 0; minX < im.width; minX++) {
         for (int c = 0; c < im.channels; c++) {
             for (int t = 0; t < im.frames; t++) {
-                for (int y = 0; y < im.height; y++) {                    
+                for (int y = 0; y < im.height; y++) {
                     if (im(minX, y, t, c) != im(0, 0, 0, c)) { goto minXdone; }
                 }
             }
@@ -765,7 +765,7 @@ maxXdone:
     for (minY = 0; minY < im.height; minY++) {
         for (int c = 0; c < im.channels; c++) {
             for (int t = 0; t < im.frames; t++) {
-                for (int x = 0; x < im.width; x++) {                    
+                for (int x = 0; x < im.width; x++) {
                     if (im(x, minY, t, c) != im(0, 0, 0, c)) { goto minYdone; }
                 }
             }
@@ -833,7 +833,7 @@ Image Crop::apply(Image im, int minX, int minY, int minT,
     for (int c = 0; c < im.channels; c++) {
         for (int t = max(0, -minT); t < min(frames, im.frames - minT); t++) {
             for (int y = max(0, -minY); y < min(height, im.height - minY); y++) {
-                for (int x = max(0, -minX); x < min(width, im.width - minX); x++) {                    
+                for (int x = max(0, -minX); x < min(width, im.width - minX); x++) {
                     out(x, y, t, c) = im(x + minX, y + minY, t + minT, c);
                 }
             }
@@ -859,13 +859,13 @@ bool Flip::test() {
     Image ft = a.copy();
     Flip::apply(ft, 't');
     for (int i = 0; i < 10; i++) {
-	int x = randomInt(0, a.width-1);
-	int y = randomInt(0, a.height-1);
-	int t = randomInt(0, a.frames-1);
-	int c = randomInt(0, a.channels-1);
-	if (a(x, y, t, c) != fx(a.width-1-x, y, t, c)) return false;
-	if (a(x, y, t, c) != fy(x, a.height-1-y, t, c)) return false;
-	if (a(x, y, t, c) != ft(x, y, a.frames-1-t, c)) return false;
+        int x = randomInt(0, a.width-1);
+        int y = randomInt(0, a.height-1);
+        int t = randomInt(0, a.frames-1);
+        int c = randomInt(0, a.channels-1);
+        if (a(x, y, t, c) != fx(a.width-1-x, y, t, c)) return false;
+        if (a(x, y, t, c) != fy(x, a.height-1-y, t, c)) return false;
+        if (a(x, y, t, c) != ft(x, y, a.frames-1-t, c)) return false;
     }
     return true;
 }
@@ -937,19 +937,19 @@ bool Adjoin::test() {
     Image afc = Adjoin::apply(fc, a, 'c');
 
     for (int i = 0; i < 10; i++) {
-	int x = randomInt(0, a.width-1);
-	int y = randomInt(0, a.height-1);
-	int t = randomInt(0, a.frames-1);
-	int c = randomInt(0, a.channels-1);
-	int j = randomInt(0, 1);
-	if (fx(j, y, t, c) != afx(j, y, t, c)) return false;
-	if (fy(x, j, t, c) != afy(x, j, t, c)) return false;
-	if (ft(x, y, j, c) != aft(x, y, j, c)) return false;
-	if (fc(x, y, t, j) != afc(x, y, t, j)) return false;
-	if (a(x, y, t, c) != afx(x+2, y, t, c)) return false;	
-	if (a(x, y, t, c) != afy(x, y+2, t, c)) return false;
-	if (a(x, y, t, c) != aft(x, y, t+2, c)) return false;
-	if (a(x, y, t, c) != afc(x, y, t, c+2)) return false;
+        int x = randomInt(0, a.width-1);
+        int y = randomInt(0, a.height-1);
+        int t = randomInt(0, a.frames-1);
+        int c = randomInt(0, a.channels-1);
+        int j = randomInt(0, 1);
+        if (fx(j, y, t, c) != afx(j, y, t, c)) return false;
+        if (fy(x, j, t, c) != afy(x, j, t, c)) return false;
+        if (ft(x, y, j, c) != aft(x, y, j, c)) return false;
+        if (fc(x, y, t, j) != afc(x, y, t, j)) return false;
+        if (a(x, y, t, c) != afx(x+2, y, t, c)) return false;
+        if (a(x, y, t, c) != afy(x, y+2, t, c)) return false;
+        if (a(x, y, t, c) != aft(x, y, t+2, c)) return false;
+        if (a(x, y, t, c) != afc(x, y, t, c+2)) return false;
     }
     return true;
 }
@@ -1012,7 +1012,7 @@ Image Adjoin::apply(Image a, Image b, char dimension) {
         }
     }
     // paste in the second image
-    for (int c = 0; c < b.channels; c++) {        
+    for (int c = 0; c < b.channels; c++) {
         for (int t = 0; t < b.frames; t++) {
             for (int y = 0; y < b.height; y++) {
                 for (int x = 0; x < b.width; x++) {
@@ -1051,7 +1051,7 @@ bool Transpose::test() {
     Image a(12, 23, 4, 2);
     Noise::apply(a, 12, 17);
     Image a1 = a;                        // 12 23 4 2
-    a1 = Transpose::apply(a1, 'c', 'y'); // 12 2 4 23 
+    a1 = Transpose::apply(a1, 'c', 'y'); // 12 2 4 23
     a1 = Transpose::apply(a1, 'x', 't'); // 4 2 12 23
     a1 = Transpose::apply(a1, 'c', 't'); // 4 2 23 12
     a1 = Transpose::apply(a1, 'y', 'x'); // 2 4 23 12
@@ -1074,7 +1074,7 @@ Image Transpose::apply(Image im, char arg1, char arg2) {
 
     if (dim1 == 'c' && dim2 == 'y') {
         Image out(im.width, im.channels, im.frames, im.height);
-        for (int c = 0; c < im.channels; c++) {                        
+        for (int c = 0; c < im.channels; c++) {
             for (int t = 0; t < im.frames; t++) {
                 for (int y = 0; y < im.height; y++) {
                     for (int x = 0; x < im.width; x++) {
@@ -1089,7 +1089,7 @@ Image Transpose::apply(Image im, char arg1, char arg2) {
         for (int c = 0; c < im.channels; c++) {
             for (int t = 0; t < im.frames; t++) {
                 for (int y = 0; y < im.height; y++) {
-                    for (int x = 0; x < im.width; x++) {                        
+                    for (int x = 0; x < im.width; x++) {
                         out(x, y, c, t) = im(x, y, t, c);
                     }
                 }
@@ -1098,7 +1098,7 @@ Image Transpose::apply(Image im, char arg1, char arg2) {
         return out;
     } else if (dim1 == 'c' && dim2 == 'x') {
         Image out(im.channels, im.height, im.frames, im.width);
-        for (int c = 0; c < im.channels; c++) {                        
+        for (int c = 0; c < im.channels; c++) {
             for (int t = 0; t < im.frames; t++) {
                 for (int y = 0; y < im.height; y++) {
                     for (int x = 0; x < im.width; x++) {
@@ -1111,7 +1111,7 @@ Image Transpose::apply(Image im, char arg1, char arg2) {
     } else if (dim1 == 'x' && dim2 == 'y') {
 
         Image out(im.height, im.width, im.frames, im.channels);
-        for (int c = 0; c < im.channels; c++) {                        
+        for (int c = 0; c < im.channels; c++) {
             for (int t = 0; t < im.frames; t++) {
                 for (int y = 0; y < im.height; y++) {
                     for (int x = 0; x < im.width; x++) {
@@ -1176,8 +1176,8 @@ bool Translate::test() {
     b = Translate::apply(b, 7.5, -1.25, -0.25);
 
     b -= a;
-    Stats s(b.region(40, 10, 10, 0, 
-		     40, 80, 1, 4));
+    Stats s(b.region(40, 10, 10, 0,
+                     40, 80, 1, 4));
     return (nearlyEqual(s.mean(), 0) && nearlyEqual(s.variance(), 0));
 }
 
@@ -1432,7 +1432,7 @@ void Paste::apply(Image into, Image from,
            ysrc + height <= from.height &&
            xsrc + width  <= from.width,
            "Cannot paste from outside the source image\n");
-    for (int c = 0; c < into.channels; c++) {                    
+    for (int c = 0; c < into.channels; c++) {
         for (int t = 0; t < frames; t++) {
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
@@ -1456,8 +1456,8 @@ bool Tile::test() {
     Noise::apply(a, 0, 1);
     Image b = Tile::apply(a, 5, 4, 3);
     Stats sa(a), sb(b);
-    return (nearlyEqual(sa.mean(), sb.mean()) && 
-	    nearlyEqual(sa.variance(), sb.variance()));
+    return (nearlyEqual(sa.mean(), sb.mean()) &&
+            nearlyEqual(sa.variance(), sb.variance()));
 }
 
 void Tile::parse(vector<string> args) {
@@ -1481,7 +1481,7 @@ Image Tile::apply(Image im, int xRepeat, int yRepeat, int tRepeat) {
 
     Image out(im.width * xRepeat, im.height * yRepeat, im.frames * tRepeat, im.channels);
 
-    for (int c = 0; c < im.channels; c++) {                    
+    for (int c = 0; c < im.channels; c++) {
         for (int t = 0; t < im.frames * tRepeat; t++) {
             int imT = t % im.frames;
             for (int y = 0; y < im.height * yRepeat; y++) {
@@ -1512,8 +1512,8 @@ bool Subsample::test() {
     Noise::apply(a, 0, 1);
     Image b = Subsample::apply(a, 2, 3, 1, 0, 1, 0);
     Stats sa(a), sb(b);
-    return (nearlyEqual(sa.mean(), sb.mean()) && 
-	    nearlyEqual(sa.variance(), sb.variance()));
+    return (nearlyEqual(sa.mean(), sb.mean()) &&
+            nearlyEqual(sa.variance(), sb.variance()));
 }
 
 void Subsample::parse(vector<string> args) {
@@ -1585,8 +1585,8 @@ bool TileFrames::test() {
     Noise::apply(a, 0, 1);
     Image b = TileFrames::apply(a, 5, 4);
     Stats sa(a), sb(b);
-    return (nearlyEqual(sa.mean(), sb.mean()) && 
-	    nearlyEqual(sa.variance(), sb.variance()));
+    return (nearlyEqual(sa.mean(), sb.mean()) &&
+            nearlyEqual(sa.variance(), sb.variance()));
 }
 
 void TileFrames::parse(vector<string> args) {
@@ -1614,7 +1614,7 @@ Image TileFrames::apply(Image im, int xTiles, int yTiles) {
                     for (int xt = 0; xt < xTiles; xt++) {
                         int imT = (t * yTiles + yt) * xTiles + xt;
                         if (imT >= im.frames) { break; }
-                        for (int x = 0; x < im.width; x++) {                            
+                        for (int x = 0; x < im.width; x++) {
                             out(outX, outY, t, c) = im(x, y, imT, c);
                             outX++;
                         }
@@ -1666,7 +1666,7 @@ Image FrameTiles::apply(Image im, int xTiles, int yTiles) {
 
     Image out(newWidth, newHeight, newFrames, im.channels);
 
-    for (int c = 0; c < im.channels; c++) {                            
+    for (int c = 0; c < im.channels; c++) {
         for (int t = 0; t < im.frames; t++) {
             int imY = 0;
             for (int yt = 0; yt < yTiles; yt++) {
@@ -1691,11 +1691,11 @@ Image FrameTiles::apply(Image im, int xTiles, int yTiles) {
 
 void Warp::help() {
     pprintf("-warp treats the top image of the stack as coordinates in the second"
-	    " image, and samples the second image accordingly. It takes no"
-	    " arguments. The number of channels in the top image is the"
-	    " dimensionality of the warp, and should be three or less.\n"
-	    "\n"
-	    "Usage: ImageStack -load in.jpg -push -evalchannels \"x+y\" \"y\" -warp -save out.jpg\n\n");
+            " image, and samples the second image accordingly. It takes no"
+            " arguments. The number of channels in the top image is the"
+            " dimensionality of the warp, and should be three or less.\n"
+            "\n"
+            "Usage: ImageStack -load in.jpg -push -evalchannels \"x+y\" \"y\" -warp -save out.jpg\n\n");
 }
 
 bool Warp::test() {
@@ -1708,10 +1708,10 @@ bool Warp::test() {
     Image warped = AffineWarp::apply(a, matrix);
     Image warpField(100, 100, 1, 2);
     for (int y = 0; y < 100; y++) {
-	for (int x = 0; x < 100; x++) {
-	    warpField(x, y, 0, 0) = matrix[0] * x + matrix[1] * y + matrix[2];
-	    warpField(x, y, 0, 1) = matrix[3] * x + matrix[4] * y + matrix[5];	    
-	}
+        for (int x = 0; x < 100; x++) {
+            warpField(x, y, 0, 0) = matrix[0] * x + matrix[1] * y + matrix[2];
+            warpField(x, y, 0, 1) = matrix[3] * x + matrix[4] * y + matrix[5];
+        }
     }
     Image warped2 = Warp::apply(warpField, a);
     return nearlyEqual(warped, warped2);
@@ -1728,7 +1728,7 @@ void Warp::parse(vector<string> args) {
 Image Warp::apply(Image coords, Image source) {
 
     Image out(coords.width, coords.height, coords.frames, source.channels);
-    
+
     vector<float> sample(out.channels);
     if (coords.channels == 3) {
         for (int t = 0; t < coords.frames; t++) {
@@ -1738,7 +1738,7 @@ Image Warp::apply(Image coords, Image source) {
                                     coords(x, y, t, 1),
                                     coords(x, y, t, 2),
                                     sample);
-                    for (int c = 0; c < out.channels; c++) 
+                    for (int c = 0; c < out.channels; c++)
                         out(x, y, t, c) = sample[c];
                 }
             }
@@ -1750,7 +1750,7 @@ Image Warp::apply(Image coords, Image source) {
                     source.sample2D(coords(x, y, t, 0),
                                     coords(x, y, t, 1),
                                     t, sample);
-                    for (int c = 0; c < out.channels; c++) 
+                    for (int c = 0; c < out.channels; c++)
                         out(x, y, t, c) = sample[c];
                 }
             }
@@ -1776,7 +1776,7 @@ bool Reshape::test() {
     Image b = Reshape::apply(a, 2, 23, 123, 23);
     Stats sa(a), sb(b);
     return (nearlyEqual(sa.mean(), sb.mean()) &&
-	    nearlyEqual(sa.variance(), sb.variance()));	    
+            nearlyEqual(sa.variance(), sb.variance()));
 }
 
 void Reshape::parse(vector<string> args) {

@@ -24,14 +24,14 @@ bool WLS::test() {
     // Make a synthetic noisy image with an edge
     Image a(400, 300, 1, 3);
     for (int y = 0; y < 300; y++) {
-	for (int x = 0; x < 300; x++) {
-	    float dy = (y-150)/100.0;
-	    float dx = (x-200)/100.0;
-	    float r = dx*dx + dy*dy;
-	    a(x, y, 0) = (r < 1) ? 1.0 : 0;
-	    a(x, y, 1) = (r < 1) ? 0.5 : 0;
-	    a(x, y, 2) = (r < 1) ? 0.25 : 0;
-	}
+        for (int x = 0; x < 300; x++) {
+            float dy = (y-150)/100.0;
+            float dx = (x-200)/100.0;
+            float r = dx*dx + dy*dy;
+            a(x, y, 0) = (r < 1) ? 1.0 : 0;
+            a(x, y, 1) = (r < 1) ? 0.5 : 0;
+            a(x, y, 2) = (r < 1) ? 0.25 : 0;
+        }
     }
     Noise::apply(a, -0.2, 0.2);
 
@@ -39,18 +39,18 @@ bool WLS::test() {
 
     // Make sure wls cleaned it up
     for (int i = 0; i < 100; i++) {
-	int x = randomInt(0, a.width-1);
-	int y = randomInt(0, a.height-1);
-	float dy = (y-150)/100.0;
-	float dx = (x-200)/100.0;
-	float r = dx*dx + dy*dy;
-	if (r > 0.9 && r < 1.1) continue;
-	float correct = (r < 1) ? 1 : 0;
-	if (fabs(a(x, y, 0) - correct) > 0.1) return false;
-	if (fabs(a(x, y, 1) - correct*0.5) > 0.1) return false;
-	if (fabs(a(x, y, 2) - correct*0.25) > 0.1) return false;
+        int x = randomInt(0, a.width-1);
+        int y = randomInt(0, a.height-1);
+        float dy = (y-150)/100.0;
+        float dx = (x-200)/100.0;
+        float r = dx*dx + dy*dy;
+        if (r > 0.9 && r < 1.1) continue;
+        float correct = (r < 1) ? 1 : 0;
+        if (fabs(a(x, y, 0) - correct) > 0.1) return false;
+        if (fabs(a(x, y, 1) - correct*0.5) > 0.1) return false;
+        if (fabs(a(x, y, 2) - correct*0.25) > 0.1) return false;
     }
-    
+
     return true;
 }
 
@@ -87,7 +87,7 @@ Image WLS::apply(Image im, float alpha, float lambda, float tolerance) {
     // If min(s) is less than zero, chanses are that we already are in the log-domain.
     // In any case, we cannot take the log of negative numbers..
     if (s.minimum() >= 0) {
-	L += 0.0001;
+        L += 0.0001;
         Log::apply(L);
     }
 

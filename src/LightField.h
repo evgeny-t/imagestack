@@ -1,6 +1,6 @@
 #ifndef IMAGESTACK_LIGHTFIELD_H
 #define IMAGESTACK_LIGHTFIELD_H
- #include "header.h"
+#include "header.h"
 
 // a LightField is an image which assumes u and v are rolled up into x
 // and y, like an image of the lenslets in a plenoptic camera
@@ -14,11 +14,11 @@ public:
     }
 
     float &operator()(int x, int y, int u, int v, int c) {
-	return image(x*uSize + u, y*vSize + v, c);
+        return image(x*uSize + u, y*vSize + v, c);
     }
 
     float &operator()(int x, int y, int u, int v, int t, int c) {
-	return image(x*uSize + u, y*vSize + v, t, c);	
+        return image(x*uSize + u, y*vSize + v, t, c);
     }
 
     // quadrilinear 4D sampling (quadriLanczos3 too expensive, 6^4=1296)
@@ -78,7 +78,7 @@ public:
                     for (int l = 0; l < 2; l++) { // go through iy
                         for (int c = 0; c < image.channels; c++) {
                             result[c] += ((*this)(ix[j],iy[l],iu[i],iv[k],t,c) *
-					  wx[j]*wy[l]*wu[i]*wv[k]);
+                                          wx[j]*wy[l]*wu[i]*wv[k]);
                         }
                     }
                 }

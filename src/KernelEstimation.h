@@ -4,7 +4,7 @@
 #include "header.h"
 
 class KernelEstimation : public Operation {
-  public:
+public:
     void help();
     bool test();
     void parse(vector<string> args);
@@ -16,7 +16,7 @@ class KernelEstimation : public Operation {
     static Image contractKernel(Image im, int size);
     static Image bilinearResample(Image im, int w, int h);
 
-  private:
+private:
     static void shockFilterIteration(Image im, float dt = 1.0f);
     static void bilateralFilterIteration(Image im, float sigmaR);
 };

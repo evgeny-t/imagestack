@@ -38,14 +38,14 @@ void saveData(FILE *f, Image im) {
     vector<T> buf(im.width);
 
     for (int c = 0; c < im.channels; c++) {
-	for (int t = 0; t < im.frames; t++) {
-	    for (int y = 0; y < im.height; y++) {
-		float *srcPtr = &im(0, y, t, c);
-		for (int x = 0; x < im.width; x++) {
-		    buf[x] = (T)srcPtr[x];
-		}
-		fwrite(&buf[0], sizeof(T), im.width, f);
-	    }
+        for (int t = 0; t < im.frames; t++) {
+            for (int y = 0; y < im.height; y++) {
+                float *srcPtr = &im(0, y, t, c);
+                for (int x = 0; x < im.width; x++) {
+                    buf[x] = (T)srcPtr[x];
+                }
+                fwrite(&buf[0], sizeof(T), im.width, f);
+            }
         }
     }
 }
@@ -56,11 +56,11 @@ void saveData<float>(FILE *f, Image im) {
     vector<float> buf(im.width*im.channels);
 
     for (int c = 0; c < im.channels; c++) {
-	for (int t = 0; t < im.frames; t++) {
-	    for (int y = 0; y < im.height; y++) {
-		fwrite(&im(0, y, t, c), sizeof(float), im.width, f);
-	    }
-	}
+        for (int t = 0; t < im.frames; t++) {
+            for (int y = 0; y < im.height; y++) {
+                fwrite(&im(0, y, t, c), sizeof(float), im.width, f);
+            }
+        }
     }
 }
 
@@ -126,15 +126,15 @@ Image loadData(FILE *f, int width, int height, int frames, int channels) {
 
     vector<T> scanline(width);
     for (int c = 0; c < channels; c++) {
-	for (int t = 0; t < frames; t++) {
-	    for (int y = 0; y < height; y++) {
-		assert(fread(&scanline[0], sizeof(T), width, f) == (size_t)width,
-		       "Unexpected end of file\n");
-		for (int x = 0; x < width; x++) {
-		    im(x, y, t, c) = (float)scanline[x];
-		}
-	    }
-	}
+        for (int t = 0; t < frames; t++) {
+            for (int y = 0; y < height; y++) {
+                assert(fread(&scanline[0], sizeof(T), width, f) == (size_t)width,
+                       "Unexpected end of file\n");
+                for (int x = 0; x < width; x++) {
+                    im(x, y, t, c) = (float)scanline[x];
+                }
+            }
+        }
     }
 
     return im;
@@ -145,12 +145,12 @@ Image loadData<float>(FILE *f, int width, int height, int frames, int channels) 
     Image im(width, height, frames, channels);
 
     for (int c = 0; c < im.channels; c++) {
-	for (int t = 0; t < im.frames; t++) {
-	    for (int y = 0; y < im.height; y++) {
-		assert(fread(&im(0, y, t, c), sizeof(float), im.width, f) == (size_t)width,
-		       "Unexpected end of file\n");
-	    }
-	}
+        for (int t = 0; t < im.frames; t++) {
+            for (int y = 0; y < im.height; y++) {
+                assert(fread(&im(0, y, t, c), sizeof(float), im.width, f) == (size_t)width,
+                       "Unexpected end of file\n");
+            }
+        }
     }
 
     return im;

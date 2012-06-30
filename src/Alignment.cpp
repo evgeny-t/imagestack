@@ -348,7 +348,7 @@ public:
                 float gridX = m.x + i - 7.5;
                 float gridY = m.y + j - 7.5;
                 float weight = fastexp(-((i-7.5)*(i-7.5)+(j-7.5)*(j-7.5)) / (2*(1.5*(*sigma)[it+1])*(1.5*(*sigma)[it+1])));
-		vector<float> value(1);
+                vector<float> value(1);
                 ornPyramid[it-1].sample2DLinear(gridX, gridY, 0, value);
                 int index = floor((value[0] + M_PI) * 36 / (2 * M_PI));
                 magPyramid[it-1].sample2DLinear(gridX, gridY, 0, value);
@@ -570,10 +570,10 @@ public:
 
         // DoG Pyramid
         for (int i = 0; i < gaussianLevels-1; i++) {
-	    gPyramid.frame(i) -= gPyramid.frame(i+1);
+            gPyramid.frame(i) -= gPyramid.frame(i+1);
         }
-        Image dogPyramid = gPyramid.region(0, 0, 0, 0, 
-					      gPyramid.width, gPyramid.height, gaussianLevels-1, gPyramid.channels);
+        Image dogPyramid = gPyramid.region(0, 0, 0, 0,
+                                           gPyramid.width, gPyramid.height, gaussianLevels-1, gPyramid.channels);
 
 
         // Find local maxima
@@ -601,11 +601,11 @@ public:
                 continue;
             }
 
-	    vector<float> sample(1);
+            vector<float> sample(1);
             for (int y = -1; y <= 1; y++) {
-                for (int x = -1; x <= 1; x++) {		    
+                for (int x = -1; x <= 1; x++) {
                     dogPyramid.sample2DLinear(mx+x, my+y, mt, sample);
-		    patch(x+1, y+1) = sample[0];
+                    patch(x+1, y+1) = sample[0];
                 }
             }
 
@@ -947,9 +947,9 @@ Image Align::apply(Image a, Image b, Mode m) {
                 float fx, fy;
                 bestTransform->apply(x, y, &fx, &fy);
                 b.sample2D(fx, fy, t, sample);
-		for (int c = 0; c < out.channels; c++) {
-		    out(x, y, t, c) = sample[c];
-		}
+                for (int c = 0; c < out.channels; c++) {
+                    out(x, y, t, c) = sample[c];
+                }
             }
         }
     }
@@ -964,8 +964,8 @@ Image Align::apply(Image a, Image b, Mode m) {
 
 void AlignFrames::help() {
     pprintf("-alignframes uses -align to align all frames in a volume to match.\n"
-	    "\n"
-	    "Usage: ImageStack -loadframes *.jpg -alignframes -downsample 1 1 frames -save average.jpg\n");
+            "\n"
+            "Usage: ImageStack -loadframes *.jpg -alignframes -downsample 1 1 frames -save average.jpg\n");
 }
 
 bool AlignFrames::test() {
@@ -1002,7 +1002,7 @@ void AlignFrames::apply(Image im, Align::Mode m) {
 
     printf("Extracting features...\n");
     for (int t = 0; t < im.frames; t++) {
-	digests.push_back(new Digest(im.frame(t)));
+        digests.push_back(new Digest(im.frame(t)));
     }
 
     printf("Matching features...\n");
@@ -1042,16 +1042,16 @@ void AlignFrames::apply(Image im, Align::Mode m) {
         if (t == bestT) { continue; }
         Image tmp = im.frame(t).copy();
 
-	vector<float> sample(im.channels);
+        vector<float> sample(im.channels);
         for (int y = 0; y < im.height; y++) {
             for (int x = 0; x < im.width; x++) {
                 float fx, fy;
                 Transform *trans = transforms[make_pair(bestT, t)];
                 trans->apply(x, y, &fx, &fy);
                 tmp.sample2D(fx, fy, 0, sample);
-		for (int c = 0; c < im.channels; c++) {
-		    im(x, y, t, c) = sample[c];
-		}
+                for (int c = 0; c < im.channels; c++) {
+                    im(x, y, t, c) = sample[c];
+                }
             }
         }
     }

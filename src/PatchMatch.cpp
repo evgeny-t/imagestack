@@ -43,7 +43,7 @@ bool PatchMatch::test() {
     Image shifted = Translate::apply(dog, 10, 5, 0);
     Image flow = PatchMatch::apply(dog, shifted, 5, 7);
     Image correct(dog.width-20, dog.height-20, 1, 4);
-    correct.setChannels(Lazy::X() + 10, Lazy::Y() + 5, 0.0f, 0.0f);    
+    correct.setChannels(Lazy::X() + 10, Lazy::Y() + 5, 0.0f, 0.0f);
     return nearlyEqual(flow.region(0, 0, 0, 0, dog.width-20, dog.height-20, 1, 4), correct);
 }
 
@@ -100,13 +100,13 @@ Image PatchMatch::apply(Image source, Image target, Image mask, int iterations, 
                 int dx = randomInt(patchSize, target.width-patchSize-1);
                 int dy = randomInt(patchSize, target.height-patchSize-1);
                 int dt = randomInt(0, target.frames-1);
-		out(x, y, t, 0) = dx;
-		out(x, y, t, 1) = dy;
-		out(x, y, t, 2) = dt;
-		out(x, y, t, 3) = distance(source, target, mask,
-					   x, y, t,
-					   dx, dy, dt,
-					   patchSize, HUGE_VAL);
+                out(x, y, t, 0) = dx;
+                out(x, y, t, 1) = dy;
+                out(x, y, t, 2) = dt;
+                out(x, y, t, 3) = distance(source, target, mask,
+                                           x, y, t,
+                                           dx, dy, dt,
+                                           patchSize, HUGE_VAL);
             }
         }
     }
@@ -128,30 +128,30 @@ Image PatchMatch::apply(Image source, Image target, Image mask, int iterations, 
                         if (error(x, y, t, 0) > 0) {
                             float distLeft = distance(source, target, mask,
                                                       x, y, t,
-						      dx(x-1, y, t, 0)+1, 
-						      dy(x-1, y, t, 0),
-						      dt(x-1, y, t, 0), 
+                                                      dx(x-1, y, t, 0)+1,
+                                                      dy(x-1, y, t, 0),
+                                                      dt(x-1, y, t, 0),
                                                       patchSize, error(x, y, t, 0));
 
                             if (distLeft < error(x, y, t, 0)) {
-				dx(x, y, t, 0) = dx(x-1, y, t, 0)+1;
-				dy(x, y, t, 0) = dy(x-1, y, t, 0);
-				dt(x, y, t, 0) = dt(x-1, y, t, 0);
-				error(x, y, t, 0) = distLeft;
+                                dx(x, y, t, 0) = dx(x-1, y, t, 0)+1;
+                                dy(x, y, t, 0) = dy(x-1, y, t, 0);
+                                dt(x, y, t, 0) = dt(x-1, y, t, 0);
+                                error(x, y, t, 0) = distLeft;
                             }
 
                             float distUp = distance(source, target, mask,
                                                     x, y, t,
-						    dx(x, y-1, t, 0),
-						    dy(x, y-1, t, 0)+1,
-						    dt(x, y-1, t, 0),
+                                                    dx(x, y-1, t, 0),
+                                                    dy(x, y-1, t, 0)+1,
+                                                    dt(x, y-1, t, 0),
                                                     patchSize, error(x, y, t, 0));
-			    
+
                             if (distUp < error(x, y, t, 0)) {
-				dx(x, y, t, 0) = dx(x, y-1, t, 0);
-				dy(x, y, t, 0) = dy(x, y-1, t, 0)+1;
-				dt(x, y, t, 0) = dt(x, y-1, t, 0);
-				error(x, y, t, 0) = distUp;
+                                dx(x, y, t, 0) = dx(x, y-1, t, 0);
+                                dy(x, y, t, 0) = dy(x, y-1, t, 0)+1;
+                                dt(x, y, t, 0) = dt(x, y-1, t, 0);
+                                error(x, y, t, 0) = distUp;
                             }
                         }
 
@@ -165,39 +165,39 @@ Image PatchMatch::apply(Image source, Image target, Image mask, int iterations, 
             // Backward propagation - compare right, center and down
             for (int t = source.frames-1; t >= 0; t--) {
                 for (int y = source.height-2; y >= 0; y--) {
-		    for (int x = source.width-2; x >= 0; x--) {
+                    for (int x = source.width-2; x >= 0; x--) {
                         if (error(x, y, t, 0) > 0) {
                             float distRight = distance(source, target, mask,
-						       x, y, t,
-						       dx(x+1, y, t, 0)-1, 
-						       dy(x+1, y, t, 0),
-						       dt(x+1, y, t, 0), 
-						       patchSize, error(x, y, t, 0));
+                                                       x, y, t,
+                                                       dx(x+1, y, t, 0)-1,
+                                                       dy(x+1, y, t, 0),
+                                                       dt(x+1, y, t, 0),
+                                                       patchSize, error(x, y, t, 0));
 
                             if (distRight < error(x, y, t, 0)) {
-				dx(x, y, t, 0) = dx(x+1, y, t, 0)-1;
-				dy(x, y, t, 0) = dy(x+1, y, t, 0);
-				dt(x, y, t, 0) = dt(x+1, y, t, 0);
-				error(x, y, t, 0) = distRight;
+                                dx(x, y, t, 0) = dx(x+1, y, t, 0)-1;
+                                dy(x, y, t, 0) = dy(x+1, y, t, 0);
+                                dt(x, y, t, 0) = dt(x+1, y, t, 0);
+                                error(x, y, t, 0) = distRight;
                             }
 
                             float distDown = distance(source, target, mask,
-						      x, y, t,
-						      dx(x, y+1, t, 0),
-						      dy(x, y+1, t, 0)-1,
-						      dt(x, y+1, t, 0),
-						      patchSize, error(x, y, t, 0));
-			    
+                                                      x, y, t,
+                                                      dx(x, y+1, t, 0),
+                                                      dy(x, y+1, t, 0)-1,
+                                                      dt(x, y+1, t, 0),
+                                                      patchSize, error(x, y, t, 0));
+
                             if (distDown < error(x, y, t, 0)) {
-				dx(x, y, t, 0) = dx(x, y+1, t, 0);
-				dy(x, y, t, 0) = dy(x, y+1, t, 0)-1;
-				dt(x, y, t, 0) = dt(x, y+1, t, 0);
-				error(x, y, t, 0) = distDown;
+                                dx(x, y, t, 0) = dx(x, y+1, t, 0);
+                                dy(x, y, t, 0) = dy(x, y+1, t, 0)-1;
+                                dt(x, y, t, 0) = dt(x, y+1, t, 0);
+                                error(x, y, t, 0) = distDown;
                             }
                         }
-			
+
                         // TODO: Consider searching across time as well
-			
+
                     }
                 }
             }
@@ -210,14 +210,14 @@ Image PatchMatch::apply(Image source, Image target, Image mask, int iterations, 
             for (int y = 0; y < source.height; y++) {
                 for (int x = 0; x < source.width; x++) {
 
-		    if (error(x, y, t, 0) > 0) {
+                    if (error(x, y, t, 0) > 0) {
 
                         int radius = target.width > target.height ? target.width : target.height;
 
                         // search an exponentially smaller window each iteration
                         while (radius > 8) {
                             // Search around current offset vector (distance-weighted)
-			    
+
                             // clamp the search window to the image
                             int minX = (int)dx(x, y, t, 0) - radius;
                             int maxX = (int)dx(x, y, t, 0) + radius + 1;
@@ -275,18 +275,18 @@ float PatchMatch::distance(Image source, Image target, Image mask,
     int y2 = min(patchSize, -sy+source.height-1, -ty+target.height-1);
 
     for (int c = 0; c < target.channels; c++) {
-	for (int y = y1; y <= y2; y++) {	   	
-	    for (int x = x1; x <= x2; x++) {
+        for (int y = y1; y <= y2; y++) {
+            for (int x = x1; x <= x2; x++) {
 
                 // Don't stray outside the mask
                 if (mask.defined() && mask(tx+x, ty+y, tt, 0) < 1) return HUGE_VAL;
 
-		float delta = source(sx+x, sy+y, st, c) - target(tx+x, ty+y, tt, c);
-		dist += delta * delta;
-		
-		// Early termination
-		if (dist > threshold) {return HUGE_VAL;}
-	    }
+                float delta = source(sx+x, sy+y, st, c) - target(tx+x, ty+y, tt, c);
+                dist += delta * delta;
+
+                // Early termination
+                if (dist > threshold) {return HUGE_VAL;}
+            }
         }
     }
 
@@ -318,7 +318,7 @@ void BidirectionalSimilarity::help() {
 }
 
 bool BidirectionalSimilarity::test() {
-    
+
     return false;
 }
 
@@ -391,12 +391,12 @@ void BidirectionalSimilarity::apply(Image source, Image target,
         int patchSize = 5;
 
         // The homogeneous output for this iteration
-        Image out(target.width, target.height, target.frames, target.channels+1);        
+        Image out(target.width, target.height, target.frames, target.channels+1);
 
         if (alpha != 0) {
 
             // COMPLETENESS TERM
-	    Image completeMatch = PatchMatch::apply(source, target, targetMask, numIterPM, patchSize);
+            Image completeMatch = PatchMatch::apply(source, target, targetMask, numIterPM, patchSize);
 
             // For every patch in the source, splat it onto the
             // nearest match in the target, weighted by the source
@@ -409,7 +409,7 @@ void BidirectionalSimilarity::apply(Image source, Image target,
                         float patchWeight = 0;
                         if (sourceMask.defined()) {
                             for (int dy = -patchSize/2; dy <= patchSize/2; dy++) {
-                                if (y+dy < 0) continue; 
+                                if (y+dy < 0) continue;
                                 if (y+dy >= source.height) break;
                                 for (int dx = -patchSize/2; dx <= patchSize/2; dx++) {
                                     if (x+dx < 0) continue;
@@ -430,11 +430,11 @@ void BidirectionalSimilarity::apply(Image source, Image target,
                             if (sourceMask.defined()) { weight *= sourceMask(x, y, t, 0); }
 
                             for (int dy = -patchSize/2; dy <= patchSize/2; dy++) {
-                                if (y+dy < 0) continue; 
+                                if (y+dy < 0) continue;
                                 if (y+dy >= source.height) break;
                                 for (int dx = -patchSize/2; dx <= patchSize/2; dx++) {
                                     if (x+dx < 0) continue;
-				    if (x+dx >= source.width) break;
+                                    if (x+dx >= source.width) break;
 
                                     float w = weight;
                                     if (targetMask.defined()) {
@@ -442,10 +442,10 @@ void BidirectionalSimilarity::apply(Image source, Image target,
                                     }
                                     if (w == 0) continue;
 
-				    for (int c = 0; c < source.channels; c++) {
-					out(dstX+dx, dstY+dy, dstT, c) += w*source(x+dx, y+dy, t, c);
-				    }
-				    out(dstX+dx, dstY+dy, dstT, source.channels) += w;
+                                    for (int c = 0; c < source.channels; c++) {
+                                        out(dstX+dx, dstY+dy, dstT, c) += w*source(x+dx, y+dy, t, c);
+                                    }
+                                    out(dstX+dx, dstY+dy, dstT, source.channels) += w;
                                 }
                             }
                         }
@@ -457,7 +457,7 @@ void BidirectionalSimilarity::apply(Image source, Image target,
         if (alpha != 1) {
             // COHERENCE TERM
             Image coherentMatch = PatchMatch::apply(target, source, sourceMask,
-						    numIterPM, patchSize);
+                                                    numIterPM, patchSize);
             // For every patch in the target, pull from the nearest match in the source
             for (int t = 0; t < target.frames; t++) {
                 for (int y = 0; y < target.height; y++) {
@@ -465,7 +465,7 @@ void BidirectionalSimilarity::apply(Image source, Image target,
 
                         // Weight at this patch. If there's a lot
                         // of zeros the the target is partially-defined
-                        // here and we should be very forceful.                            
+                        // here and we should be very forceful.
                         float patchWeight = 1;
                         if (targetMask.defined()) {
                             for (int dy = -patchSize/2; dy <= patchSize/2; dy++) {
@@ -476,8 +476,8 @@ void BidirectionalSimilarity::apply(Image source, Image target,
                                     if (x+dx >= out.width) break;
                                     patchWeight += 1-targetMask(x+dx, y+dy, t, 0);
                                 }
-                            } 
-                        }                                            
+                            }
+                        }
 
                         int dstX = (int)coherentMatch(x, y, t, 0);
                         int dstY = (int)coherentMatch(x, y, t, 1);
@@ -506,7 +506,7 @@ void BidirectionalSimilarity::apply(Image source, Image target,
         }
 
         // rewrite the target using the homogeneous output
-        
+
         for (int c = 0; c < out.channels-1; c++) {
             out.channel(c) /= out.channel(out.channels-1) + 1e-10;
         }
@@ -516,7 +516,7 @@ void BidirectionalSimilarity::apply(Image source, Image target,
         } else {
             target.set(out.selectChannels(0, target.channels));
         }
-        
+
     }
     printf("\n");
 }

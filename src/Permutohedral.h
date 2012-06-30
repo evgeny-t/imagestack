@@ -53,8 +53,8 @@ public:
     int lookupOffset(short *key, size_t h, bool create = true) {
 
         // Double hash table size if necessary
-        if (create && filled >= (capacity/2)-1) { 
-            grow(); 
+        if (create && filled >= (capacity/2)-1) {
+            grow();
             h = hash(key) % capacity;
         }
 
@@ -175,50 +175,50 @@ public:
      *   im : image to be filtered.
      *  ref : reference image whose edges are to be respected.
      */
-  /*
-    static Image filter(Image im, Image ref) {
+    /*
+      static Image filter(Image im, Image ref) {
 
 
-        // Create lattice
-        PermutohedralLattice lattice(ref.channels, im.channels+1, im.width*im.height*im.frames);
-        // Splat into the lattice
-        //printf("Splatting...\n");
+          // Create lattice
+          PermutohedralLattice lattice(ref.channels, im.channels+1, im.width*im.height*im.frames);
+          // Splat into the lattice
+          //printf("Splatting...\n");
 
-        float *imPtr = im(0, 0, 0);
-        float *refPtr = ref(0, 0, 0);
-        for (int t = 0; t < im.frames; t++) {
-            for (int y = 0; y < im.height; y++) {
-                for (int x = 0; x < im.width; x++) {
-                    lattice.splat(refPtr, imPtr);
-                    refPtr += ref.channels;
-                    imPtr += im.channels;
-                }
-            }
-        }
+          float *imPtr = im(0, 0, 0);
+          float *refPtr = ref(0, 0, 0);
+          for (int t = 0; t < im.frames; t++) {
+              for (int y = 0; y < im.height; y++) {
+                  for (int x = 0; x < im.width; x++) {
+                      lattice.splat(refPtr, imPtr);
+                      refPtr += ref.channels;
+                      imPtr += im.channels;
+                  }
+              }
+          }
 
-        // Blur the lattice
-        //printf("Blurring...\n");
-        lattice.blur();
+          // Blur the lattice
+          //printf("Blurring...\n");
+          lattice.blur();
 
-        // Slice from the lattice
-        //printf("Slicing...\n");
+          // Slice from the lattice
+          //printf("Slicing...\n");
 
-        Image out(im.width, im.height, im.frames, im.channels);
+          Image out(im.width, im.height, im.frames, im.channels);
 
-        lattice.beginSlice();
-        float *outPtr = out(0, 0, 0);
-        for (int t = 0; t < im.frames; t++) {
-            for (int y = 0; y < im.height; y++) {
-                for (int x = 0; x < im.width; x++) {
-                    lattice.slice(outPtr);
-                    outPtr += out.channels;
-                }
-            }
-        }
+          lattice.beginSlice();
+          float *outPtr = out(0, 0, 0);
+          for (int t = 0; t < im.frames; t++) {
+              for (int y = 0; y < im.height; y++) {
+                  for (int x = 0; x < im.width; x++) {
+                      lattice.slice(outPtr);
+                      outPtr += out.channels;
+                  }
+              }
+          }
 
-        return out;
-    }
-  */
+          return out;
+      }
+    */
 
     /* Constructor
      *     d_ : dimensionality of key vectors
@@ -502,7 +502,7 @@ public:
         for (int j = 0; j <= d; j++) {
             // For each vertex in the lattice,
             for (int i = 0; i < hashTable.size(); i++) { // blur point i in dimension j
-		short *currentKey = hashTable.getKeys() + i*(d); // keys to current vertex
+                short *currentKey = hashTable.getKeys() + i*(d); // keys to current vertex
                 for (int k = 0; k < d; k++) {
                     neighbor1[k] = currentKey[k] + 1;
                     neighbor2[k] = currentKey[k] - 1;

@@ -39,11 +39,11 @@ bool DCT::test() {
     DCT::apply(b, true, true, false);
     double d2 = Stats(a - b).variance();
     if (!nearlyEqual(d1, d2)) return false;
-    
-    // Check a single cosine curve creates a spike    
+
+    // Check a single cosine curve creates a spike
     a.set(cos(16 * M_PI * Lazy::X() / 122.0));
-    DCT::apply(a, true, true, true);    
-    if (a(16, 0, 0, 0) < 1) return false;    
+    DCT::apply(a, true, true, true);
+    if (a(16, 0, 0, 0) < 1) return false;
     a(16, 0, 0, 0) = 0;
     a(16, 0, 0, 1) = 0;
     a(16, 0, 0, 2) = 0;
@@ -103,7 +103,7 @@ void DCT::apply(Image im, bool transformX, bool transformY, bool transformT) {
         if (transformY) fft_dims.push_back(d);
         else loop_dims.push_back(d);
     }
-    
+
     // T
     {
         fftwf_iodim d = {im.frames, im.tstride, im.tstride};
@@ -113,8 +113,8 @@ void DCT::apply(Image im, bool transformX, bool transformY, bool transformT) {
 
     // C
     {
-	fftwf_iodim d = {im.channels, im.cstride, im.cstride};
-	loop_dims.push_back(d);
+        fftwf_iodim d = {im.channels, im.cstride, im.cstride};
+        loop_dims.push_back(d);
     }
 
     vector<fftw_r2r_kind> kinds(fft_dims.size(), FFTW_REDFT00);
@@ -163,24 +163,24 @@ bool FFT::test() {
     ComplexMultiply::apply(b, a, true);
     double d2 = Stats(b).sum();
     if (!nearlyEqual(d1, d2)) return false;
-    
-    // Check a single shifted curve creates a spike    
+
+    // Check a single shifted curve creates a spike
     a.channel(0).set(cos(16 * M_PI * Lazy::X() / 123.0 + M_PI/8));
     a.channel(1).set(sin(16 * M_PI * Lazy::X() / 123.0 + M_PI/8));
     a.channel(2).set(a.channel(0));
     a.channel(3).set(a.channel(1));
-    FFT::apply(a, true, true, true);    
+    FFT::apply(a, true, true, true);
     a /= sqrtf(123*234*10);
     float r = a(8, 0, 0, 0);
     float c = a(8, 0, 0, 1);
-    if (r*r + c*c < 1) return false;    
-    if (!nearlyEqual(atan2(c, r), M_PI/8)) return false; 
+    if (r*r + c*c < 1) return false;
+    if (!nearlyEqual(atan2(c, r), M_PI/8)) return false;
     a(8, 0, 0, 0) = 0;
     a(8, 0, 0, 1) = 0;
     a(8, 0, 0, 2) = 0;
     a(8, 0, 0, 3) = 0;
     ComplexMultiply::apply(a, a, true);
-    return Stats(a).maximum() < 0.0001;    
+    return Stats(a).maximum() < 0.0001;
 }
 
 void FFT::parse(vector<string> args) {
@@ -237,7 +237,7 @@ void FFT::apply(Image im, bool transformX, bool transformY, bool transformT, boo
         if (transformY) fft_dims.push_back(d);
         else loop_dims.push_back(d);
     }
-    
+
     // T
     {
         fftwf_iodim d = {im.frames, im.tstride, im.tstride};
@@ -247,8 +247,8 @@ void FFT::apply(Image im, bool transformX, bool transformY, bool transformT, boo
 
     // C
     {
-	fftwf_iodim d = {im.channels/2, im.cstride*2, im.cstride*2};
-	loop_dims.push_back(d);
+        fftwf_iodim d = {im.channels/2, im.cstride*2, im.cstride*2};
+        loop_dims.push_back(d);
     }
 
     // An inverse fft can be done by swapping real and imaginary parts
@@ -256,20 +256,20 @@ void FFT::apply(Image im, bool transformX, bool transformY, bool transformT, boo
     int imag_c = inverse ? 0 : 1;
 
     fftwf_plan plan = fftwf_plan_guru_split_dft((int)fft_dims.size(), &fft_dims[0],
-                                               (int)loop_dims.size(), &loop_dims[0],
-                                               &(im(0, 0, 0, real_c)), &(im(0, 0, 0, imag_c)),
-                                               &(im(0, 0, 0, real_c)), &(im(0, 0, 0, imag_c)),
-                                               FFTW_ESTIMATE);
+                                                (int)loop_dims.size(), &loop_dims[0],
+                                                &(im(0, 0, 0, real_c)), &(im(0, 0, 0, imag_c)),
+                                                &(im(0, 0, 0, real_c)), &(im(0, 0, 0, imag_c)),
+                                                FFTW_ESTIMATE);
     fftwf_execute(plan);
     fftwf_destroy_plan(plan);
 
-    
+
     if (inverse) {
         float m = 1.0;
         if (transformX) m *= im.width;
         if (transformY) m *= im.height;
         if (transformT) m *= im.frames;
-        im /= m; 
+        im /= m;
     }
 }
 
@@ -389,39 +389,39 @@ Image FFTConvolve::apply(Image im, Image filter, Convolve::BoundaryCondition b, 
                "To perform an inner or matrix product, the channel count "
                "of either the image or the filter must be a multiple of "
                "the channel count of the other.");
-	if (im.channels < filter.channels) {
-	    out = Image(im.width, im.height, im.frames, filter.channels/im.channels);
-	    for (int i = 0; i < filter.channels; i++) {
-		convolveSingle(im.channel(i % im.channels), 
-			       filter.channel(i), 
-			       out.channel(i / im.channels), b);
-	    }
-	} else {
-	    out = Image(im.width, im.height, im.frames, im.channels/filter.channels);
-	    for (int i = 0; i < im.channels; i++) {
-		convolveSingle(im.channel(i), 
-			       filter.channel(i % filter.channels), 
-			       out.channel(i / filter.channels), b);
-	    }	    
-	}
+        if (im.channels < filter.channels) {
+            out = Image(im.width, im.height, im.frames, filter.channels/im.channels);
+            for (int i = 0; i < filter.channels; i++) {
+                convolveSingle(im.channel(i % im.channels),
+                               filter.channel(i),
+                               out.channel(i / im.channels), b);
+            }
+        } else {
+            out = Image(im.width, im.height, im.frames, im.channels/filter.channels);
+            for (int i = 0; i < im.channels; i++) {
+                convolveSingle(im.channel(i),
+                               filter.channel(i % filter.channels),
+                               out.channel(i / filter.channels), b);
+            }
+        }
     } else if (m == Multiply::Outer) {
         out = Image(im.width, im.height, im.frames, im.channels * filter.channels);
         for (int i = 0; i < im.channels; i++) {
             for (int j = 0; j < filter.channels; j++) {
                 convolveSingle(im.channel(i),
                                filter.channel(j),
-                               out.channel(i*filter.channels + j), b);                               
+                               out.channel(i*filter.channels + j), b);
             }
         }
     } else if (m == Multiply::Elementwise) {
         assert(im.channels == filter.channels,
                "For element-wise multiplication, the image "
                "and filter must have the same number of channels.");
-        out = Image(im.width, im.height, im.frames, im.channels);        
+        out = Image(im.width, im.height, im.frames, im.channels);
         for (int i = 0; i < im.channels; i++) {
             convolveSingle(im.channel(i), filter.channel(i), out.channel(i), b);
         }
-        
+
     } else {
         panic("Unknown multiplication mode");
     }
@@ -436,7 +436,7 @@ void FFTConvolve::convolveSingle(Image im, Image filter, Image out, Convolve::Bo
     if (b == Convolve::Homogeneous) {
         Image result = apply(im, filter, Convolve::Zero, Multiply::Outer);
         Image weight(im.width, im.height, im.frames, 1);
-	weight.set(1.0f);
+        weight.set(1.0f);
         Image resultW = apply(weight, filter, Convolve::Zero, Multiply::Outer);
         out += Stats(filter).sum() * result / resultW;
         return;
@@ -486,11 +486,11 @@ void FFTConvolve::convolveSingle(Image im, Image filter, Image out, Convolve::Bo
     Image filterT(imT.width, imT.height, imT.frames, 2);
     for (int t = 0; t < filter.frames; t++) {
         int ft = t - filter.frames/2;
-        if (ft < 0) ft += filterT.frames; 
+        if (ft < 0) ft += filterT.frames;
         for (int y = 0; y < filter.height; y++) {
             int fy = y - filter.height/2;
-            if (fy < 0) fy += filterT.height; 
-            for (int x = 0; x < filter.width; x++) {                    
+            if (fy < 0) fy += filterT.height;
+            for (int x = 0; x < filter.width; x++) {
                 int fx = x - filter.width/2;
                 if (fx < 0) fx += filterT.width;
                 filterT(fx, fy, ft, 0) = filter(x, y, t, 0);
@@ -598,12 +598,12 @@ Image FFTPoisson::apply(Image dx, Image dy, Image target, float targetStrength) 
     fftwf_plan fftPlan;
     fftPlan = fftwf_plan_r2r_2d(dx.height, dx.width,
                                 &fftBuff(0, 0), &fftBuff(0, 0),
-                                FFTW_REDFT00, FFTW_REDFT00, FFTW_ESTIMATE); 
+                                FFTW_REDFT00, FFTW_REDFT00, FFTW_ESTIMATE);
 
     Image out(dx.width, dx.height, dx.frames, dx.channels);
 
     for (int c = 0; c < dx.channels; c++) {
-	for (int t = 0; t < dx.frames; t++) {
+        for (int t = 0; t < dx.frames; t++) {
 
             float dcSum = 0.0f;
 

@@ -8,35 +8,35 @@
 #include "header.h"
 
 namespace {
-    // used for picking file formats
-    bool suffixMatch(string filename, string suffix) {
-        if (suffix.size() > filename.size()) { return false; }
-        int offset = (int)filename.size() - (int)suffix.size();
-        for (size_t i = 0; i < suffix.size(); i++) {
-            if (tolower(filename[i + offset]) != tolower(suffix[i])) { return false; }
-        }
-        return true;
+// used for picking file formats
+bool suffixMatch(string filename, string suffix) {
+    if (suffix.size() > filename.size()) { return false; }
+    int offset = (int)filename.size() - (int)suffix.size();
+    for (size_t i = 0; i < suffix.size(); i++) {
+        if (tolower(filename[i + offset]) != tolower(suffix[i])) { return false; }
     }
+    return true;
+}
 
-    
-    struct TempFile {
-        string name;
-        TempFile() : name("_test") {}
-        TempFile(string name_) : name(name_) {}
-        ~TempFile() {
-            remove(name.c_str());
-        }
-    };
 
-    // Used to help testing. Saves and loads and checks the result is what you saved.
-    bool testFormat(Image im, string fmt) {
-        printf("%s ", fmt.c_str()); 
-        fflush(stdout);
-        TempFile t(string("_test") + "." + fmt);
-		Save::apply(im, t.name);
-        Image b = Load::apply(t.name);
-        return nearlyEqual(im, b);        
+struct TempFile {
+    string name;
+    TempFile() : name("_test") {}
+    TempFile(string name_) : name(name_) {}
+    ~TempFile() {
+        remove(name.c_str());
     }
+};
+
+// Used to help testing. Saves and loads and checks the result is what you saved.
+bool testFormat(Image im, string fmt) {
+    printf("%s ", fmt.c_str());
+    fflush(stdout);
+    TempFile t(string("_test") + "." + fmt);
+    Save::apply(im, t.name);
+    Image b = Load::apply(t.name);
+    return nearlyEqual(im, b);
+}
 
 
 };
@@ -81,22 +81,22 @@ bool Load::test() {
     Quantize::apply(a, 1.0/256);
 
     testFormat(a, "tmp");
-    
+
     // tmp is the only multi-frame format, so now we switch to a single frame
     a = a.frame(0);
-    
-    #ifndef NO_JPG    
+
+#ifndef NO_JPG
     if (!testFormat(a, "jpg")) return false;
-    #endif
-    #ifndef NO_PNG
+#endif
+#ifndef NO_PNG
     if (!testFormat(a, "png")) return false;
-    #endif
-    #ifndef NO_TIFF
+#endif
+#ifndef NO_TIFF
     if (!testFormat(a, "tiff")) return false;
-    #endif
-    #ifndef NO_OPENEXR
+#endif
+#ifndef NO_OPENEXR
     if (!testFormat(a*5, "exr")) return false;
-    #endif
+#endif
 
     if (!testFormat(a, "tga")) return false;
     if (!testFormat(a*5, "hdr")) return false;
@@ -141,8 +141,8 @@ Image Load::apply(string filename) {
         return FileTGA::load(filename);
     } else if (suffixMatch(filename, ".wav")) {
         return FileWAV::load(filename);
-    } else if (suffixMatch(filename, ".ppm") || 
-               suffixMatch(filename, ".pgm")) {               
+    } else if (suffixMatch(filename, ".ppm") ||
+               suffixMatch(filename, ".pgm")) {
         return FilePPM::load(filename);
     } else if (suffixMatch(filename, ".tiff") ||
                suffixMatch(filename, ".tif")) {
@@ -208,7 +208,7 @@ Image LoadFrames::apply(vector<string> args) {
                (im.height == result.height) &&
                (im.channels == result.channels),
                "-loadframes can only load file sequences of matching width, height, and channel count\n");
-	result.frame(i).set(im);
+        result.frame(i).set(im);
     }
 
     return result;
@@ -253,14 +253,14 @@ Image LoadChannels::apply(vector<string> args) {
     result.channel(0).set(im);
 
     for (size_t i = 1; i < args.size(); i++) {
-	im = Load::apply(args[i]);
-	// check dimensions and channels match
-	assert(im.channels == 1, "-loadchannels can only load many single frame images\n");
-	assert((im.width == result.width) &&
-	       (im.height == result.height) &&
-	       (im.frames == result.frames),
-	       "-loadchannels can only load file sequences of matching size\n");
-	result.channel(i).set(im);
+        im = Load::apply(args[i]);
+        // check dimensions and channels match
+        assert(im.channels == 1, "-loadchannels can only load many single frame images\n");
+        assert((im.width == result.width) &&
+               (im.height == result.height) &&
+               (im.frames == result.frames),
+               "-loadchannels can only load file sequences of matching size\n");
+        result.channel(i).set(im);
     }
 
     return result;
@@ -321,7 +321,7 @@ void Save::apply(Image im, string filename, string arg) {
         FileTMP::save(im, filename, arg);
     } else if (suffixMatch(filename, ".hdr")) {
         FileHDR::save(im, filename);
-    } else if (suffixMatch(filename, ".jpg") || 
+    } else if (suffixMatch(filename, ".jpg") ||
                suffixMatch(filename, ".jpeg")) {
         int quality;
         if (arg == "") quality = 90;
@@ -338,13 +338,13 @@ void Save::apply(Image im, string filename, string arg) {
         FileTGA::save(im, filename);
     } else if (suffixMatch(filename, ".wav")) {
         FileWAV::save(im, filename);
-    } else if (suffixMatch(filename, ".ppm") || 
+    } else if (suffixMatch(filename, ".ppm") ||
                suffixMatch(filename, ".pgm")) {
         int bitdepth;
         if (arg == "") bitdepth = 16;
         else bitdepth = readInt(arg);
         FilePPM::save(im, filename, bitdepth);
-    } else if (suffixMatch(filename, ".tiff") || 
+    } else if (suffixMatch(filename, ".tiff") ||
                suffixMatch(filename, ".tif")) {
         FileTIFF::save(im, filename, arg);
     } else if (suffixMatch(filename, ".flo")) {
@@ -366,7 +366,7 @@ void SaveFrames::help() {
            "       ImageStack -loadframes *.jpg -saveframes frame%%03d.ppm 16\n\n");
 }
 
-bool SaveFrames::test() {    
+bool SaveFrames::test() {
     // Tested by LoadFrames
     return true;
 }
@@ -405,17 +405,17 @@ void SaveChannels::help() {
             "       ImageStack -loadchannels *.jpg -savechannels frame%%03d.ppm 16\n\n");
 }
 
-bool SaveChannels::test() {    
+bool SaveChannels::test() {
     // Just calls save repeatedly
     return true;
 }
 
 void SaveChannels::parse(vector<string> args) {
     assert(args.size() == 1 || args.size() == 2, "-savechannels takes one or two arguments.\n");
-    if (args.size() == 1) { 
-        apply(stack(0), args[0], ""); 
-    } else { 
-        apply(stack(0), args[0], args[1]); 
+    if (args.size() == 1) {
+        apply(stack(0), args[0], "");
+    } else {
+        apply(stack(0), args[0], args[1]);
     }
 }
 
@@ -447,8 +447,8 @@ void LoadBlock::help() {
            );
 }
 
-bool LoadBlock::test() {    
-    
+bool LoadBlock::test() {
+
     Image a(123, 234, 3, 3);
     Noise::apply(a, 0, 1);
     FastBlur::apply(a, 1, 1, 1);
@@ -537,8 +537,8 @@ Image LoadBlock::apply(string filename, int xoff, int yoff, int toff, int coff,
 
     // sanity check the header
     if (header.width < 1 ||
-        header.height < 1 || 
-        header.frames < 1 || 
+        header.height < 1 ||
+        header.frames < 1 ||
         header.channels < 1) {
         fclose(f);
         panic("According the header of the tmp file, the image has dimensions %ix%ix%ix%i. "
@@ -566,7 +566,7 @@ Image LoadBlock::apply(string filename, int xoff, int yoff, int toff, int coff,
     for (int c = cmin; c < cmax; c++) {
         for (int t = tmin; t < tmax; t++) {
             for (int y = ymin; y < ymax; y++) {
-		off_t offset = c*cStride + t*tStride + y*yStride + xmin*xStride + headerBytes;
+                off_t offset = c*cStride + t*tStride + y*yStride + xmin*xStride + headerBytes;
                 fseeko(f, offset, SEEK_SET);
                 fread_(&out(xmin-xoff, y-yoff, t-toff, c-coff), sizeof(float), (xmax-xmin), f);
             }
@@ -662,13 +662,13 @@ void SaveBlock::apply(Image im, string filename, int xoff, int yoff, int toff, i
     int tmax = min(toff+im.frames, header.frames);
 
     for (int c = cmin; c < cmax; c++) {
-	for (int t = tmin; t < tmax; t++) {
-	    for (int y = ymin; y < ymax; y++) {
-		off_t offset = c*cStride + t*tStride + y*yStride + xmin*xStride + headerBytes;
-		fseeko(f, offset, SEEK_SET);
-		fwrite(&im(xmin-xoff, y-yoff, t-toff, c-coff), sizeof(float), (xmax-xmin), f);
-	    }
-	}
+        for (int t = tmin; t < tmax; t++) {
+            for (int y = ymin; y < ymax; y++) {
+                off_t offset = c*cStride + t*tStride + y*yStride + xmin*xStride + headerBytes;
+                fseeko(f, offset, SEEK_SET);
+                fwrite(&im(xmin-xoff, y-yoff, t-toff, c-coff), sizeof(float), (xmax-xmin), f);
+            }
+        }
 
     }
 
@@ -748,29 +748,29 @@ void LoadArray::help() {
 }
 
 namespace {
-    template<typename T>
-    bool testLoadArray() {
-        Image a(123, 234, 3, 4);
-        Noise::apply(a, 0, 12324);
-        TempFile f;
-        SaveArray::apply<T>(a, f.name);
-        Image b = LoadArray::apply<T>(f.name, 123, 234, 3, 4);
+template<typename T>
+bool testLoadArray() {
+    Image a(123, 234, 3, 4);
+    Noise::apply(a, 0, 12324);
+    TempFile f;
+    SaveArray::apply<T>(a, f.name);
+    Image b = LoadArray::apply<T>(f.name, 123, 234, 3, 4);
 
-        for (int i = 0; i < 100; i++) {
-            int x = randomInt(0, a.width-1);
-            int y = randomInt(0, a.height-1);
-            int t = randomInt(0, a.frames-1);
-            int c = randomInt(0, a.channels-1);
-            // LoadArray/SaveArray should be exactly equivalent to a C-style cast
-            float saved = (float)((T)(a(x, y, t, c)));
-            float loaded = b(x, y, t, c);
-            if (loaded != saved) {
-                printf("%f vs %f\n", saved, loaded);
-                return false;
-            }
+    for (int i = 0; i < 100; i++) {
+        int x = randomInt(0, a.width-1);
+        int y = randomInt(0, a.height-1);
+        int t = randomInt(0, a.frames-1);
+        int c = randomInt(0, a.channels-1);
+        // LoadArray/SaveArray should be exactly equivalent to a C-style cast
+        float saved = (float)((T)(a(x, y, t, c)));
+        float loaded = b(x, y, t, c);
+        if (loaded != saved) {
+            printf("%f vs %f\n", saved, loaded);
+            return false;
         }
-        return true;
     }
+    return true;
+}
 };
 
 bool LoadArray::test() {
@@ -783,7 +783,7 @@ bool LoadArray::test() {
     if (!testLoadArray<int8_t>()) return false;
     if (!testLoadArray<float>()) return false;
     if (!testLoadArray<double>()) return false;
-    
+
     return true;
 }
 
@@ -825,14 +825,14 @@ Image LoadArray::apply(string filename, int width, int height, int frames, int c
     vector<T> rawData(width);
 
     for (int c = 0; c < im.channels; c++) {
-	for (int t = 0; t < im.frames; t++) {
-	    for (int y = 0; y < im.height; y++) {
+        for (int t = 0; t < im.frames; t++) {
+            for (int y = 0; y < im.height; y++) {
                 fread_(&rawData[0], sizeof(T), width, f);
-		for (int x = 0; x < im.width; x++) {
-		    im(x, y, t, c) = (float)rawData[x];
-		}
-	    }
-	}
+                for (int x = 0; x < im.width; x++) {
+                    im(x, y, t, c) = (float)rawData[x];
+                }
+            }
+        }
     }
 
     fclose(f);
@@ -892,11 +892,11 @@ void SaveArray::apply(Image im, string filename) {
     vector<T> rawData(im.width);
 
     for (int c = 0; c < im.channels; c++) {
-	for (int t = 0; t < im.frames; t++) {
-	    for (int y = 0; y < im.height; y++) {
-		for (int x = 0; x < im.width; x++) {
-		    rawData[x] = (T)(im(x, y, t, c)); 
-		}
+        for (int t = 0; t < im.frames; t++) {
+            for (int y = 0; y < im.height; y++) {
+                for (int x = 0; x < im.width; x++) {
+                    rawData[x] = (T)(im(x, y, t, c));
+                }
                 fwrite(&rawData[0], sizeof(T), im.width, f);
             }
         }

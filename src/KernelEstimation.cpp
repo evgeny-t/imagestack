@@ -58,9 +58,9 @@ void KernelEstimation::normalizeSum(Image im) {
            "The image to be normalized must have one channel and one frame!\n");
     double sum = 0.0;
     for (int y = 0; y < im.height; y++) {
-	for (int x = 0; x < im.width; x++) {
+        for (int x = 0; x < im.width; x++) {
             sum += im(x, y);
-	}
+        }
     }
     im /= sum;
 }
@@ -82,7 +82,7 @@ Image KernelEstimation::contractKernel(Image im, int size) {
     Image ret(size, size, 1, 1);
     for (int y = 0; y < size; y++) {
         int yOld = (y - (size / 2) + im.height) % im.height;
-        int xOld = ( - (size / 2) + im.width) % im.width;
+        int xOld = (- (size / 2) + im.width) % im.width;
         for (int x = 0; x < size; x++, xOld++) {
             if (xOld >= im.width) xOld = 0;
             ret(x, y) = im(xOld, yOld);
@@ -103,7 +103,7 @@ void KernelEstimation::shockFilterIteration(Image im, float dt) {
                     float dx = (input(x+1, y, t, c) - input(x-1, y, t, c))/2;
                     float dy = (input(x, y+1, t, c) - input(x, y-1, t, c))/2;
                     float laplacian = input(x, y-1, t, c) + input(x, y+1, t, c) +
-                        input(x-1, y, t, c) + input(x+1, y, t, c) - 4 * input(x, y, t, c);
+                                      input(x-1, y, t, c) + input(x+1, y, t, c) - 4 * input(x, y, t, c);
                     im(x, y, t, c) -= sqrtf(dx*dx+dy*dy) * (laplacian > 0.f ? 1.f : -1.f) * dt;
                 }
             }
@@ -171,7 +171,7 @@ Image KernelEstimation::bilinearResample(Image im, int w, int h) {
             }
             for (int c = 0; c < im.channels; c++) {
                 ret(w-1, y, t, c) = im(im.width-1, yOldInt, t, c) * (1 - yOldFrac)
-                    + im(im.width-1, yOldInt + 1, t, c) * (yOldFrac);
+                                    + im(im.width-1, yOldInt + 1, t, c) * (yOldFrac);
             }
         }
         for (int x = 0; x < w - 1; x++) {
@@ -180,7 +180,7 @@ Image KernelEstimation::bilinearResample(Image im, int w, int h) {
             float xOldFrac = xOld - xOldInt;
             for (int c = 0; c < im.channels; c++) {
                 ret(x, h-1, t, c) = im(xOldInt, im.height-1, t, c) * (1 - xOldFrac)
-                    + im(xOldInt+1, im.height-1, t, c) * (xOldFrac);
+                                    + im(xOldInt+1, im.height-1, t, c) * (xOldFrac);
             }
         }
         for (int c = 0; c < im.channels; c++)
@@ -208,12 +208,12 @@ Image KernelEstimation::apply(Image B, int kernelSize) {
     /******************************* Compute Kernel Sizes */
     std::vector<int> kernelScale;
     {
-	int tmp = kernelSize;
-	kernelScale.push_back(tmp);
-	while (tmp != 3) {
-	    tmp = ((int)((float)tmp / 1.6f) / 2) * 2 + 1;
-	    kernelScale.push_back(tmp);
-	}
+        int tmp = kernelSize;
+        kernelScale.push_back(tmp);
+        while (tmp != 3) {
+            tmp = ((int)((float)tmp / 1.6f) / 2) * 2 + 1;
+            kernelScale.push_back(tmp);
+        }
     }
 
     /******************************* Declare Local Variables */
@@ -280,7 +280,7 @@ Image KernelEstimation::apply(Image B, int kernelSize) {
                     float dy = guess(x, y+1) - guess(x, y);
                     float angle = atan2(dy, dx);
                     int bin = (int)(floor(angle / (M_PI * 0.25f)) + 4) % 4;
-                    if (grad_hist[bin].size() < gradCap && 
+                    if (grad_hist[bin].size() < gradCap &&
                         (double)rand() / RAND_MAX < probabilityCutoff) {
                         grad_hist[bin].push_back(dx*dx+dy*dy);
                     }
@@ -319,7 +319,7 @@ Image KernelEstimation::apply(Image B, int kernelSize) {
         }
         // Update constants for next iteration.
         dt *= 0.9f;
-        sigmaR *= 0.9f;    
+        sigmaR *= 0.9f;
         toc = currentTime(); printf(" Prediction: %.3f sec\n", toc - tic); tic = toc;
         /*
         sprintf(filenameC, "edges%d.tmp", iteration);
@@ -331,12 +331,12 @@ Image KernelEstimation::apply(Image B, int kernelSize) {
         /**************************************************************/
         // Build the gradient images.
         float beta = 1.f;
-        Image dxPx(paddedWidth, paddedHeight, 1, 2);    
-        Image dyPy(paddedWidth, paddedHeight, 1, 2);    
-        Image dxyPxy(paddedWidth, paddedHeight, 1, 2);    
-        Image dxBx(paddedWidth, paddedHeight, 1, 2);    
-        Image dyBy(paddedWidth, paddedHeight, 1, 2);    
-        Image dxyBxy(paddedWidth, paddedHeight, 1, 2);    
+        Image dxPx(paddedWidth, paddedHeight, 1, 2);
+        Image dyPy(paddedWidth, paddedHeight, 1, 2);
+        Image dxyPxy(paddedWidth, paddedHeight, 1, 2);
+        Image dxBx(paddedWidth, paddedHeight, 1, 2);
+        Image dyBy(paddedWidth, paddedHeight, 1, 2);
+        Image dxyBxy(paddedWidth, paddedHeight, 1, 2);
         for (int y = yoffset; y < newheight - 2 + yoffset; y++) {
             for (int x = xoffset; x < newwidth - 2 + xoffset; x++) {
                 dxPx(x, y) = Px(x+1, y) - Px(x, y);
@@ -377,14 +377,14 @@ Image KernelEstimation::apply(Image B, int kernelSize) {
         ComplexMultiply::apply(dxBx, dxPx, true);
         ComplexMultiply::apply(dyBy, dyPy, true);
         ComplexMultiply::apply(dxyBxy, dxyPxy, true);
-	for (int c = 0; c < 2; c++)
-	    for (int y = 0; y < paddedHeight; y++)
-		for (int x = 0; x < paddedWidth; x++)
-                    CoeffB(x, y, c) = (50.0f * (Bx(x, y, c) + By(x, y, c)) + 
-				       25.0f * (dxBx(x, y, c) + dyBy(x, y, c)) +
-				       12.5f * (dxyBxy(x, y, c)));
+        for (int c = 0; c < 2; c++)
+            for (int y = 0; y < paddedHeight; y++)
+                for (int x = 0; x < paddedWidth; x++)
+                    CoeffB(x, y, c) = (50.0f * (Bx(x, y, c) + By(x, y, c)) +
+                                       25.0f * (dxBx(x, y, c) + dyBy(x, y, c)) +
+                                       12.5f * (dxyBxy(x, y, c)));
         InverseFourierTransform(CoeffB);
-    
+
         // Compute CoeffA
         ComplexMultiply::apply(Px, Px, true);
         ComplexMultiply::apply(Py, Py, true);
@@ -393,15 +393,15 @@ Image KernelEstimation::apply(Image B, int kernelSize) {
         ComplexMultiply::apply(dxyPxy, dxyPxy, true);
         for (int y = 0; y < paddedHeight; y++)
             for (int x = 0; x < paddedWidth; x++)
-		CoeffA(x, y) = (50.0f * (Px(x, y) + Py(x, y)) + 
-				25.0f * (dxPx(x, y) + dyPy(x, y)) +
-				12.5f * (dxyPxy(x, y)) + 
-				2.0f * beta);
+                CoeffA(x, y) = (50.0f * (Px(x, y) + Py(x, y)) +
+                                25.0f * (dxPx(x, y) + dyPy(x, y)) +
+                                12.5f * (dxyPxy(x, y)) +
+                                2.0f * beta);
 
         // Enlarge the kernel
         K = enlargeKernel(K, paddedWidth, paddedHeight);
         toc = currentTime(); printf(" CG Setup  : %.3f sec\n", toc - tic); tic = toc;
-    
+
         // Actual conjugate gradient iterations.
         for (int i = 0; i < CG_ITERATIONS && i < m * m; i++) {
             /*
@@ -422,20 +422,20 @@ Image KernelEstimation::apply(Image B, int kernelSize) {
                     if (xOld >= paddedWidth) xOld = 0;
                     score += (K2(xOld, yOld) * 0.5f - CoeffB(xOld, yOld)) * K(xOld, yOld);
                     }
-                    }     
+                    }
                     printf("Iteration %d CG %d: %f\n", iteration, i, score); */
 
             // 1) Compute residual Ri: CoeffB - CoeffA * K,
             // In subsequent iterations, Ri = CoeffB - CoeffA * (K{i-1} + delta) = R{i-1} - CoeffA * Di * coeff
             Ri[i] = Image(paddedWidth, paddedHeight, 1, 1);
             if (i == 0) {
-		Image tmp = K.copy();
+                Image tmp = K.copy();
                 FourierTransform(tmp);  // tmp = F{K}
                 ComplexMultiply::apply(tmp, CoeffA, false); // tmp =  F{CoeffA} F{K}
                 InverseFourierTransform(tmp); // tmp = CoeffA * K
                 for (int y = 0; y < m; y++) {
                     int yOld = (y - (m / 2) + paddedHeight) % paddedHeight;
-                    int xOld = ( - (m / 2) + paddedWidth) % paddedWidth;
+                    int xOld = (- (m / 2) + paddedWidth) % paddedWidth;
                     for (int x = 0; x < m; x++, xOld++) {
                         if (xOld >= paddedWidth) xOld = 0;
                         Ri[i](xOld, yOld) = CoeffB(xOld, yOld) - tmp(xOld, yOld);
@@ -444,12 +444,12 @@ Image KernelEstimation::apply(Image B, int kernelSize) {
             } else {
                 for (int y = 0; y < m; y++) {
                     int yOld = (y - (m / 2) + paddedHeight) % paddedHeight;
-                    int xOld = ( - (m / 2) + paddedWidth) % paddedWidth;
+                    int xOld = (- (m / 2) + paddedWidth) % paddedWidth;
                     for (int x = 0; x < m; x++, xOld++) {
                         if (xOld >= paddedWidth) xOld = 0;
                         Ri[i](xOld, yOld) = Ri[i-1](xOld, yOld) - alpha * CoeffADi(xOld, yOld);
                     }
-                }	
+                }
             }
 
             // 2) Compute search direction, Di.
@@ -461,7 +461,7 @@ Image KernelEstimation::apply(Image B, int kernelSize) {
                     float modifierBottom = 0.f;
                     for (int y = 0; y < m; y++) {
                         int yOld = (y - (m / 2) + paddedHeight) % paddedHeight;
-                        int xOld = ( - (m / 2) + paddedWidth) % paddedWidth;
+                        int xOld = (- (m / 2) + paddedWidth) % paddedWidth;
                         for (int x = 0; x < m; x++, xOld++) {
                             if (xOld >= paddedWidth) xOld = 0;
                             modifierTop += Ri[i](xOld, yOld) * Ri[i](xOld, yOld);
@@ -472,7 +472,7 @@ Image KernelEstimation::apply(Image B, int kernelSize) {
                     if (modifierTop < 0.000001f) break;
                     for (int y = 0; y < m; y++) {
                         int yOld = (y - (m / 2) + paddedHeight) % paddedHeight;
-                        int xOld = ( - (m / 2) + paddedWidth) % paddedWidth;
+                        int xOld = (- (m / 2) + paddedWidth) % paddedWidth;
                         for (int x = 0; x < m; x++, xOld++) {
                             if (xOld >= paddedWidth) xOld = 0;
                             Di(xOld, yOld) = Ri[i](xOld, yOld) + Di(xOld, yOld) * modifier;
@@ -493,7 +493,7 @@ Image KernelEstimation::apply(Image B, int kernelSize) {
                 float denominator = 0.f;
                 for (int y = 0; y < m; y++) {
                     int yOld = (y - (m / 2) + paddedHeight) % paddedHeight;
-                    int xOld = ( - (m / 2) + paddedWidth) % paddedWidth;
+                    int xOld = (- (m / 2) + paddedWidth) % paddedWidth;
                     for (int x = 0; x < m; x++, xOld++) {
                         if (xOld >= paddedWidth) xOld = 0;
                         numerator += Ri[i](xOld, yOld) * Ri[i](xOld, yOld);
@@ -503,8 +503,8 @@ Image KernelEstimation::apply(Image B, int kernelSize) {
                 alpha = numerator / denominator;
                 for (int y = 0; y < m; y++) {
                     int yOld = (y - (m / 2) + paddedHeight) % paddedHeight;
-                    int xOld = ( - (m / 2) + paddedWidth) % paddedWidth;
-                    for (int x = 0; x < m; x++, xOld++) {	  
+                    int xOld = (- (m / 2) + paddedWidth) % paddedWidth;
+                    for (int x = 0; x < m; x++, xOld++) {
                         if (xOld >= paddedWidth) xOld = 0;
                         K(xOld, yOld) += Di(xOld, yOld) * alpha;
                     }
@@ -538,7 +538,7 @@ Image KernelEstimation::apply(Image B, int kernelSize) {
             }
         }
         float offsetX = avgX - (m / 2);
-        float offsetY = avgY - (m / 2);        
+        float offsetY = avgY - (m / 2);
         K = Translate::apply(K, -offsetX, -offsetY, 0);
         normalizeSum(K);
         toc = currentTime(); printf(" CG        : %.3f sec\n", toc - tic); tic = toc;

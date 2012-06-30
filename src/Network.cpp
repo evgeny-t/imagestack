@@ -165,14 +165,14 @@ Image TCPConnection::recvImage() {
     Image im(header[0], header[1], header[2], header[3]);
 
     for (int c = 0; c < im.channels; c++) {
-	for (int t = 0; t < im.frames; t++) {
-	    for (int y = 0; y < im.height; y++) {
-		// receive a scanline	    
-		recv((char *)&im(0, y, t, c), im.width * sizeof(float));
+        for (int t = 0; t < im.frames; t++) {
+            for (int y = 0; y < im.height; y++) {
+                // receive a scanline
+                recv((char *)&im(0, y, t, c), im.width * sizeof(float));
             }
         }
     }
-    
+
     return im;
 }
 
@@ -186,10 +186,10 @@ void TCPConnection::sendImage(Image im) {
     send((char *)header, sizeof(header));
 
     for (int c = 0; c < im.channels; c++) {
-	for (int t = 0; t < im.frames; t++) {
-	    for (int y = 0; y < im.height; y++) {
-		send((char *)&im(0, y, t, c), im.width * sizeof(float));
-	    }
+        for (int t = 0; t < im.frames; t++) {
+            for (int y = 0; y < im.height; y++) {
+                send((char *)&im(0, y, t, c), im.width * sizeof(float));
+            }
         }
     }
 }

@@ -49,13 +49,13 @@ bool Convolve::test() {
     impulse(15, 15, 15, 1) = 2;
     Image kernel(5, 5, 5, 4);
     Noise::apply(kernel, 0, 10);
-    Image correct(32, 32, 32, 2);   
+    Image correct(32, 32, 32, 2);
     correct
-	.region(13, 13, 13, 0, 5, 5, 5, 1)
-	.set(1*kernel.channel(0) + 2*kernel.channel(1));
+    .region(13, 13, 13, 0, 5, 5, 5, 1)
+    .set(1*kernel.channel(0) + 2*kernel.channel(1));
     correct
-	.region(13, 13, 13, 1, 5, 5, 5, 1)
-	.set(1*kernel.channel(2) + 2*kernel.channel(3));
+    .region(13, 13, 13, 1, 5, 5, 5, 1)
+    .set(1*kernel.channel(2) + 2*kernel.channel(3));
     Image result = Convolve::apply(impulse, kernel, Zero, Multiply::Inner);
     return nearlyEqual(result, correct);
 }
@@ -136,11 +136,11 @@ void Convolve::parse(vector<string> args) {
 }
 
 // For a single channel, out += in * filter
-void Convolve::convolveSingle(Image in, Image filter, Image out, 
+void Convolve::convolveSingle(Image in, Image filter, Image out,
                               BoundaryCondition b) {
     assert(in.channels == 1 && filter.channels == 1 && out.channels == 1,
            "convolveSingle should only be called on single-channel images");
-  
+
     int filterSize = filter.frames * filter.width * filter.height;
     assert(filterSize % 2 == 1, "filter must have odd size (%d %d %d)\n", filter.width, filter.height, filter.frames);
 
@@ -165,7 +165,7 @@ void Convolve::convolveSingle(Image in, Image filter, Image out,
                                 float w = filter(xoff-dx, yoff-dy, toff-dt, 0);
                                 v += in(x+dx, y+dy, t+dt, 0) * w;
                             }
-                        }                                        
+                        }
                     }
                     out(x, y, t, 0) += v;
                 }
@@ -179,7 +179,7 @@ void Convolve::convolveSingle(Image in, Image filter, Image out,
                     float weightSum = 0;
                     float v = 0;
                     for (int dt = -toff; dt <= toff; dt++) {
-			if (t + dt < 0) continue;
+                        if (t + dt < 0) continue;
                         if (t + dt >= in.frames) break;
                         for (int dy = -yoff; dy <= yoff; dy++) {
                             if (y + dy < 0) continue;
@@ -191,7 +191,7 @@ void Convolve::convolveSingle(Image in, Image filter, Image out,
                                 v += in(x+dx, y+dy, t+dt, 0) * w;
                                 weightSum += w;
                             }
-                        }                                        
+                        }
                     }
                     if (filterSum != weightSum) {
                         v *= filterSum / weightSum;
@@ -214,7 +214,7 @@ void Convolve::convolveSingle(Image in, Image filter, Image out,
                                 float w = filter(xoff-dx, yoff-dy, toff-dt, 0);
                                 v += in(xc, yc, tc, 0) * w;
                             }
-                        }                                        
+                        }
                     }
                     out(x, y, t, 0) += v;
                 }
@@ -234,7 +234,7 @@ void Convolve::convolveSingle(Image in, Image filter, Image out,
                                 float w = filter(xoff-dx, yoff-dy, toff-dt, 0);
                                 v += in(xc, yc, tc, 0) * w;
                             }
-                        }                                        
+                        }
                     }
                     out(x, y, t, 0) += v;
                 }
@@ -253,39 +253,39 @@ Image Convolve::apply(Image im, Image filter, BoundaryCondition b, Multiply::Mod
                "To perform an inner or matrix product, the channel count "
                "of either the image or the filter must be a multiple of "
                "the channel count of the other.");
-	if (im.channels < filter.channels) {
-	    out = Image(im.width, im.height, im.frames, filter.channels/im.channels);
-	    for (int i = 0; i < filter.channels; i++) {
-		convolveSingle(im.channel(i % im.channels), 
-			       filter.channel(i), 
-			       out.channel(i / im.channels), b);
-	    }
-	} else {
-	    out = Image(im.width, im.height, im.frames, im.channels/filter.channels);
-	    for (int i = 0; i < im.channels; i++) {
-		convolveSingle(im.channel(i), 
-			       filter.channel(i % filter.channels), 
-			       out.channel(i / filter.channels), b);
-	    }	    
-	}
+        if (im.channels < filter.channels) {
+            out = Image(im.width, im.height, im.frames, filter.channels/im.channels);
+            for (int i = 0; i < filter.channels; i++) {
+                convolveSingle(im.channel(i % im.channels),
+                               filter.channel(i),
+                               out.channel(i / im.channels), b);
+            }
+        } else {
+            out = Image(im.width, im.height, im.frames, im.channels/filter.channels);
+            for (int i = 0; i < im.channels; i++) {
+                convolveSingle(im.channel(i),
+                               filter.channel(i % filter.channels),
+                               out.channel(i / filter.channels), b);
+            }
+        }
     } else if (m == Multiply::Outer) {
         out = Image(im.width, im.height, im.frames, im.channels * filter.channels);
         for (int i = 0; i < im.channels; i++) {
             for (int j = 0; j < filter.channels; j++) {
                 convolveSingle(im.channel(i),
                                filter.channel(j),
-                               out.channel(i*filter.channels + j), b);                               
+                               out.channel(i*filter.channels + j), b);
             }
         }
     } else if (m == Multiply::Elementwise) {
         assert(im.channels == filter.channels,
                "For element-wise multiplication, the image "
                "and filter must have the same number of channels.");
-        out = Image(im.width, im.height, im.frames, im.channels);        
+        out = Image(im.width, im.height, im.frames, im.channels);
         for (int i = 0; i < im.channels; i++) {
             convolveSingle(im.channel(i), filter.channel(i), out.channel(i), b);
         }
-        
+
     } else {
         panic("Unknown multiplication mode");
     }

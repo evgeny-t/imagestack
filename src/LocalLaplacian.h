@@ -7,7 +7,7 @@ public:
     void help();
     void parse(vector<string> args);
     static Image apply(const Image im, float alpha, float beta);
- private:
+private:
     static Image pyramidDown(const Image im);
     static Image pyramidUp(const Image im, int w, int h, int f);
 };

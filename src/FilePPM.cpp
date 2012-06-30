@@ -105,7 +105,7 @@ void save(Image im, string filename, int depth) {
     for (int y = 0; y < im.height; y++) {
         for (int x = 0; x < im.width; x++) {
             for (int c = 0; c < im.channels; c++) {
-		float val = im(x, y, c);
+                float val = im(x, y, c);
                 val = clamp(val, 0.0f, 1.0f);
                 val *= maxval;
                 if (maxval < 256) {

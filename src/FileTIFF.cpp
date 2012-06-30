@@ -44,7 +44,7 @@ void readTiff(Image im, TIFF *tiff, unsigned int divisor) {
                "Failed reading scanline\n");
         for (int x = 0; x < im.width; x++) {
             for (int c = 0; c < im.channels; c++) {
-		im(x, y, c) = ((float)buffer[x * im.channels + c]) * multiplier;
+                im(x, y, c) = ((float)buffer[x * im.channels + c]) * multiplier;
             }
         }
     }

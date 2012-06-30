@@ -60,7 +60,7 @@ Image load(string filename) {
                 Imf::Rgba &p = pixels[y][x];
                 // Y-only EXR image is converted to R=Y,G=Y,B=Y when read as
                 // an RGBA image
-		im(x, y) = (float)p.r;
+                im(x, y) = (float)p.r;
             }
         }
         break;
@@ -70,8 +70,8 @@ Image load(string filename) {
                 Imf::Rgba &p = pixels[y][x];
                 // YA-only EXR image is converted to R=Y,G=Y,B=Y when read as
                 // an RGBA image
-		im(x, y, 0) = (float)(p.r);
-		im(x, y, 1) = (float)(p.a);
+                im(x, y, 0) = (float)(p.r);
+                im(x, y, 1) = (float)(p.a);
             }
         }
         break;
@@ -79,9 +79,9 @@ Image load(string filename) {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 Imf::Rgba &p = pixels[y][x];
-		im(x, y, 0) = (float)(p.r);
-		im(x, y, 1) = (float)(p.g);
-		im(x, y, 2) = (float)(p.b);
+                im(x, y, 0) = (float)(p.r);
+                im(x, y, 1) = (float)(p.g);
+                im(x, y, 2) = (float)(p.b);
             }
         }
         break;
@@ -89,10 +89,10 @@ Image load(string filename) {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 Imf::Rgba &p = pixels[y][x];
-		im(x, y, 0) = (float)(p.r);
-		im(x, y, 1) = (float)(p.g);
-		im(x, y, 2) = (float)(p.b);
-		im(x, y, 3) = (float)(p.a);
+                im(x, y, 0) = (float)(p.r);
+                im(x, y, 1) = (float)(p.g);
+                im(x, y, 2) = (float)(p.b);
+                im(x, y, 3) = (float)(p.a);
             }
         }
         break;

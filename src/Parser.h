@@ -65,7 +65,7 @@ public:
     };
 
     struct Negation : public Unary {
-	Negation(Node *a) : Unary(a) {}
+        Negation(Node *a) : Unary(a) {}
         float eval(State &state) {return -arg->eval(state);}
     };
 

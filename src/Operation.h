@@ -8,8 +8,8 @@ public:
     virtual void parse(vector<string>) = 0;
     virtual void help() = 0;
     virtual bool test() {
-	printf("This operation has no test suite\n");
-	return false;
+        printf("This operation has no test suite\n");
+        return false;
     }
 };
 
@@ -22,11 +22,11 @@ class Help : public Operation {
 public:
     void help();
     bool test() {return true;}
-    void parse(vector<string> args);    
+    void parse(vector<string> args);
 };
 
 class Test : public Operation {
-  public:
+public:
     void help();
     bool test() {return true;}
     void parse(vector<string> args);

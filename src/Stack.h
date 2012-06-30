@@ -35,7 +35,7 @@ public:
 };
 
 class Stash : public Operation {
-  public:
+public:
     void help();
     bool test() {return true;}
     void parse(vector<string> args);

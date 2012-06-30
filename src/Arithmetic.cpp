@@ -20,11 +20,11 @@ bool Add::test() {
 void Add::parse(vector<string> args) {
     assert(args.size() == 0, "-add takes no arguments\n");
     if (stack(1).channels > 1) {
-	stack(0) += stack(1);
+        stack(0) += stack(1);
     } else {
-	for (int c = 0; c < stack(0).channels; c++) {
-	    stack(1).channel(c) += stack(1);
-	}
+        for (int c = 0; c < stack(0).channels; c++) {
+            stack(1).channel(c) += stack(1);
+        }
     }
     pull(1);
     pop();
@@ -66,12 +66,12 @@ void Multiply::parse(vector<string> args) {
     Image a = stack(1);
     Image b = stack(0);
     if (a.channels < b.channels) {
-	std::swap(a, b);
+        std::swap(a, b);
         swapped = true;
     }
 
     if (m == Elementwise && a.channels == b.channels) {
-	a *= b;
+        a *= b;
         if (!swapped) pop();
         else {
             Image im = stack(0);
@@ -102,27 +102,27 @@ bool Multiply::test() {
     printf("Testing inner product\n");
     Image c_inner = apply(a, b, Inner);
     float result = c_inner(10, 10, 0, 0);
-    float correct = (a(10, 10, 0, 0) * b(10, 10, 0, 0) + 
-		     a(10, 10, 0, 1) * b(10, 10, 0, 1) + 
-		     a(10, 10, 0, 2) * b(10, 10, 0, 2));
+    float correct = (a(10, 10, 0, 0) * b(10, 10, 0, 0) +
+                     a(10, 10, 0, 1) * b(10, 10, 0, 1) +
+                     a(10, 10, 0, 2) * b(10, 10, 0, 2));
 
     if (fabs(correct - result) > 0.001) return false;
 
     printf("Testing elementwise product\n");
     Image c_elementwise = apply(a, b, Elementwise);
-    if (!nearlyEqual(c_elementwise(10, 10, 0, 1), 
+    if (!nearlyEqual(c_elementwise(10, 10, 0, 1),
                      a(10, 10, 0, 1) * b(10, 10, 0, 1))) return false;
 
     printf("Testing matrix product\n");
     Image c_matrix = apply(matrix, a, Inner);
     if (!nearlyEqual(c_matrix(10, 10, 0, 1),
                      (matrix(10, 10, 0, 3) * a(10, 10, 0, 0) +
-                      matrix(10, 10, 0, 4) * a(10, 10, 0, 1) + 
+                      matrix(10, 10, 0, 4) * a(10, 10, 0, 1) +
                       matrix(10, 10, 0, 5) * a(10, 10, 0, 2)))) return false;
 
     printf("Testing scalar product\n");
     Image c_scalar = apply(a, b.channel(0), Outer);
-    if (!nearlyEqual(c_scalar(10, 10, 0, 1), 
+    if (!nearlyEqual(c_scalar(10, 10, 0, 1),
                      a(10, 10, 0, 1) * b(10, 10, 0, 0))) return false;
 
     return true;
@@ -144,45 +144,45 @@ Image Multiply::apply(const Image a, const Image b, Mode m) {
     if (b.channels == 1) { // scalar-vector case
         out = Image(a.width, a.height, a.frames, a.channels);
 
-	for (int c = 0; c < a.channels; c++) {
-	    out.channel(c).set(a.channel(c) * b);
+        for (int c = 0; c < a.channels; c++) {
+            out.channel(c).set(a.channel(c) * b);
         }
 
     } else if (m == Elementwise) {
         out = Image(a.width, a.height, a.frames, a.channels);
         if (a.channels == b.channels) {
-	    out.set(a * b);
+            out.set(a * b);
         } else {
             int factor = a.channels / b.channels;
-	    int oc = 0;
-	    for (int c = 0; c < factor; c++) {
-		for (int bc = 0; bc < b.channels; bc++) {		    
-		    out.channel(oc).set(a.channel(oc) * b.channel(bc));
-		    oc++;
+            int oc = 0;
+            for (int c = 0; c < factor; c++) {
+                for (int bc = 0; bc < b.channels; bc++) {
+                    out.channel(oc).set(a.channel(oc) * b.channel(bc));
+                    oc++;
                 }
-            }	    
+            }
         }
     } else if (m == Inner) {
         out = Image(a.width, a.height, a.frames, a.channels/b.channels);
         if (a.channels == b.channels) {
-	    for (int c = 0; c < a.channels; c++) {
-		out += a.channel(c) * b.channel(c);
+            for (int c = 0; c < a.channels; c++) {
+                out += a.channel(c) * b.channel(c);
             }
         } else {
             int factor = a.channels / b.channels;
-	    int ac = 0;
-	    for (int oc = 0; oc < factor; oc++) {
-		for (int bc = 0; bc < b.channels; bc++) {
-		    out.channel(oc) += a.channel(ac++) * b.channel(bc);
+            int ac = 0;
+            for (int oc = 0; oc < factor; oc++) {
+                for (int bc = 0; bc < b.channels; bc++) {
+                    out.channel(oc) += a.channel(ac++) * b.channel(bc);
                 }
             }
         }
     } else if (m == Outer) {
         out = Image(a.width, a.height, a.frames, a.channels*b.channels);
-	int oc = 0;
-	for (int ac = 0; ac < a.channels; ac++) {
-	    for (int bc = 0; bc < b.channels; bc++) {
-		out.channel(oc++).set(a.channel(ac) * b.channel(bc));
+        int oc = 0;
+        for (int ac = 0; ac < a.channels; ac++) {
+            for (int bc = 0; bc < b.channels; bc++) {
+                out.channel(oc++).set(a.channel(ac) * b.channel(bc));
             }
         }
     } else {
@@ -210,11 +210,11 @@ bool Subtract::test() {
 void Subtract::parse(vector<string> args) {
     assert(args.size() == 0, "-subtract takes no arguments\n");
     if (stack(1).channels > 0) {
-	stack(0) -= stack(1);
+        stack(0) -= stack(1);
     } else {
-	for (int c = 0; c < stack(0).channels; c++) {
-	    stack(0).channel(c) -= stack(1);
-	}
+        for (int c = 0; c < stack(0).channels; c++) {
+            stack(0).channel(c) -= stack(1);
+        }
     }
     pull(1);
     pop();
@@ -237,11 +237,11 @@ bool Divide::test() {
 void Divide::parse(vector<string> args) {
     assert(args.size() == 0, "-divide takes no arguments\n");
     if (stack(1).channels > 0) {
-	stack(0) /= stack(1);
+        stack(0) /= stack(1);
     } else {
-	for (int c = 0; c < stack(0).channels; c++) {
-	    stack(0).channel(c) /= stack(1);
-	}
+        for (int c = 0; c < stack(0).channels; c++) {
+            stack(0).channel(c) /= stack(1);
+        }
     }
 
     pull(1);
@@ -254,7 +254,7 @@ void Maximum::help() {
 }
 
 bool Maximum::test() {
-    Image a(101, 128, 4, 3), b(101, 128, 4, 3);    
+    Image a(101, 128, 4, 3), b(101, 128, 4, 3);
     Noise::apply(a, -100, 130);
     Noise::apply(b, 17, 82);
     float before = a(10, 10, 2, 2);
@@ -279,9 +279,9 @@ void Maximum::apply(Image a, const Image b) {
            "Cannot compare images of different sizes or channel numbers\n");
 
     for (int c = 0; c < a.channels; c++) {
-	for (int t = 0; t < a.frames; t++) {
-	    for (int y = 0; y < a.height; y++) {
-		for (int x = 0; x < a.width; x++) {
+        for (int t = 0; t < a.frames; t++) {
+            for (int y = 0; y < a.height; y++) {
+                for (int x = 0; x < a.width; x++) {
                     float aVal = a(x, y, t, c);
                     float bVal = b(x, y, t, c);
                     a(x, y, t, c) = max(aVal, bVal);
@@ -298,7 +298,7 @@ void Minimum::help() {
 }
 
 bool Minimum::test() {
-    Image a(101, 128, 4, 3), b(101, 128, 4, 3);    
+    Image a(101, 128, 4, 3), b(101, 128, 4, 3);
     Noise::apply(a, -100, 130);
     Noise::apply(b, 17, 82);
     float before = a(10, 10, 2, 2);
@@ -321,9 +321,9 @@ void Minimum::apply(Image a, const Image b) {
            "Cannot compare images of different sizes or channel numbers\n");
 
     for (int c = 0; c < a.channels; c++) {
-	for (int t = 0; t < a.frames; t++) {
-	    for (int y = 0; y < a.height; y++) {
-		for (int x = 0; x < a.width; x++) {
+        for (int t = 0; t < a.frames; t++) {
+            for (int y = 0; y < a.height; y++) {
+                for (int x = 0; x < a.width; x++) {
                     float aVal = a(x, y, t, c);
                     float bVal = b(x, y, t, c);
                     a(x, y, t, c) = min(aVal, bVal);
@@ -340,9 +340,9 @@ void Log::help() {
 }
 
 bool Log::test() {
-    Image a(101, 128, 4, 3), b(101, 128, 4, 3);    
+    Image a(101, 128, 4, 3), b(101, 128, 4, 3);
     Noise::apply(a, 100, 130);
-    Noise::apply(b, 17, 82);        
+    Noise::apply(b, 17, 82);
     float correct = a(10, 10, 2, 2) * b(10, 10, 2, 2);
     Log::apply(a);
     Log::apply(b);
@@ -359,9 +359,9 @@ void Log::parse(vector<string> args) {
 
 void Log::apply(Image a) {
     for (int c = 0; c < a.channels; c++) {
-	for (int t = 0; t < a.frames; t++) {
-	    for (int y = 0; y < a.height; y++) {
-		for (int x = 0; x < a.width; x++) {
+        for (int t = 0; t < a.frames; t++) {
+            for (int y = 0; y < a.height; y++) {
+                for (int x = 0; x < a.width; x++) {
                     a(x, y, t, c) = logf(a(x, y, t, c));
                 }
             }
@@ -405,7 +405,7 @@ void Abs::help() {
 
 bool Abs::test() {
     Image a(101, 128, 4, 3);
-    Noise::apply(a, -10, -1);        
+    Noise::apply(a, -10, -1);
     float before = a(10, 2, 1, 2);
     Abs::apply(a);
     return a(10, 2, 1, 2) == -before;
@@ -418,9 +418,9 @@ void Abs::parse(vector<string> args) {
 
 void Abs::apply(Image a) {
     for (int c = 0; c < a.channels; c++) {
-	for (int t = 0; t < a.frames; t++) {
-	    for (int y = 0; y < a.height; y++) {
-		for (int x = 0; x < a.width; x++) {
+        for (int t = 0; t < a.frames; t++) {
+            for (int y = 0; y < a.height; y++) {
+                for (int x = 0; x < a.width; x++) {
                     a(x, y, t, c) = fabs(a(x, y, t, c));
                 }
             }
@@ -444,13 +444,13 @@ bool Offset::test() {
     if (!nearlyEqual(a(10, 2, 1, 2), before + 3)) return false;
     before = a(10, 2, 1, 2);
     a += 17.0f;
-    if (!nearlyEqual(a(10, 2, 1, 2), before + 17.0f)) return false;    
+    if (!nearlyEqual(a(10, 2, 1, 2), before + 17.0f)) return false;
     return true;
 }
 
 void Offset::parse(vector<string> args) {
-    assert(args.size() == 1 || (int)args.size() == stack(0).channels, 
-	   "-offset takes either one argument, or one argument per channel\n");
+    assert(args.size() == 1 || (int)args.size() == stack(0).channels,
+           "-offset takes either one argument, or one argument per channel\n");
 
     vector<float> fargs;
     for (size_t i = 0; i < args.size(); i++) {
@@ -458,7 +458,7 @@ void Offset::parse(vector<string> args) {
     }
 
     for (int c = 0; c < stack(0).channels; c++) {
-	stack(0).channel(c) += fargs[c % fargs.size()];
+        stack(0).channel(c) += fargs[c % fargs.size()];
     }
 }
 
@@ -470,7 +470,7 @@ void Scale::help() {
 
 bool Scale::test() {
     Image a(101, 128, 4, 3);
-    Noise::apply(a, -1, 1);    
+    Noise::apply(a, -1, 1);
     float before = a(10, 2, 1, 2);
     a.channel(0) *= 1;
     a.channel(1) *= 2;
@@ -478,13 +478,13 @@ bool Scale::test() {
     if (!nearlyEqual(a(10, 2, 1, 2), before * 3)) return false;
     before = a(10, 2, 1, 2);
     a *= 17.0f;
-    if (!nearlyEqual(a(10, 2, 1, 2), before * 17.0f)) return false;    
+    if (!nearlyEqual(a(10, 2, 1, 2), before * 17.0f)) return false;
     return true;
 }
 
 void Scale::parse(vector<string> args) {
-    assert(args.size() == 1 || (int)args.size() == stack(0).channels, 
-	   "-scale takes either one argument, or one argument per channel\n");
+    assert(args.size() == 1 || (int)args.size() == stack(0).channels,
+           "-scale takes either one argument, or one argument per channel\n");
 
     vector<float> fargs;
     for (size_t i = 0; i < args.size(); i++) {
@@ -492,7 +492,7 @@ void Scale::parse(vector<string> args) {
     }
 
     for (int c = 0; c < stack(0).channels; c++) {
-	stack(0).channel(c) *= fargs[c % fargs.size()];
+        stack(0).channel(c) *= fargs[c % fargs.size()];
     }
 }
 
@@ -519,26 +519,26 @@ bool Gamma::test() {
 }
 
 void Gamma::parse(vector<string> args) {
-    assert(args.size() == 1 || (int)args.size() == stack(0).channels, 
-	   "-gamma takes either one argument, or one argument per channel\n");
+    assert(args.size() == 1 || (int)args.size() == stack(0).channels,
+           "-gamma takes either one argument, or one argument per channel\n");
 
     vector<float> fargs(args.size());
     for (size_t i = 0; i < args.size(); i++) {
-	fargs[i] = readFloat(args[i]);
+        fargs[i] = readFloat(args[i]);
     }
 
     Image im = stack(0);
     for (int c = 0; c < stack(0).channels; c++) {
-	float gamma = fargs[c % args.size()];
-	apply(im.channel(c), gamma);
+        float gamma = fargs[c % args.size()];
+        apply(im.channel(c), gamma);
     }
 }
 
 void Gamma::apply(Image a, float gamma) {
     a.set(
-	Lazy::IfThenElse(a > 0, 
-			 Lazy::pow(a, gamma), 
-			 -Lazy::pow(-a, gamma)));
+        Lazy::IfThenElse(a > 0,
+                         Lazy::pow(a, gamma),
+                         -Lazy::pow(-a, gamma)));
 }
 
 void Mod::help() {
@@ -549,36 +549,36 @@ void Mod::help() {
 
 bool Mod::test() {
     Image a(101, 128, 4, 3);
-    Noise::apply(a, -10, 10);    
+    Noise::apply(a, -10, 10);
     float before = a(10, 2, 1, 2);
-    apply(a, 0.5);    
+    apply(a, 0.5);
     float after = a(10, 2, 1, 2);
     while (before > 0.5) before -= 0.5;
     while (before < 0) before += 0.5;
-    return before == after;    
+    return before == after;
 }
 
 void Mod::parse(vector<string> args) {
-    assert(args.size() == 1 || (int)args.size() == stack(0).channels, 
-	   "-gamma takes either one argument, or one argument per channel\n");
+    assert(args.size() == 1 || (int)args.size() == stack(0).channels,
+           "-gamma takes either one argument, or one argument per channel\n");
 
     vector<float> fargs(args.size());
     for (size_t i = 0; i < args.size(); i++) {
-	fargs[i] = readFloat(args[i]);
+        fargs[i] = readFloat(args[i]);
     }
 
     Image im = stack(0);
     for (int c = 0; c < stack(0).channels; c++) {
-	float m = fargs[c % args.size()];
-	apply(im.channel(c), m);
+        float m = fargs[c % args.size()];
+        apply(im.channel(c), m);
     }
 }
 
 void Mod::apply(Image a, float m) {
     a.set(Lazy::IfThenElse(
-	      a > 0, 
-	      Lazy::fmod(a, m), 
-	      Lazy::fmod(a, m) + m));
+              a > 0,
+              Lazy::fmod(a, m),
+              Lazy::fmod(a, m) + m));
 }
 
 void Clamp::help() {
@@ -590,7 +590,7 @@ void Clamp::help() {
 
 bool Clamp::test() {
     Image a(101, 128, 4, 3);
-    Noise::apply(a, -1, 1);    
+    Noise::apply(a, -1, 1);
     float before = a(10, 2, 1, 2);
     Clamp::apply(a, -0.5, 0.5);
     float after = a(10, 2, 1, 2);
@@ -645,11 +645,11 @@ void DeNaN::parse(vector<string> args) {
 }
 
 namespace {
-    // A scalar version of DeNan. We'll lift it to an image version using the Lazy::Lift operator.
-    float denan(float a, float replacement) {
-	if (isnan(a)) return replacement;
-	return a;
-    }
+// A scalar version of DeNan. We'll lift it to an image version using the Lazy::Lift operator.
+float denan(float a, float replacement) {
+    if (isnan(a)) return replacement;
+    return a;
+}
 }
 void DeNaN::apply(Image a, float replacement) {
     a.set(Lazy::Lift2<denan, Image, Lazy::Const>(a, replacement));
@@ -692,7 +692,7 @@ bool Normalize::test() {
     before -= -3.0f;
     before *= 0.25f;
     printf("%f %f\n", before, after);
-    return after == before;    
+    return after == before;
 }
 
 void Normalize::parse(vector<string> args) {
@@ -706,16 +706,16 @@ void Normalize::apply(Image a) {
     float maxValue = a(0, 0);
 
     for (int c = 0; c < a.channels; c++) {
-	for (int t = 0; t < a.frames; t++) {
-	    for (int y = 0; y < a.height; y++) {
-		for (int x = 0; x < a.width; x++) {		    
+        for (int t = 0; t < a.frames; t++) {
+            for (int y = 0; y < a.height; y++) {
+                for (int x = 0; x < a.width; x++) {
                     minValue = min(a(x, y, t, c), minValue);
                     maxValue = max(a(x, y, t, c), maxValue);
                 }
             }
         }
-    }    
-    
+    }
+
     a.set((a - minValue)/(maxValue - minValue));
 }
 
@@ -729,10 +729,10 @@ void Quantize::help() {
 
 bool Quantize::test() {
     Image a(101, 128, 4, 3);
-    Noise::apply(a, -1, 1);    
+    Noise::apply(a, -1, 1);
     float before = a(2, 14, 3, 1);
     apply(a, 0.5f);
-    float after = a(2, 14, 3, 1);    
+    float after = a(2, 14, 3, 1);
     if (before >= 1) return after == 1.0f;
     if (before >= 0.5) return after == 0.5f;
     if (before >= 0.0) return after == 0.0f;

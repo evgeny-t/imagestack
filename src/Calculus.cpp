@@ -13,16 +13,16 @@
 
 void Gradient::help() {
     pprintf("-gradient takes the backward differences in the dimension specified by"
-	    " the argument. Values outside the image are assumed to be zero, so the"
-	    " first row, or column, or frame, will not change, effectively storing"
-	    " the initial value to make later integration easy. Multiple arguments"
-	    " can be given to differentiate with respect to multiple dimensions in"
-	    " order (although the order does not matter).\n"
-	    "\n"
-	    "Warning: Don't expect to differentiate more than twice and be able to"
-	    " get back the image by integrating. Numerical errors will dominate.\n"
-	    "\n"
-	    "Usage: ImageStack -load a.jpg -gradient x y -save out.jpg\n");
+            " the argument. Values outside the image are assumed to be zero, so the"
+            " first row, or column, or frame, will not change, effectively storing"
+            " the initial value to make later integration easy. Multiple arguments"
+            " can be given to differentiate with respect to multiple dimensions in"
+            " order (although the order does not matter).\n"
+            "\n"
+            "Warning: Don't expect to differentiate more than twice and be able to"
+            " get back the image by integrating. Numerical errors will dominate.\n"
+            "\n"
+            "Usage: ImageStack -load a.jpg -gradient x y -save out.jpg\n");
 }
 
 bool Gradient::test() {
@@ -35,13 +35,13 @@ bool Gradient::test() {
     Image dt = a.copy();
     Gradient::apply(dt, 't');
     for (int i = 0; i < 100; i++) {
-	int x = randomInt(1, a.width-1);
-	int y = randomInt(1, a.height-1);
-	int t = randomInt(1, a.frames-1);
-	int c = randomInt(1, a.channels-1);
-	if (!nearlyEqual(dx(x, y, t, c), a(x, y, t, c) - a(x-1, y, t, c))) return false;
-	if (!nearlyEqual(dy(x, y, t, c), a(x, y, t, c) - a(x, y-1, t, c))) return false;
-	if (!nearlyEqual(dt(x, y, t, c), a(x, y, t, c) - a(x, y, t-1, c))) return false;
+        int x = randomInt(1, a.width-1);
+        int y = randomInt(1, a.height-1);
+        int t = randomInt(1, a.frames-1);
+        int c = randomInt(1, a.channels-1);
+        if (!nearlyEqual(dx(x, y, t, c), a(x, y, t, c) - a(x-1, y, t, c))) return false;
+        if (!nearlyEqual(dy(x, y, t, c), a(x, y, t, c) - a(x, y-1, t, c))) return false;
+        if (!nearlyEqual(dt(x, y, t, c), a(x, y, t, c) - a(x, y, t-1, c))) return false;
     }
     return true;
 }
@@ -92,14 +92,14 @@ void Gradient::apply(Image im, char dimension) {
 
 void Integrate::help() {
     pprintf("-integrate computes partial sums along the given dimension. It is the"
-	    " inverse of the -gradient operator. Multiply dimensions can be given"
-	    " as arguments, for example -integrate x y will produce a summed area"
-	    " table of an image. Allowed dimensions are x, y, or t.\n"
-	    "\n"
-	    "Warning: Don't expect to integrate more than twice and be able to get"
-	    " back the image by differentiating. Numerical errors will dominate.\n"
-	    "\n"
-	    "Usage: ImageStack -load a.jpg -gradient x y -integrate y x -save a.jpg\n");
+            " inverse of the -gradient operator. Multiply dimensions can be given"
+            " as arguments, for example -integrate x y will produce a summed area"
+            " table of an image. Allowed dimensions are x, y, or t.\n"
+            "\n"
+            "Warning: Don't expect to integrate more than twice and be able to get"
+            " back the image by differentiating. Numerical errors will dominate.\n"
+            "\n"
+            "Usage: ImageStack -load a.jpg -gradient x y -integrate y x -save a.jpg\n");
 }
 
 bool Integrate::test() {
@@ -146,7 +146,7 @@ void Integrate::apply(Image im, char dimension) {
     for (int c = 0; c < im.channels; c++) {
         for (int t = mint; t < im.frames; t++) {
             for (int y = miny; y < im.height; y++) {
-                for (int x = minx; x < im.width; x++) {                    
+                for (int x = minx; x < im.width; x++) {
                     im(x, y, t, c) += im(x - dx, y - dy, t - dt, c);
                 }
             }
@@ -158,11 +158,11 @@ void Integrate::apply(Image im, char dimension) {
 
 void GradMag::help() {
     pprintf("-gradmag computes the square gradient magnitude at each pixel in x and"
-	    " y. Temporal gradients are ignored. The gradient is estimated using"
-	    " backward differences, and the image is assumed to be zero outside its"
-	    " bounds.\n"
-	    "\n"
-	    "Usage: ImageStack -load input.jpg -gradmag -save out.jpg\n");
+            " y. Temporal gradients are ignored. The gradient is estimated using"
+            " backward differences, and the image is assumed to be zero outside its"
+            " bounds.\n"
+            "\n"
+            "Usage: ImageStack -load input.jpg -gradmag -save out.jpg\n");
 }
 
 bool GradMag::test() {

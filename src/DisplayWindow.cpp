@@ -73,9 +73,9 @@ void DisplayWindow::setMode(int w, int h, bool f, bool cursorVisible,
 
     // wait on the thread
     if (thread) {
-        while (modeChange) { 
-	  SDL_Delay(1); 
-	}
+        while (modeChange) {
+            SDL_Delay(1);
+        }
     }
 }
 

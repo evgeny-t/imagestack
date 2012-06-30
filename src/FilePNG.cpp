@@ -79,7 +79,7 @@ Image load(string filename) {
             png_bytep srcPtr = row_pointers[y];
             for (int x = 0; x < im.width; x++) {
                 for (int c = 0; c < im.channels; c++) {
-		    im(x, y, c) = LDRtoHDR(bit_scale* (*srcPtr++));
+                    im(x, y, c) = LDRtoHDR(bit_scale* (*srcPtr++));
                 }
             }
         }
@@ -151,7 +151,7 @@ void save(Image im, string filename) {
     // convert the floats to bytes
     row_pointers = new png_bytep[im.height];
     for (int y = 0; y < im.height; y++) {
-	row_pointers[y] = new png_byte[png_get_rowbytes(png_ptr, info_ptr)];
+        row_pointers[y] = new png_byte[png_get_rowbytes(png_ptr, info_ptr)];
         png_bytep dstPtr = row_pointers[y];
         for (int x = 0; x < im.width; x++) {
             for (int c = 0; c < im.channels; c++) {

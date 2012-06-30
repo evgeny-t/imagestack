@@ -27,8 +27,8 @@ int main(int argc, const char **argv) {
     // Call one of ImageStack's operators to smooth it
     im = WLS::apply(im, 1.2f, 0.5f, 0.1f);
 
-	// Use image expressions to mess with it more
-	im.set(im*2 - 0.5);
+    // Use image expressions to mess with it more
+    im.set(im*2 - 0.5);
 
     // Save it out
     Save::apply(im, argv[2]);
