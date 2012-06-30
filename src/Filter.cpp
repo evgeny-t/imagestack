@@ -1309,7 +1309,7 @@ bool CircularFilter::test() {
 	float fy = (y - 10.0f)/5;
 	for (int x = 0; x < 21; x++) {		
 	    float fx = (x - 10.0f)/5;
-	    float correct = (fx*fx + fy*fy) <= 1 ? ratio : 0;
+	    float correct = (fx*fx + fy*fy) <= 1.00001 ? ratio : 0;
 	    if (!nearlyEqual(blurry(x, y, 0, 0), correct*1)) return false;
 	    if (!nearlyEqual(blurry(x, y, 0, 1), correct*2)) return false;
 	    if (!nearlyEqual(blurry(x, y, 0, 2), correct*3)) return false;
@@ -1419,7 +1419,7 @@ bool Envelope::test() {
 
 void Envelope::parse(vector<string> args) {
     assert(args.size() == 2, "-envelope takes two arguments\n");
-    Mode m;
+    Mode m = Lower;
     if (args[0] == "lower") { m = Lower; }
     else if (args[0] == "upper") { m = Upper; }
     else { panic("Unknown mode: %s. Must be lower or upper.\n", args[0].c_str()); }

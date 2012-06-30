@@ -111,8 +111,8 @@ void Convolve::parse(vector<string> args) {
         panic("-convolve needs either zero, one, two, or at least four arguments\n");
     }
 
-    Multiply::Mode m;
-    BoundaryCondition b;
+    Multiply::Mode m = Multiply::Outer;
+    BoundaryCondition b = Homogeneous;
 
     if (boundaryCondition == "zero") { b = Zero; }
     else if (boundaryCondition == "homogeneous") { b = Homogeneous; }

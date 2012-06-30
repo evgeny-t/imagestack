@@ -353,8 +353,8 @@ bool FFTConvolve::test() {
 }
 
 void FFTConvolve::parse(vector<string> args) {
-    Multiply::Mode m;
-    Convolve::BoundaryCondition b;
+    Multiply::Mode m = Multiply::Outer;
+    Convolve::BoundaryCondition b = Convolve::Wrap;
 
     if (args.size() > 0) {
         if (args[0] == "zero") { b = Convolve::Zero; }
@@ -364,8 +364,6 @@ void FFTConvolve::parse(vector<string> args) {
         else {
             panic("Unknown boundary condition: %s\n", args[0].c_str());
         }
-    } else {
-        b = Convolve::Wrap;
     }
 
     if (args.size() > 1) {
@@ -375,8 +373,6 @@ void FFTConvolve::parse(vector<string> args) {
         else {
             panic("Unknown vector-vector multiplication: %s\n", args[1].c_str());
         }
-    } else {
-        m = Multiply::Outer;
     }
 
     Image im = apply(stack(0), stack(1), b, m);

@@ -231,7 +231,7 @@ Image KernelEstimation::apply(Image B, int kernelSize) {
         int m = kernelScale[kernelScale.size()-iteration];
         int newwidth = ((float)m) / kernelSize * B.width;
         int newheight = ((float)m) / kernelSize * B.height;
-        int paddedWidth, paddedHeight;
+        int paddedWidth = 0, paddedHeight = 0;
         for (int i = 0; i < 4; i++) {
             int s;
             for (s = 1; s < newwidth + m - 1; s *= primes[i]);

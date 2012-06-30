@@ -14,7 +14,7 @@ bool Add::test() {
     Noise::apply(b, 17, 82);
     float before = a(10, 10, 2, 2);
     a += b;
-    return a(10, 10, 2, 2) == (before + b(10, 10, 2, 2));
+    return nearlyEqual(a(10, 10, 2, 2), (before + b(10, 10, 2, 2)));
 }
 
 void Add::parse(vector<string> args) {
@@ -96,8 +96,8 @@ bool Multiply::test() {
 
     printf("Testing outer product\n");
     Image c_outer = apply(a, b, Outer);
-    if (c_outer(10, 10, 0, 7) != 
-	a(10, 10, 0, 2) * b(10, 10, 0, 1)) return false;
+    if (!nearlyEqual(c_outer(10, 10, 0, 7),
+                     a(10, 10, 0, 2) * b(10, 10, 0, 1))) return false;
 
     printf("Testing inner product\n");
     Image c_inner = apply(a, b, Inner);
@@ -110,18 +110,20 @@ bool Multiply::test() {
 
     printf("Testing elementwise product\n");
     Image c_elementwise = apply(a, b, Elementwise);
-    if (c_elementwise(10, 10, 0, 1) != a(10, 10, 0, 1) * b(10, 10, 0, 1)) return false;
+    if (!nearlyEqual(c_elementwise(10, 10, 0, 1), 
+                     a(10, 10, 0, 1) * b(10, 10, 0, 1))) return false;
 
     printf("Testing matrix product\n");
     Image c_matrix = apply(matrix, a, Inner);
-    if (c_matrix(10, 10, 0, 1) != 
-	(matrix(10, 10, 0, 3) * a(10, 10, 0, 0) +
-	 matrix(10, 10, 0, 4) * a(10, 10, 0, 1) + 
-	 matrix(10, 10, 0, 5) * a(10, 10, 0, 2))) return false;
+    if (!nearlyEqual(c_matrix(10, 10, 0, 1),
+                     (matrix(10, 10, 0, 3) * a(10, 10, 0, 0) +
+                      matrix(10, 10, 0, 4) * a(10, 10, 0, 1) + 
+                      matrix(10, 10, 0, 5) * a(10, 10, 0, 2)))) return false;
 
     printf("Testing scalar product\n");
     Image c_scalar = apply(a, b.channel(0), Outer);
-    if (c_scalar(10, 10, 0, 1) != a(10, 10, 0, 1) * b(10, 10, 0, 0)) return false;
+    if (!nearlyEqual(c_scalar(10, 10, 0, 1), 
+                     a(10, 10, 0, 1) * b(10, 10, 0, 0))) return false;
 
     return true;
 }
@@ -202,7 +204,7 @@ bool Subtract::test() {
     Noise::apply(b, 17, 82);
     float before = a(10, 10, 2, 2);
     a -= b;
-    return a(10, 10, 2, 2) == (before - b(10, 10, 2, 2));
+    return nearlyEqual(a(10, 10, 2, 2), (before - b(10, 10, 2, 2)));
 }
 
 void Subtract::parse(vector<string> args) {
@@ -229,7 +231,7 @@ bool Divide::test() {
     Noise::apply(b, 17, 82);
     float before = a(10, 10, 2, 2);
     a.channel(2) /= b;
-    return a(10, 10, 2, 2) == (before / b(10, 10, 2, 0));    
+    return nearlyEqual(a(10, 10, 2, 2), (before / b(10, 10, 2, 0)));
 }
 
 void Divide::parse(vector<string> args) {
@@ -439,10 +441,10 @@ bool Offset::test() {
     a.channel(0) += 1;
     a.channel(1) += 2;
     a.channel(2) += 3;
-    if (a(10, 2, 1, 2) != before + 3) return false;
+    if (!nearlyEqual(a(10, 2, 1, 2), before + 3)) return false;
     before = a(10, 2, 1, 2);
     a += 17.0f;
-    if (a(10, 2, 1, 2) != before + 17.0f) return false;    
+    if (!nearlyEqual(a(10, 2, 1, 2), before + 17.0f)) return false;    
     return true;
 }
 
@@ -473,10 +475,10 @@ bool Scale::test() {
     a.channel(0) *= 1;
     a.channel(1) *= 2;
     a.channel(2) *= 3;
-    if (a(10, 2, 1, 2) != before * 3) return false;
+    if (!nearlyEqual(a(10, 2, 1, 2), before * 3)) return false;
     before = a(10, 2, 1, 2);
     a *= 17.0f;
-    if (a(10, 2, 1, 2) != before * 17.0f) return false;    
+    if (!nearlyEqual(a(10, 2, 1, 2), before * 17.0f)) return false;    
     return true;
 }
 

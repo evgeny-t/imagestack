@@ -76,7 +76,7 @@ bool GaussTransform::test() {
 }
 
 void GaussTransform::parse(vector<string> args) {
-    Method m;
+    Method m = EXACT;
 
     assert(args.size() > 0, "-gausstransform takes at least one argument");
  
@@ -449,28 +449,28 @@ bool JointBilateral::test() {
     // homogeneous sense, so we have to account for that.
     printf("Computing exact solution\n");
     Image out, correct = im.copy();
-    JointBilateral::apply(correct, ref, 3, 4, 0, 0.25, GaussTransform::EXACT);
+    JointBilateral::apply(correct, ref, 3, 4, 1, 0.25, GaussTransform::EXACT);
  
     printf("Testing bilateral grid\n");
     out = im.copy();
-    JointBilateral::apply(out, ref, 3, 4, 0, 0.25, GaussTransform::GRID);
+    JointBilateral::apply(out, ref, 3, 4, 1, 0.25, GaussTransform::GRID);
     if (!nearlyEqual(out, correct)) return false;
 
     printf("Testing permutohedral lattice\n");
     out = im.copy();
-    JointBilateral::apply(out, ref, 3, 4, 0, 0.25, GaussTransform::PERMUTOHEDRAL);
+    JointBilateral::apply(out, ref, 3, 4, 1, 0.25, GaussTransform::PERMUTOHEDRAL);
     if (!nearlyEqual(out, correct)) return false;
 
     printf("Testing Gaussian kd-tree\n");
     out = im.copy();
-    JointBilateral::apply(out, ref, 3, 4, 0, 0.25, GaussTransform::GKDTREE);
+    JointBilateral::apply(out, ref, 3, 4, 1, 0.25, GaussTransform::GKDTREE);
     if (!nearlyEqual(out, correct)) return false;
 
     return true;
 }
 
 void JointBilateral::parse(vector<string> args) {
-    float colorSigma, filterWidth, filterHeight, filterFrames;
+    float colorSigma, filterWidth, filterHeight, filterFrames = 0;
     GaussTransform::Method m = GaussTransform::AUTO;
 
     if (args.size() < 2 || args.size() > 5) {
@@ -696,7 +696,7 @@ bool Bilateral::test() {
 }
 
 void Bilateral::parse(vector<string> args) {
-    float colorSigma, filterWidth, filterHeight, filterFrames;
+    float colorSigma, filterWidth, filterHeight, filterFrames = 0;
     GaussTransform::Method m = GaussTransform::AUTO;
 
     if (args.size() < 2 || args.size() > 5) {

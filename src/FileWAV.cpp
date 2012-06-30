@@ -82,8 +82,8 @@ Image load(string filename) {
     SDL_AudioSpec wav_spec;
     Uint32 wav_length;
     unsigned char *wav_buffer;
-    assert(SDL_LoadWAV(filename.c_str(), &wav_spec, &wav_buffer, &wav_length),
-           "Could not open %s\n", filename.c_str());
+    assert(SDL_LoadWAV(filename.c_str(), &wav_spec, &wav_buffer, &wav_length) != NULL,
+           "Could not open %s: %s\n", filename.c_str(), SDL_GetError());
 
 
     int width = wav_length / wav_spec.channels;

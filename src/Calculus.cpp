@@ -39,9 +39,9 @@ bool Gradient::test() {
 	int y = randomInt(1, a.height-1);
 	int t = randomInt(1, a.frames-1);
 	int c = randomInt(1, a.channels-1);
-	if (dx(x, y, t, c) != a(x, y, t, c) - a(x-1, y, t, c)) return false;
-	if (dy(x, y, t, c) != a(x, y, t, c) - a(x, y-1, t, c)) return false;
-	if (dt(x, y, t, c) != a(x, y, t, c) - a(x, y, t-1, c)) return false;
+	if (!nearlyEqual(dx(x, y, t, c), a(x, y, t, c) - a(x-1, y, t, c))) return false;
+	if (!nearlyEqual(dy(x, y, t, c), a(x, y, t, c) - a(x, y-1, t, c))) return false;
+	if (!nearlyEqual(dt(x, y, t, c), a(x, y, t, c) - a(x, y, t-1, c))) return false;
     }
     return true;
 }
