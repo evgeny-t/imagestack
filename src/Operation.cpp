@@ -219,7 +219,8 @@ void loadOperations() {
     operationMap["-bilateralsharpen"] = new BilateralSharpen();
     operationMap["-chromablur"] = new ChromaBlur();
     operationMap["-nlmeans"] = new NLMeans();
-    operationMap["-nlmeans3d"] = new NLMeans();
+    operationMap["-nlmeans3d"] = new NLMeans3D();
+    operationMap["-fastnlmeans"] = new FastNLMeans();
 
     // Locally Adaptive Hierachical Basis Preconditioned Conjugate Gradients
     operationMap["-lahbpcg"] = new LAHBPCG();

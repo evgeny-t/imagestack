@@ -124,7 +124,7 @@
       <PreprocessorDefinitions>__WIN32__;WIN32;NO_OPENEXR;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <WarningLevel>Level4</WarningLevel>
+      <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <DisableSpecificWarnings>4996;4800;4305;4244;4290;4267;4723;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <PrecompiledHeaderFile>
@@ -187,7 +187,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
-      <WarningLevel>Level4</WarningLevel>
+      <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <DisableSpecificWarnings>4996;4800;4305;4244;4290;4267;4723;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <PrecompiledHeaderFile>
