@@ -64,6 +64,14 @@ public:
                       GaussTransform::Method m = GaussTransform::AUTO);
 };
 
+class FastNLMeans : public Operation {
+public:
+    void help();
+    bool test();
+    void parse(vector<string> args);
+    static Image apply(Image image, float patchSize, float spatialSigma, float patchSigma);
+};
+
 class NLMeans3D : public Operation {
 public:
     void help();

@@ -9,6 +9,7 @@
 #include "Statistics.h"
 #include "Convolve.h"
 #include "File.h"
+#include "Filter.h"
 #include "header.h"
 
 void GaussTransform::help() {
@@ -939,5 +940,105 @@ void NLMeans3D::apply(Image image, float patchSize, int dimensions,
     JointBilateral::apply(image, pca, spatialSigma, spatialSigma, INF, patchSigma);
 };
 
+
+void FastNLMeans::help() {
+    pprintf("-fastnlmeans is a variant of non-local means that is fast for small"
+            " spatial search sizes. The three arguments are the patch size, the"
+            " spatial standard deviation, and the patch-space standard deviation.\n"
+            "\n"
+            "Usage: ImageStack -load noisy.jpg -fastnlmeans 2 3 0.1 -save denoised.jpg");
+}
+
+bool FastNLMeans::test() {
+    Image dog = Downsample::apply(Load::apply("pics/dog1.jpg"), 4, 4, 1);
+    Image noisy = dog.copy();
+    Noise::apply(noisy, -0.4, 0.4);
+    if (nearlyEqual(noisy/2, dog/2)) {
+        printf("Not enough noise was added to perform a proper test!\n");
+        return false;
+    }
+    Image out = FastNLMeans::apply(noisy, 1, 4, 0.1);
+    // For noisy/2 to not be nearly equal dog/2, but noisy to be
+    // nearly equal to dog, a substantial improvement must have been
+    // made.    
+    return nearlyEqual(out, dog);    
+}
+
+void FastNLMeans::parse(vector<string> args) {
+    assert(args.size() == 3, "-fastnlmeans takes three arguments\n");
+    Image out = apply(stack(0), readFloat(args[0]), readFloat(args[1]), readFloat(args[2]));
+    pop();
+    push(out);
+}
+
+Image FastNLMeans::apply(Image im, float patchSize, float spatialSigma, float patchSigma) {
+    Image out = im.copy();
+    Image weight(im.width, im.height, im.frames, 1);
+    weight.set(1);
+
+    // Iterate over all offsets
+    int radius = (int)(ceilf(spatialSigma*4));
+    for (int dy = -radius; dy <= radius; dy++) {
+        for (int dx = -radius; dx <= radius; dx++) {
+            if (dx == 0 && dy == 0) {
+                // Already taken care of in the initialization of out and weight
+                continue;
+            }
+            if (dx < 0 || (dx == 0 && dy < 0)) {
+                // We take care of these cases using symmetry
+                continue;
+            }
+
+            float spatialWeight = expf(-(dx*dx + dy*dy)/(2*spatialSigma*spatialSigma));
+            if (spatialWeight < 0.05) continue;
+
+            // 1) Compare image to shifted version of itself
+            // size of overlap region
+            const int w = im.width - abs(dx);
+            const int h = im.height - abs(dy);
+            const int f = im.frames;
+            // Subtract
+            Image delta = 
+                im.region(max(dx, 0), max(dy, 0), 0, 0, w, h, f, im.channels) -
+                im.region(max(-dx, 0), max(-dy, 0), 0, 0, w, h, f, im.channels);
+
+            // 2) blur the square difference to get the patch-space distance
+            FastBlur::apply(delta, patchSize, patchSize, 0);
+            // Sum over color channels
+            for (int c = 1; c < delta.channels; c++) {
+                delta.channel(0) += delta.channel(c);
+            }
+            delta = delta.channel(0);
+
+            if (dx == 1 && dy == 1) Save::apply(delta, "delta.tmp");
+
+            // 3) Pass the patch-space distance into a
+            // cheap-to-compute Gaussian-like function to get the
+            // patch weight. The -0.1 and the max makes it truncate at
+            // 3 standard deviations.
+            delta.set(spatialWeight * max(0, 1.1f/((delta*delta)/(patchSigma*patchSigma) + 1) - 0.1));
+
+            if (dx == 1 && dy == 1) Save::apply(delta, "delta2.tmp");
+
+            // 4) Accumulate into the output.
+            // We transfer energy in the +dx, +dy and the -dx, -dy directions using the same weights
+            weight.region(max(dx, 0), max(dy, 0), 0, 0, w, h, f, 1) += delta;
+            weight.region(max(-dx, 0), max(-dy, 0), 0, 0, w, h, f, 1) += delta;
+            for (int c = 0; c < im.channels; c++) {                
+                out.region(max(dx, 0), max(dy, 0), 0, c, w, h, f, 1) += delta * 
+                    im.region(max(-dx, 0), max(-dy, 0), 0, c, w, h, f, 1);
+                out.region(max(-dx, 0), max(-dy, 0), 0, c, w, h, f, 1) += delta * 
+                    im.region(max(dx, 0), max(dy, 0), 0, c, w, h, f, 1);
+            }
+        }
+    }
+
+    // Normalize
+    weight.set(1.0f/weight);
+    for (int c = 0; c < out.channels; c++) {
+        out.channel(c) *= weight;
+    }
+    return out;
+}
 
 #include "footer.h"
