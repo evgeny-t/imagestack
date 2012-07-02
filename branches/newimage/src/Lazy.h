@@ -201,10 +201,10 @@ struct Floor {
             type v;
         } v;
         v.v = a;
-        v.f[0] = scalar(f[0]);
-        v.f[1] = scalar(f[1]);
-        v.f[2] = scalar(f[2]);
-        v.f[3] = scalar(f[3]);
+        v.f[0] = scalar(v.f[0]);
+        v.f[1] = scalar(v.f[1]);
+        v.f[2] = scalar(v.f[2]);
+        v.f[3] = scalar(v.f[3]);
         return v.v;
     }
 };
@@ -216,10 +216,10 @@ struct Ceil {
             type v;
         } v;
         v.v = a;
-        v.f[0] = scalar(f[0]);
-        v.f[1] = scalar(f[1]);
-        v.f[2] = scalar(f[2]);
-        v.f[3] = scalar(f[3]);
+        v.f[0] = scalar(v.f[0]);
+        v.f[1] = scalar(v.f[1]);
+        v.f[2] = scalar(v.f[2]);
+        v.f[3] = scalar(v.f[3]);
         return v.v;
     }
 };
@@ -231,10 +231,10 @@ struct Sqrt {
             type v;
         } v;
         v.v = a;
-        v.f[0] = scalar(f[0]);
-        v.f[1] = scalar(f[1]);
-        v.f[2] = scalar(f[2]);
-        v.f[3] = scalar(f[3]);
+        v.f[0] = scalar(v.f[0]);
+        v.f[1] = scalar(v.f[1]);
+        v.f[2] = scalar(v.f[2]);
+        v.f[3] = scalar(v.f[3]);
         return v.v;
     }
 };
@@ -1043,7 +1043,6 @@ struct Lazyable<double> {
 MAKE_OP(BinaryOp, +, Add)
 MAKE_OP(BinaryOp, -, Sub)
 MAKE_OP(BinaryOp, *, Mul)
-MAKE_OP(BinaryOp, /, Div)
 MAKE_OP(Cmp, >, GT)
 MAKE_OP(Cmp, <, LT)
 MAKE_OP(Cmp, >=, GE)
@@ -1056,6 +1055,28 @@ template<typename A>
 Lazy::BinaryOp<Lazy::Const, typename A::Lazy, Lazy::Vec::Sub>
 operator-(const A &a) {
     return Lazy::Const(0.0f) - a;
+}
+
+// Division by a scalar is another special case
+MAKE_OP_LL(BinaryOp, /, Div)
+MAKE_OP_CL(BinaryOp, /, Div, float)
+MAKE_OP_CL(BinaryOp, /, Div, double)
+MAKE_OP_CL(BinaryOp, /, Div, int)
+
+template<typename A>
+Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Mul>
+operator/(const A &a, float b) {
+    return a * (1.0f/b);
+}
+template<typename A>
+Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Mul>
+operator/(const A &a, int b) {
+    return a * (1.0f/b);
+}
+template<typename A>
+Lazy::BinaryOp<typename A::Lazy, Lazy::Const, Lazy::Vec::Mul>
+operator/(const A &a, double b) {
+    return a * (1.0f/b);
 }
 
 #include "footer.h"
