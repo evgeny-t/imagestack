@@ -37,6 +37,7 @@ public:
     void help();
     bool test();
     void parse(vector<string> args);
+    void apply(Image image, Image mask, int numIter = 5, int numIterPM = 5);
 };
 
 #include "footer.h"

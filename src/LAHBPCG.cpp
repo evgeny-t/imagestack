@@ -4,6 +4,8 @@
 #include "Calculus.h"
 #include "Arithmetic.h"
 #include "Convolve.h"
+#include "Statistics.h"
+#include "Geometry.h"
 #include <list>
 #include "header.h"
 
@@ -818,6 +820,35 @@ void LAHBPCG::help() {
             "                  -lahbpcg 5 0.001 -save out.png\n");
 }
 
+bool LAHBPCG::test() {
+    Image im = Downsample::apply(Load::apply("pics/dog1.jpg"), 4, 4, 1);
+    Image clean = im.copy();
+    Image dx = im.copy();
+    Gradient::apply(dx, 'x');
+    Image dy = im.copy();
+    Gradient::apply(dy, 'y');
+    // Corrupt each term in certain places
+    Image noise(im.width, im.height, im.frames, 1);
+    Noise::apply(noise, -0.3, 0.3);
+    // Mask is high where we will corrupt the data
+    Image dxMask = Select(noise < -0.2, 1, 0);
+    Image dyMask = Select(noise < -0.1, 1, 0) * (1-dxMask);
+    Image imMask = Select(noise < 0, 1, 0) * (1-dxMask) * (1-dyMask);
+    for (int c = 0; c < im.channels; c++) {
+        im.channel(c) += noise*imMask;
+        dx.channel(c) += noise*dxMask;
+        dy.channel(c) += noise*dyMask;
+    }
+
+    // Mask is high where the data is good
+    dxMask.set(1-dxMask);
+    dyMask.set(1-dyMask);
+    imMask.set(1-imMask);
+
+    Image result = LAHBPCG::apply(im, dx, dy, imMask, dxMask, dyMask, 10, 0.01);
+    return nearlyEqual(result, clean);
+}
+
 void LAHBPCG::parse(vector<string> args) {
     assert(args.size() == 2, "-lahbpcg takes two arguments\n");
 
@@ -835,10 +866,6 @@ Image LAHBPCG::apply(Image d, Image gx, Image gy, Image w, Image sx, Image sy, i
     // check to make sure have same # of frames and same # of channels
     // assumes gradient images computed using ImageStack's gradient, which is
     // slightly different from the standard convolution gradient
-    /*Image gx1(d);
-      Image gy1(d);
-      Gradient::apply(gx1, 'x');
-      Gradient::apply(gy1, 'y');*/
 
     // runtime is LINEAR in the number of pixels!
 
