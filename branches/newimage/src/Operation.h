@@ -7,10 +7,7 @@ public:
     virtual ~Operation() {};
     virtual void parse(vector<string>) = 0;
     virtual void help() = 0;
-    virtual bool test() {
-        printf("This operation has no test suite\n");
-        return false;
-    }
+    virtual bool test() = 0;
 };
 
 void loadOperations();

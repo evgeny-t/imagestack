@@ -51,6 +51,16 @@ void LocalLaplacian::help() {
             "Usage: ImageStack -load input.jpg -locallaplacian 1 0 -save boosted.jpg\n");
 }
 
+bool LocalLaplacian::test() {
+    Image im = Downsample::apply(Load::apply("pics/dog1.jpg"), 2, 2, 1);
+    Image enhance = LocalLaplacian::apply(im, 1.2, 0.2);
+    Stats si(im), se(enhance);
+    return (se.minimum() < si.minimum() &&
+            se.maximum() > si.maximum() &&
+            se.variance() > si.variance() &&
+            nearlyEqual(si.mean(), se.mean()));
+}
+
 void LocalLaplacian::parse(vector<string> args) {
     assert(args.size() == 2, "-locallaplacian takes two arguments");
     Image im = stack(0);
