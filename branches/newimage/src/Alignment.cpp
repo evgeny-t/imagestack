@@ -475,13 +475,13 @@ public:
 
     struct Feature : public LocalMaxima::Maximum {
     public:
-        Feature(LocalMaxima::Maximum m, 
-                Image *magPyramid, Image *ornPyramid, 
+        Feature(LocalMaxima::Maximum m,
+                Image *magPyramid, Image *ornPyramid,
                 vector<float> *sigma, float orientation) :
-            LocalMaxima::Maximum(m.x, m.y, floor(m.t+0.5), m.value), 
+            LocalMaxima::Maximum(m.x, m.y, floor(m.t+0.5), m.value),
             usage(0),
             descriptor(m, magPyramid, ornPyramid, sigma, orientation)
-            {}
+        {}
 
         // Distance between two features is the sum of squared differences between the two descriptors
         float distance(Feature *other) {

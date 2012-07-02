@@ -960,8 +960,8 @@ bool FastNLMeans::test() {
     Image out = FastNLMeans::apply(noisy, 1, 4, 0.1);
     // For noisy/2 to not be nearly equal dog/2, but noisy to be
     // nearly equal to dog, a substantial improvement must have been
-    // made.    
-    return nearlyEqual(out, dog);    
+    // made.
+    return nearlyEqual(out, dog);
 }
 
 void FastNLMeans::parse(vector<string> args) {
@@ -998,7 +998,7 @@ Image FastNLMeans::apply(Image im, float patchSize, float spatialSigma, float pa
             const int h = im.height - abs(dy);
             const int f = im.frames;
             // Subtract
-            Image delta = 
+            Image delta =
                 im.region(max(dx, 0), max(dy, 0), 0, 0, w, h, f, im.channels) -
                 im.region(max(-dx, 0), max(-dy, 0), 0, 0, w, h, f, im.channels);
 
@@ -1024,11 +1024,11 @@ Image FastNLMeans::apply(Image im, float patchSize, float spatialSigma, float pa
             // We transfer energy in the +dx, +dy and the -dx, -dy directions using the same weights
             weight.region(max(dx, 0), max(dy, 0), 0, 0, w, h, f, 1) += delta;
             weight.region(max(-dx, 0), max(-dy, 0), 0, 0, w, h, f, 1) += delta;
-            for (int c = 0; c < im.channels; c++) {                
-                out.region(max(dx, 0), max(dy, 0), 0, c, w, h, f, 1) += delta * 
-                    im.region(max(-dx, 0), max(-dy, 0), 0, c, w, h, f, 1);
-                out.region(max(-dx, 0), max(-dy, 0), 0, c, w, h, f, 1) += delta * 
-                    im.region(max(dx, 0), max(dy, 0), 0, c, w, h, f, 1);
+            for (int c = 0; c < im.channels; c++) {
+                out.region(max(dx, 0), max(dy, 0), 0, c, w, h, f, 1) += delta *
+                                                                        im.region(max(-dx, 0), max(-dy, 0), 0, c, w, h, f, 1);
+                out.region(max(-dx, 0), max(-dy, 0), 0, c, w, h, f, 1) += delta *
+                                                                          im.region(max(dx, 0), max(dy, 0), 0, c, w, h, f, 1);
             }
         }
     }

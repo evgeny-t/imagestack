@@ -30,7 +30,7 @@ public:
     Image(int w, int h, int f, int c) :
         width(w), height(h), frames(f), channels(c),
         ystride(w), tstride(w *h), cstride(w *h *f),
-        data(new Payload(w *h *f*c+7)), base(compute_base(data)) {
+        data(new Payload(w *h *f *c+7)), base(compute_base(data)) {
     }
 
     inline float &operator()(int x, int y) const {
@@ -101,7 +101,7 @@ public:
     }
 
     bool dense() const {
-        return (cstride == width*height*frames && tstride == width*height && ystride == width);
+        return (cstride == width *height *frames && tstride == width *height && ystride == width);
     }
 
 

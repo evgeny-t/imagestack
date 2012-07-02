@@ -21,19 +21,19 @@ void LFFocalStack::help() {
 bool LFFocalStack::test() {
     Image im(256, 256, 1, 1);
     // 16 x 16 x 16 x 16 lightfield
-    LightField point(im, 16, 16); 
+    LightField point(im, 16, 16);
     LFPoint::apply(point, 7, 7, 0.5);
     Image stack = LFFocalStack::apply(point, -1, 1, 0.5);
 
     // Should be a focused spot at one particular frame
     float spot = stack(7, 7, 3, 0);
-    
+
     // Zero elsewhere in that frame
     float zero = stack(10, 10, 3, 0);
-    
+
     // At another frame it should be blurred out
     float gray = stack(10, 10, 0, 0);
-    
+
     return spot > 0.75 && nearlyEqual(zero, 0) && gray < spot/16 && gray > spot/256;
 }
 
@@ -121,7 +121,7 @@ void LFPoint::apply(LightField lf, float px, float py, float pz) {
             float pv = v - (lf.vSize-1) * 0.5;
             // figure out the correct x y
             int x = (int)floorf(px + pz*pu + 0.5);
-            int y = (int)floorf(py + pz*pv + 0.5);            
+            int y = (int)floorf(py + pz*pv + 0.5);
             if (x < 0 || x >= lf.xSize || y < 0 || y >= lf.ySize) continue;
             for (int c = 0; c < lf.image.channels; c++) {
                 lf(x, y, u, v, c) = 1;

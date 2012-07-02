@@ -147,7 +147,7 @@ WITH_ALIGNED_STACK( {
     if ((*p)->sign == FFT_SIGN)
         pln->apply((plan *) pln, in[0], in[0]+1, out[0], out[0]+1);
     else
-    { pln->apply((plan *) pln, in[0]+1, in[0], out[0]+1, out[0]); }
+        { pln->apply((plan *) pln, in[0]+1, in[0], out[0]+1, out[0]); }
 })
 
 FFTW_VOIDFUNC F77(execute_split_dft, EXECUTE_SPLIT_DFT)(X(plan) * const p,

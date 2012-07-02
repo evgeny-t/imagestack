@@ -142,9 +142,9 @@ public:
         float x, y, t, value;
 
         Maximum() : x(0), y(0), t(0), value(0) {}
-        Maximum(float x_, float y_, float t_, float value_) : 
+        Maximum(float x_, float y_, float t_, float value_) :
             x(x_), y(y_), t(t_), value(value_) {}
-      
+
         bool operator<(const Maximum &other) const {
             return (value < other.value);
         }
