@@ -1790,7 +1790,7 @@ void Reshape::parse(vector<string> args) {
 }
 
 Image Reshape::apply(Image im, int x, int y, int t, int c) {
-    assert(t * x * y * c == im.frames * im.width * im.height * im.channels,
+    assert(t *x *y *c == im.frames * im.width * im.height * im.channels,
            "New shape uses a different amount of memory that the old shape.\n");
     assert(im.dense(), "Input image is not densely packed in memory");
     Image out(x, y, t, c);

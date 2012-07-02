@@ -324,7 +324,7 @@ bool BidirectionalSimilarity::test() {
     Image noisy = im.copy();
     Noise::apply(noisy, -0.3, 0.3);
     // make sure we added enough noise
-    if (nearlyEqual(noisy, im)) return false; 
+    if (nearlyEqual(noisy, im)) return false;
 
     // We should be able to reconstruct a clean dog by resynthesizing it from the source
     BidirectionalSimilarity::apply(source, noisy, Image(), Image(), 0.5, 5, 5);
