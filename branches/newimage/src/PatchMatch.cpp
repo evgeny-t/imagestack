@@ -209,7 +209,6 @@ Image PatchMatch::apply(Image source, Image target, Image mask, int iterations, 
         for (int t = 0; t < source.frames; t++) {
             for (int y = 0; y < source.height; y++) {
                 for (int x = 0; x < source.width; x++) {
-
                     if (error(x, y, t, 0) > 0) {
 
                         int radius = target.width > target.height ? target.width : target.height;
@@ -318,8 +317,18 @@ void BidirectionalSimilarity::help() {
 }
 
 bool BidirectionalSimilarity::test() {
+    // Retarget a duplicated image down to a smaller version of itself
+    Image im = Downsample::apply(Load::apply("pics/dog1.jpg"), 8, 8, 1);
+    Image source = Adjoin::apply(im, im, 'x');
+    source = Adjoin::apply(source, source, 'y');
+    Image noisy = im.copy();
+    Noise::apply(noisy, -0.3, 0.3);
+    // make sure we added enough noise
+    if (nearlyEqual(noisy, im)) return false; 
 
-    return false;
+    // We should be able to reconstruct a clean dog by resynthesizing it from the source
+    BidirectionalSimilarity::apply(source, noisy, Image(), Image(), 0.5, 5, 5);
+    return nearlyEqual(noisy, im);
 }
 
 void BidirectionalSimilarity::parse(vector<string> args) {
@@ -352,10 +361,21 @@ void BidirectionalSimilarity::apply(Image source, Image target,
                                     float alpha, int numIter, int numIterPM) {
 
 
+    const int patchSize = 5;
 
     // TODO: intelligently crop the input to where the mask is high +
     // patch radius on each side
 
+    // Precompute average patch weights
+    Image sourceWeight, targetWeight;
+    if (sourceMask.defined()) {
+        sourceWeight = sourceMask.copy();
+        RectFilter::apply(sourceWeight, patchSize, patchSize, 1);
+    }
+    if (targetMask.defined()) {
+        targetWeight = targetMask.copy();
+        RectFilter::apply(targetWeight, patchSize, patchSize, 1);
+    }
 
     // recurse
     if (source.width > 32 && source.height > 32 && target.width > 32 && target.height > 32) {
@@ -388,8 +408,6 @@ void BidirectionalSimilarity::apply(Image source, Image target,
     for (int i = 0; i < numIter; i++) {
         printf("."); fflush(stdout);
 
-        int patchSize = 5;
-
         // The homogeneous output for this iteration
         Image out(target.width, target.height, target.frames, target.channels+1);
 
@@ -405,22 +423,10 @@ void BidirectionalSimilarity::apply(Image source, Image target,
                 for (int y = 0; y < source.height; y++) {
                     for (int x = 0; x < source.width; x++) {
 
-                        // Compute the source total patch weight here
-                        float patchWeight = 0;
-                        if (sourceMask.defined()) {
-                            for (int dy = -patchSize/2; dy <= patchSize/2; dy++) {
-                                if (y+dy < 0) continue;
-                                if (y+dy >= source.height) break;
-                                for (int dx = -patchSize/2; dx <= patchSize/2; dx++) {
-                                    if (x+dx < 0) continue;
-                                    if (x+dx >= source.width) break;
-                                    patchWeight += sourceMask(x+dx, y+dy, t, 0);
-                                }
-                            }
-                        }
+                        float patchWeight = sourceWeight.defined() ? sourceWeight(x, y, t, 0) : 1;
 
                         // Don't use source patches that aren't completely defined
-                        if (!(sourceMask.defined()) || patchWeight == patchSize * patchSize) {
+                        if (patchWeight > 0.99) {
 
                             int dstX = (int)completeMatch(x, y, t, 0);
                             int dstY = (int)completeMatch(x, y, t, 1);
@@ -463,28 +469,18 @@ void BidirectionalSimilarity::apply(Image source, Image target,
                 for (int y = 0; y < target.height; y++) {
                     for (int x = 0; x < target.width; x++) {
 
-                        // Weight at this patch. If there's a lot
-                        // of zeros the the target is partially-defined
-                        // here and we should be very forceful.
-                        float patchWeight = 1;
-                        if (targetMask.defined()) {
-                            for (int dy = -patchSize/2; dy <= patchSize/2; dy++) {
-                                if (y+dy < 0) { continue; }
-                                if (y+dy >= out.height) { break; }
-                                for (int dx = -patchSize/2; dx <= patchSize/2; dx++) {
-                                    if (x+dx < 0) continue;
-                                    if (x+dx >= out.width) break;
-                                    patchWeight += 1-targetMask(x+dx, y+dy, t, 0);
-                                }
-                            }
-                        }
+                        float patchWeight = targetWeight.defined() ? targetWeight(x, y, t, 0) : 1;
+
+                        // Target is completely defined here, this iteration is useless
+                        if (patchWeight < 1e-10) continue;
 
                         int dstX = (int)coherentMatch(x, y, t, 0);
                         int dstY = (int)coherentMatch(x, y, t, 1);
                         int dstT = (int)coherentMatch(x, y, t, 2);
                         float weight = 1/(coherentMatch(x, y, t, 3)+1);
 
-                        weight *= patchWeight*patchWeight;
+                        // Make mostly-defined patches up to 100x more forceful
+                        weight *= (1.01 - patchWeight);
 
                         for (int dy = -patchSize/2; dy <= patchSize/2; dy++) {
                             if (y+dy < 0) { continue; }
@@ -532,7 +528,20 @@ void Heal::help() {
 }
 
 bool Heal::test() {
-    return false;
+    // Largely the same test as inpaint
+
+    // A circular mask
+    Image mask(99, 97, 1, 1);
+    Lazy::X x; Lazy::Y y;
+    mask.set(Select((x-50)*(x-50) + (y-50)*(y-50) < 30*30, 0, 1));
+
+    // Patch a corrupted region of a smooth ramp
+    Image im(99, 97, 1, 3);
+    im.set((x + y)/100);
+    Image corrupted = im.copy();
+    Noise::apply(corrupted.region(40, 40, 0, 0, 20, 20, 1, 3), -20, 20);
+    Heal::apply(corrupted, mask);
+    return nearlyEqual(im, corrupted);
 }
 
 void Heal::parse(vector<string> args) {
@@ -541,8 +550,13 @@ void Heal::parse(vector<string> args) {
 
     assert(args.size() < 3, "-heal takes zero, one, or two arguments\n");
 
-    Image mask = stack(1);
-    Image image = stack(0);
+    if (args.size() > 0) { numIter = readInt(args[0]); }
+    if (args.size() > 1) { numIterPM = readInt(args[1]); }
+
+    apply(stack(0), stack(1), numIter, numIterPM);
+}
+
+void Heal::apply(Image image, Image mask, int numIter, int numIterPM) {
 
     // First inpaint across the hole and add noise
     image.set(Inpaint::apply(image, mask));
@@ -552,9 +566,6 @@ void Heal::parse(vector<string> args) {
         noise.channel(c) *= (1-mask);
     }
     image += noise;
-
-    if (args.size() > 0) { numIter = readInt(args[0]); }
-    if (args.size() > 1) { numIterPM = readInt(args[1]); }
 
     BidirectionalSimilarity::apply(image.copy(), image, mask, 1-mask, 0, numIter, numIterPM);
 

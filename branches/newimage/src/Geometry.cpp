@@ -124,9 +124,9 @@ void Downsample::parse(vector<string> args) {
 
 Image Downsample::apply(Image im, int boxWidth, int boxHeight, int boxFrames) {
 
-    if (!((im.width % boxWidth == 0) && (im.height % boxHeight == 0) && (im.frames % boxFrames == 0))) {
-        printf("Warning: Image dimensions are not a multiple of the downsample size. Ignoring some pixels.\n");
-    }
+    //if (!((im.width % boxWidth == 0) && (im.height % boxHeight == 0) && (im.frames % boxFrames == 0))) {
+    //printf("Warning: Image dimensions are not a multiple of the downsample size. Ignoring some pixels.\n");
+    //}
 
     int newWidth = im.width / boxWidth;
     int newHeight = im.height / boxHeight;
