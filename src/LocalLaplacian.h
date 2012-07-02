@@ -5,6 +5,7 @@
 class LocalLaplacian : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(Image im, float alpha, float beta);
 private:

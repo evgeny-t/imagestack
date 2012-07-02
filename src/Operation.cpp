@@ -178,7 +178,6 @@ void loadOperations() {
 
     // lightfield stuff
     operationMap["-lffocalstack"] = new LFFocalStack();
-    operationMap["-lfwarp"] = new LFWarp();
     operationMap["-lfpoint"] = new LFPoint();
 
     // the display code

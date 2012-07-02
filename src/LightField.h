@@ -28,8 +28,8 @@ public:
         int ix[2], iy[2], iu[2], iv[2]; // integer indices
         float wx[2], wy[2], wu[2], wv[2]; // weighting factors
 
-        if ((x < -0.5 || y < -0.5 || x > xSize-0.5 || y > ySize-0.5)
-            || (u < -0.5 || v < -0.5 || u > uSize-0.5 || v > vSize-0.5)) {
+        if ((x < 0 || y < 0 || x > xSize-1 || y > ySize-1)
+            || (u < 0 || v < 0 || u > uSize-1 || v > vSize-1)) {
             // out of bounds, so return zero
             for (int c = 0; c < image.channels; c++) {
                 result[c] = 0;
@@ -93,27 +93,20 @@ public:
     Image image;
     int uSize, vSize;
     int xSize, ySize;
-
-
 };
 
 class LFFocalStack : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static Image apply(LightField im, float minAlpha, float maxAlpha, float deltaAlpha);
-};
-
-class LFWarp : public Operation {
-public:
-    void help();
-    void parse(vector<string> args);
-    static Image apply(LightField lf, Image warper, bool quick);
 };
 
 class LFPoint : public Operation {
 public:
     void help();
+    bool test();
     void parse(vector<string> args);
     static void apply(LightField lf, float x, float y, float z);
 };
