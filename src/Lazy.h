@@ -352,6 +352,13 @@ struct Handle {
     typedef const T type;
 };
 
+/*
+template<>
+struct Handle<Image> {
+    typedef const Image &type;
+};
+*/
+
 // A base class for things which do not depend on image data
 struct Unbounded {
     int getSize(int) const {return 0;}
@@ -468,7 +475,7 @@ struct BinaryOp {
     struct Iter {
         const typename A::Iter a;
         const typename B::Iter b;
-        Iter(const typename A::Iter &a_, const typename B::Iter &b_) : a(a_), b(b_) {}
+        Iter(const typename A::Iter a_, const typename B::Iter b_) : a(a_), b(b_) {}
         float operator[](int x) const {
             return Op::scalar(a[x], b[x]);
         }
@@ -508,7 +515,7 @@ struct Cmp {
     struct Iter {
         const typename A::Iter a;
         const typename B::Iter b;
-        Iter(const typename A::Iter &a_, const typename B::Iter &b_) : a(a_), b(b_) {}
+        Iter(const typename A::Iter a_, const typename B::Iter b_) : a(a_), b(b_) {}
         float operator[](int x) const {
             return Op::scalar(a[x], b[x]) ? 1 : 0;
         }
@@ -593,7 +600,7 @@ struct Lift {
 
     struct Iter {
         const typename A::Iter a;
-        Iter(const typename A::Iter &a_) : a(a_) {}
+        Iter(const typename A::Iter a_) : a(a_) {}
         float operator[](int x) const {return (*fn)(a[x]);}
         Vec::type vec(int x) const {
             union {
@@ -619,14 +626,14 @@ struct UnaryOp {
     typename Handle<A>::type a;
     UnaryOp(const A &a_) : a(a_) {}
     float operator()(int x, int y, int t, int c) const {
-        return Op::scalar(x, y, t, c);
+        return Op::scalar(a(x, y, t, c));
     }
 
     int getSize(int i) const {return a.getSize(i);}
 
     struct Iter {
         const typename A::Iter a;
-        Iter(const typename A::Iter &a_) : a(a_) {}
+        Iter(const typename A::Iter a_) : a(a_) {}
         float operator[](int x) const {return Op::scalar(a[x]);}
         Vec::type vec(int x) const {
             return Op::vec(a.vec(x));
@@ -665,7 +672,7 @@ struct Lift2 {
     struct Iter {
         const typename A::Iter a;
         const typename B::Iter b;
-        Iter(const typename A::Iter &a_, const typename B::Iter &b_) : a(a_), b(b_) {}
+        Iter(const typename A::Iter a_, const typename B::Iter b_) : a(a_), b(b_) {}
         float operator[](int x) const {
             return (*fn)(a[x], b[x]);
         }
@@ -823,9 +830,9 @@ struct _Select {
         const typename A::Iter a;
         const typename B::Iter b;
         const typename C::Iter c;
-        Iter(const typename A::Iter &a_,
-             const typename B::Iter &b_,
-             const typename C::Iter &c_) : a(a_), b(b_), c(c_) {}
+        Iter(const typename A::Iter a_,
+             const typename B::Iter b_,
+             const typename C::Iter c_) : a(a_), b(b_), c(c_) {}
         float operator[](int x) const {
             return a[x] ? b[x] : c[x];
         }
@@ -901,9 +908,9 @@ struct _IfThenElse {
         const typename A::Iter a;
         const typename B::Iter b;
         const typename C::Iter c;
-        Iter(const typename A::Iter &a_,
-             const typename B::Iter &b_,
-             const typename C::Iter &c_) : a(a_), b(b_), c(c_) {}
+        Iter(const typename A::Iter a_,
+             const typename B::Iter b_,
+             const typename C::Iter c_) : a(a_), b(b_), c(c_) {}
         float operator[](int x) const {
             return a[x] ? b[x] : c[x];
         }
@@ -949,29 +956,6 @@ _IfThenElse<typename A::LazyBool, Const, Const>
 IfThenElse(const A &a, const float b, const float c) {
     return _IfThenElse<typename A::LazyBool, Const, Const>(a, Const(b), Const(c));
 }
-
-/*
-// A struct to detect if something can be represented as an expression type
-template<typename T>
-struct ConstCheck;
-
-template<>
-struct ConstCheck<int> {
-typedef Const t;
-};
-template<>
-struct ConstCheck<float> {
-typedef Const t;
-};
-template<>
-struct ConstCheck<double> {
-typedef Const t;
-};
-
-template<>
-struct ConstCheck<Image> {
-};
-*/
 
 // A trait to check if something is ok to be cast to a lazy expression type, and if so, how.
 template<typename T>
