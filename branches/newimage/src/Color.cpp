@@ -379,9 +379,11 @@ Image ColorConvert::rgb2yuv(Image im) {
 
     Image out(im.width, im.height, im.frames, 3);
     Image r = im.channel(0), g = im.channel(1), b = im.channel(2);
+
     out.setChannels(0.299f * r + 0.587f * g + 0.114f * b,
                     -0.169f * r - 0.332f * g + 0.500f * b + 0.5f,
                     0.500f * r - 0.419f * g - 0.0813f * b + 0.5f);
+
     return out;
 }
 
