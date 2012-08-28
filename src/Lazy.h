@@ -22,7 +22,7 @@ namespace Vec {
 typedef __m256 type;
 const int width = 8;
 
-static type broadcast(float v) {
+inline type broadcast(float v) {
     return _mm256_set1_ps(v);
 }
 
@@ -79,7 +79,7 @@ struct NEQ {
 };
 
 // Logical ops
-static type blend(type a, type b, type mask) {
+inline type blend(type a, type b, type mask) {
     return _mm256_blendv_ps(a, b, mask);
 }
 
@@ -98,11 +98,11 @@ struct Sqrt {
 };
 
 // Loads and stores
-static type load(const float *f) {
+inline type load(const float *f) {
     return _mm256_loadu_ps(f);
 }
 
-static void store(type a, float *f) {
+inline void store(type a, float *f) {
     _mm256_storeu_ps(f, a);
 }
 
@@ -111,7 +111,7 @@ static void store(type a, float *f) {
 typedef __m128 type;
 const int width = 4;
 
-static type broadcast(float v) {
+inline type broadcast(float v) {
     return _mm_set1_ps(v);
 }
 
@@ -169,7 +169,7 @@ struct NEQ {
 
 #ifdef __SSE4_1__
 // Logical ops
-static type blend(type a, type b, type mask) {
+inline type blend(type a, type b, type mask) {
     return _mm_blendv_ps(a, b, mask);
 }
 
@@ -188,7 +188,7 @@ struct Sqrt {
 };
 #else
 
-static type blend(type a, type b, type mask) {
+inline type blend(type a, type b, type mask) {
     return _mm_or_ps(_mm_and_ps(mask, b),
                      _mm_andnot_ps(mask, a));
 }
@@ -242,11 +242,11 @@ struct Sqrt {
 #endif
 
 // Loads and stores
-static type load(const float *f) {
+inline type load(const float *f) {
     return _mm_loadu_ps(f);
 }
 
-static void store(type a, float *f) {
+inline void store(type a, float *f) {
     _mm_storeu_ps(f, a);
 }
 
@@ -255,7 +255,7 @@ static void store(type a, float *f) {
 typedef float type;
 const int width = 1;
 
-static type broadcast(float v) {
+inline type broadcast(float v) {
     return v;
 }
 
@@ -312,7 +312,7 @@ struct NEQ {
 };
 
 // Logical ops
-static type blend(bool mask, type a, type b) {
+inline type blend(bool mask, type a, type b) {
     return (mask ? b : a);
 }
 
@@ -331,11 +331,11 @@ struct Sqrt {
 };
 
 // Loads and stores
-static type load(const float *f) {
+inline type load(const float *f) {
     return *f;
 }
 
-static void store(type a, float *f) {
+inline void store(type a, float *f) {
     *f = a;
 }
 

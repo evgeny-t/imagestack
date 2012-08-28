@@ -714,7 +714,7 @@ private:
     };
 
     // Compute a 32-byte aligned address within data
-    static float *compute_base(const std::shared_ptr<const Payload> &payload) {
+    static float *compute_base(const shared_ptr<const Payload> &payload) {
         float *base = payload->data;
         while (((size_t)base) & 0x1f) base++;
         return base;
@@ -737,7 +737,7 @@ private:
                "Region must fit within original image\n");
     }
 
-    std::shared_ptr<const Payload> data;
+    shared_ptr<const Payload> data;
     float *base;
 };
 
