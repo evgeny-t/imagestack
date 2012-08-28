@@ -133,13 +133,12 @@ void ComplexDivide::apply(Image a, Image b, bool conj) {
         // Scalar over scalar
         Image a_real = a.channel(0), a_imag = a.channel(1);
         Image b_real = b.channel(0), b_imag = b.channel(1);
-        auto denom = b_real*b_real + b_imag*b_imag;
         if (conj) {
-            a.setChannels((a_real * b_real - a_imag * b_imag) / denom,
-                          (a_imag * b_real + a_real * b_imag) / denom);
+            a.setChannels((a_real * b_real - a_imag * b_imag) / (b_real * b_real + b_imag * b_imag),
+                          (a_imag * b_real + a_real * b_imag) / (b_real * b_real + b_imag * b_imag));
         } else {
-            a.setChannels((a_real * b_real + a_imag * b_imag) / denom,
-                          (a_imag * b_real - a_real * b_imag) / denom);
+            a.setChannels((a_real * b_real + a_imag * b_imag) / (b_real * b_real + b_imag * b_imag),
+                          (a_imag * b_real - a_real * b_imag) / (b_real * b_real + b_imag * b_imag));
         }
     } else if (b.channels == 2) {
         // Vector over scalar
